@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ditto · MongoDB collection comparator</title>
+<meta name="description" content="ditto compares two MongoDB collections and gives a GREEN / YELLOW / RED verdict with the metrics behind it. Java 25, Spring Boot 4, generic on BSON level.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='16' r='6' fill='%2322a35a'/%3E%3Ccircle cx='23' cy='16' r='6' fill='%2322a35a' fill-opacity='.45'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f3f3f1;
+  --text: #1c1d1f;
+  --muted: #5d6066;
+  --border: #e3e3df;
+  --accent: #1f6feb;
+  --accent-soft: #e8f0fd;
+  --code-bg: #f5f5f3;
+  --green: #1d8a4c;
+  --green-bg: #e6f4ec;
+  --yellow: #8a6100;
+  --yellow-bg: #fdf3d8;
+  --red: #b42318;
+  --red-bg: #fde8e6;
+  --radius: 10px;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111214;
+    --surface: #17181b;
+    --surface-2: #1e2024;
+    --text: #e7e7e4;
+    --muted: #a0a3a9;
+    --border: #2b2d32;
+    --accent: #6ea8fe;
+    --accent-soft: #1b2a44;
+    --code-bg: #1b1d21;
+    --green: #5fd38d;
+    --green-bg: #15301f;
+    --yellow: #f2c14e;
+    --yellow-bg: #33290f;
+    --red: #ff8a80;
+    --red-bg: #3a1714;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: var(--mono); font-size: 0.875em; }
+:not(pre) > code {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.08em 0.35em;
+  white-space: nowrap;
+}
+
+/* layout */
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+header.top {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+header.top .wrap { display: flex; align-items: center; gap: 24px; height: 56px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; color: var(--text); letter-spacing: -0.01em; }
+.brand:hover { text-decoration: none; }
+.brand .dots { display: inline-flex; gap: 4px; }
+.brand .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--green); }
+.brand .dots i:last-child { opacity: .45; }
+nav.links { display: flex; gap: 18px; overflow-x: auto; scrollbar-width: none; flex: 1; }
+nav.links::-webkit-scrollbar { display: none; }
+nav.links a { color: var(--muted); font-size: 14px; white-space: nowrap; }
+nav.links a:hover { color: var(--text); text-decoration: none; }
+.gh { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); white-space: nowrap; }
+.gh svg { width: 18px; height: 18px; fill: currentColor; }
+
+section { padding: 56px 0 8px; }
+h1, h2, h3 { letter-spacing: -0.02em; line-height: 1.25; }
+h2 { font-size: 28px; margin: 0 0 8px; }
+h2 + .lead { margin-top: 0; }
+h3 { font-size: 19px; margin: 32px 0 8px; }
+.lead { color: var(--muted); font-size: 17px; max-width: 70ch; }
+p { max-width: 75ch; }
+
+/* hero */
+.hero { padding: 72px 0 40px; }
+.hero h1 { font-size: clamp(34px, 6vw, 52px); margin: 0 0 16px; letter-spacing: -0.035em; }
+.hero h1 span { color: var(--muted); font-weight: 500; }
+.hero p.lead { font-size: 19px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 0; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 15px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+.btn:hover { text-decoration: none; border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { .btn.primary { color: #0b1220; } }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.meta span { font-size: 13px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; background: var(--surface); }
+
+/* verdict chips */
+.chip { display: inline-block; font: 600 12px/1 var(--sans); letter-spacing: .04em; padding: 4px 8px; border-radius: 999px; vertical-align: 1px; }
+.chip.green { color: var(--green); background: var(--green-bg); }
+.chip.yellow { color: var(--yellow); background: var(--yellow-bg); }
+.chip.red { color: var(--red); background: var(--red-bg); }
+
+/* cards */
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 24px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 18px 14px; }
+.card h4 { margin: 0 0 6px; font-size: 16px; }
+.card p { margin: 0 0 6px; color: var(--muted); font-size: 15px; }
+.card .num { font: 600 13px var(--mono); color: var(--accent); }
+
+/* code */
+.code { position: relative; margin: 14px 0 18px; }
+.code pre {
+  margin: 0; padding: 16px 18px; overflow-x: auto;
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  line-height: 1.55;
+}
+.code .label { position: absolute; top: -10px; left: 14px; font: 600 11px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--bg); padding: 0 6px; }
+.copy {
+  position: absolute; top: 8px; right: 8px; font: 500 12px var(--sans);
+  background: var(--surface); color: var(--muted); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 8px; cursor: pointer; opacity: 0; transition: opacity .15s;
+}
+.code:hover .copy, .copy:focus { opacity: 1; }
+@media (hover: none) { .copy { opacity: 1; } }
+.c { color: var(--muted); }
+
+/* tabs */
+.tabs { margin-top: 20px; }
+.tablist { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.tablist button {
+  font: 600 14px var(--sans); color: var(--muted); background: none; border: 0;
+  padding: 10px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tablist button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.tabpanel[hidden] { display: none; }
+.tabpanel { padding-top: 8px; }
+
+/* steps */
+ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 16px 0 0; }
+ol.steps > li { counter-increment: step; position: relative; padding-left: 40px; margin-bottom: 8px; }
+ol.steps > li::before {
+  content: counter(step); position: absolute; left: 0; top: 2px;
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  font: 600 13px var(--sans); color: var(--accent); background: var(--accent-soft);
+}
+
+/* tables */
+.table { overflow-x: auto; margin: 14px 0 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+td.def { white-space: nowrap; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+
+/* scenarios */
+details.scenario { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 12px 0; }
+details.scenario > summary {
+  list-style: none; cursor: pointer; padding: 16px 18px; display: flex; gap: 14px; align-items: baseline;
+}
+details.scenario > summary::-webkit-details-marker { display: none; }
+details.scenario > summary::after { content: "+"; margin-left: auto; color: var(--muted); font-size: 20px; line-height: 1; }
+details.scenario[open] > summary::after { content: "−"; }
+details.scenario > summary strong { font-size: 16.5px; }
+details.scenario > summary span { color: var(--muted); font-size: 14.5px; }
+details.scenario .body { padding: 0 18px 8px; border-top: 1px solid var(--border); }
+@media (max-width: 640px) { details.scenario > summary { flex-direction: column; gap: 2px; } details.scenario > summary::after { display: none; } }
+
+.note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 15px; }
+.note p { margin: 0; }
+
+footer { margin-top: 64px; padding: 28px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><span class="dots"><i></i><i></i></span>ditto</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#start">Get started</a>
+      <a href="#scenarios">Scenarios</a>
+      <a href="#config">Configuration</a>
+      <a href="#report">Reading a report</a>
+      <a href="#cli">CLI</a>
+    </nav>
+    <a class="gh" href="https://github.com/danielbartl/ditto" aria-label="GitHub repository">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>ditto <span>· did the data survive?</span></h1>
+    <p class="lead">
+      ditto compares two MongoDB collections and tells you how similar they are, with a
+      <span class="chip green">GREEN</span> <span class="chip yellow">YELLOW</span> <span class="chip red">RED</span>
+      verdict and the metrics behind it. It works on raw BSON, so it knows nothing about your
+      documents and works with any schema.
+    </p>
+    <p>
+      Built for one situation in particular: a batch job has just replaced a collection, and you have the previous
+      state in a backup. Can you trust the new data, or should you roll back?
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="#start">Get started</a>
+      <a class="btn" href="https://github.com/danielbartl/ditto">View on GitHub</a>
+      <a class="btn" href="https://github.com/danielbartl/ditto#readme">Full README</a>
+    </div>
+    <div class="meta">
+      <span>Java 25</span><span>Spring Boot 4.1</span><span>MongoDB 4.4+</span>
+      <span>Library + CLI</span><span>Streaming, constant memory</span><span>MIT licensed</span>
+    </div>
+  </section>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <p class="lead">
+      Documents are matched by key, compared in a canonical form, and profiled for structure, all in one streaming
+      pass. Four kinds of signal feed the verdict.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <span class="num">01</span>
+        <h4>Keys</h4>
+        <p>Matched, added and removed documents. <code>keySimilarity</code> = matched / (matched + added + removed).</p>
+      </div>
+      <div class="card">
+        <span class="num">02</span>
+        <h4>Content</h4>
+        <p>SHA-256 of a canonical form: sorted fields, arrays as multisets, numbers by value. Field order and
+          <code>42</code> vs <code>42.0</code> don't count as changes.</p>
+      </div>
+      <div class="card">
+        <span class="num">03</span>
+        <h4>Changed paths</h4>
+        <p>Which fields changed, and how often, e.g. <code>items[].price</code> in 3% of documents. One field
+          changing everywhere means a broken mapping.</p>
+      </div>
+      <div class="card">
+        <span class="num">04</span>
+        <h4>Structure</h4>
+        <p>A <code>path → BSON type</code> histogram per side: vanished fields, new fields, and type shifts like
+          int → double.</p>
+      </div>
+    </div>
+    <p style="margin-top:24px">
+      Each signal gets a level from configurable thresholds, and the <strong>overall verdict is the worst level</strong>.
+      The report records which rule fired and why, with example keys you can paste straight into mongosh.
+    </p>
+  </section>
+
+  <section id="start">
+    <h2>Get started</h2>
+    <p class="lead">Embed the library in a Spring Boot application, or run the CLI against any MongoDB.</p>
+
+    <div class="tabs" data-tabs>
+      <div class="tablist" role="tablist">
+        <button role="tab" aria-selected="true" aria-controls="tab-lib" id="t-lib">Spring Boot library</button>
+        <button role="tab" aria-selected="false" aria-controls="tab-cli" id="t-cli" tabindex="-1">Command line</button>
+        <button role="tab" aria-selected="false" aria-controls="tab-play" id="t-play" tabindex="-1">Local playground</button>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="tab-lib" aria-labelledby="t-lib">
+        <ol class="steps">
+          <li>
+            <p><strong>Install the artifact.</strong> It isn't on Maven Central yet, so install it into your local
+              repository (or a company repository) from source:</p>
+            <div class="code"><pre>git clone https://github.com/danielbartl/ditto.git
+cd ditto &amp;&amp; ./mvnw install -DskipTests</pre></div>
+          </li>
+          <li>
+            <p><strong>Add the dependency.</strong> Your application needs Spring Boot 4 with MongoDB configured
+              (<code>spring.mongodb.*</code>). Auto-configuration does the rest.</p>
+            <div class="code"><span class="label">pom.xml</span><pre>&lt;dependency&gt;
+    &lt;groupId&gt;dev.jbaby.ditto&lt;/groupId&gt;
+    &lt;artifactId&gt;comparator-core&lt;/artifactId&gt;
+    &lt;version&gt;0.1.0-SNAPSHOT&lt;/version&gt;
+&lt;/dependency&gt;</pre></div>
+          </li>
+          <li>
+            <p><strong>Inject <code>CollectionComparator</code> and compare.</strong></p>
+            <div class="code"><span class="label">Java</span><pre>@Service
+class ReplicationCheck {
+
+    private final CollectionComparator comparator;
+
+    ReplicationCheck(CollectionComparator comparator) {
+        this.comparator = comparator;
+    }
+
+    Level verify() {
+        ComparisonReport report = comparator.compare(
+                ComparisonRequest.builder("products_backup", "products")
+                        .ignoredPaths("meta.syncedAt", "_class")   <span class="c">// technical fields</span>
+                        .wildcardPaths("attributes.*")             <span class="c">// map with dynamic keys</span>
+                        .build());
+        return report.verdict();                                   <span class="c">// GREEN, YELLOW or RED</span>
+    }
+}</pre></div>
+          </li>
+        </ol>
+        <div class="note"><p>Options you don't set on the request fall back to the <a href="#config"><code>comparator.*</code>
+          properties</a>. Every auto-configured bean is <code>@ConditionalOnMissingBean</code>, so you can replace any
+          of them.</p></div>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="tab-cli" aria-labelledby="t-cli" hidden>
+        <ol class="steps">
+          <li>
+            <p><strong>Build the jar.</strong></p>
+            <div class="code"><pre>git clone https://github.com/danielbartl/ditto.git
+cd ditto &amp;&amp; ./mvnw package -DskipTests
+<span class="c"># → comparator-cli/target/comparator-cli.jar</span></pre></div>
+          </li>
+          <li>
+            <p><strong>Compare two collections.</strong> The report goes to stdout as JSON; logs and a one-line summary
+              go to stderr.</p>
+            <div class="code"><pre>java -jar comparator-cli.jar \
+  --uri="mongodb://user:pass@host:27017" --db=shop \
+  --baseline=products_backup --candidate=products \
+  --ignore=meta.syncedAt --wildcard='attributes.*' \
+  &gt; report.json</pre></div>
+          </li>
+          <li>
+            <p><strong>Use the exit code.</strong></p>
+            <div class="table"><table>
+              <tr><th>Exit code</th><th>Meaning</th></tr>
+              <tr><td><code>0</code></td><td><span class="chip green">GREEN</span></td></tr>
+              <tr><td><code>1</code></td><td><span class="chip yellow">YELLOW</span></td></tr>
+              <tr><td><code>2</code></td><td><span class="chip red">RED</span></td></tr>
+              <tr><td><code>3</code></td><td>Error: bad options, missing collection, unusable keys, connection failure</td></tr>
+            </table></div>
+          </li>
+        </ol>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="tab-play" aria-labelledby="t-play" hidden>
+        <p>Try ditto on generated data before pointing it at real collections. The repository includes a
+          docker-compose MongoDB and a generator that writes a baseline plus a copy with the changes you choose.</p>
+        <div class="code"><pre>docker compose up -d mongo
+./mvnw package -DskipTests
+
+<span class="c"># 50k product-like documents; 3% prices changed, 0.5% deleted, 0.5% added</span>
+SEED_ARGS="--docs=50000 --changes=modify:price:0.03,delete-docs:0.005,add-docs:0.005" \
+  docker compose run --rm seed
+
+java -jar comparator-cli/target/comparator-cli.jar --db=ditto \
+  --baseline=demo_backup --candidate=demo \
+  --ignore=meta.syncedAt --wildcard='attributes.*' --ordered=history</pre></div>
+        <p>Available changes: <code>modify</code>, <code>drop-field</code>, <code>add-field</code>, <code>set-null</code>,
+          <code>int-to-double</code>, <code>to-string</code>, <code>shuffle-arrays</code>, <code>delete-docs</code>,
+          <code>add-docs</code>. See <a href="#generate">the generator reference</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="scenarios">
+    <h2>Usage scenarios</h2>
+    <p class="lead">The same comparison serves several jobs. Open a scenario to see how to set it up.</p>
+
+    <details class="scenario" open>
+      <summary><strong>Verify a batch replication, roll back on RED</strong><span>backup vs. freshly synced collection</span></summary>
+      <div class="body">
+        <p>The batch job copies <code>products</code> to <code>products_backup</code>, then upserts
+          <code>products</code> and deletes stale documents. Run the comparison as a separate step afterwards, and
+          react to the verdict:</p>
+        <div class="code"><span class="label">Java</span><pre>ComparisonReport report = comparator.compare(
+        ComparisonRequest.builder("products_backup", "products")
+                .ignoredPaths("meta.syncedAt")
+                .build(),
+        progress -&gt; log.info("{} docs read", progress.processedDocs()));
+
+switch (report.verdict()) {
+    case GREEN  -&gt; log.info("products verified");
+    case YELLOW -&gt; alerts.warn("products", report.id());     <span class="c">// usable; have someone look</span>
+    case RED    -&gt; rollback.restoreFromBackup("products");   <span class="c">// your code, e.g. renameCollection</span>
+}</pre></div>
+        <ul>
+          <li>A RED verdict is a <em>value</em>, not an exception. Exceptions mean the comparison couldn't run
+            meaningfully: <code>ComparisonException</code> for a missing collection or unusable keys,
+            <code>DataAccessException</code> for database errors.</li>
+          <li>Run it from any scheduler (JobRunr, Spring Batch, <code>@Scheduled</code>, Quartz). It's blocking, and
+            stops when its thread is interrupted. The <code>ProgressListener</code> can drive a dashboard progress bar.</li>
+          <li>Don't let the next sync overwrite the backup before verification and rollback are done.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="scenario">
+      <summary><strong>Get a quick verdict on a huge collection</strong><span>SAMPLE mode with confidence intervals</span></summary>
+      <div class="body">
+        <p>FULL mode reads both collections once. When that takes too long, sample instead: ditto draws random keys
+          from both sides (<code>$sample</code>), looks up their counterparts in batches, and reports every rate as a
+          95% Wilson confidence interval.</p>
+        <div class="code"><pre>ComparisonRequest.builder("events_backup", "events").sample(20_000).build();
+
+<span class="c"># CLI</span>
+java -jar comparator-cli.jar ... --sample-size=20000</pre></div>
+        <p>By default (<code>verdict-basis: CONSERVATIVE</code>) each rule evaluates the <em>worse</em> end of the
+          interval, so <span class="chip green">GREEN</span> means "GREEN with 95% confidence". A value right at a
+          threshold may therefore come out <span class="chip yellow">YELLOW</span>. Use a larger sample, or
+          <code>POINT</code>, if you prefer point estimates.</p>
+        <p>A common pattern: a quick SAMPLE verdict right after the sync, then a FULL comparison later.</p>
+      </div>
+    </details>
+
+    <details class="scenario">
+      <summary><strong>Validate a migration or a new pipeline</strong><span>old vs. new database, custom key</span></summary>
+      <div class="body">
+        <p>Compare the output of a rewritten pipeline with the old one, or a migrated database with its source. The
+          two sides can live in different databases of the same cluster, and can be matched by any unique top-level
+          field:</p>
+        <div class="code"><pre>comparator.compare(ComparisonRequest.builder(
+                CollectionRef.of("legacy", "customers"),
+                CollectionRef.of("crm", "customers"))
+        .keyField("customerNo")              <span class="c">// unique on both sides; index it</span>
+        .ignoredPaths("_id", "migratedAt")
+        .nullEqualsMissing(true)             <span class="c">// new pipeline omits nulls</span>
+        .build());</pre></div>
+        <p>Look at <code>topChangedPaths</code> for systematic differences: a path changed in close to 100% of
+          documents points to a format or mapping difference rather than data churn.</p>
+      </div>
+    </details>
+
+    <details class="scenario">
+      <summary><strong>Catch schema drift</strong><span>vanished fields and type shifts</span></summary>
+      <div class="body">
+        <p>Some changes keep every value intact but still break consumers. For example, an upstream system starts
+          writing <code>qty</code> as a double. Content-wise <code>42 == 42.0</code>, so the documents count as
+          unchanged, but the structure check reports a type shift and the verdict is
+          <span class="chip red">RED</span>:</p>
+        <div class="code"><span class="label">report.json</span><pre>"typeShifts": [ {
+  "path": "qty",
+  "baseline":  [ { "type": "INT32",  "docs": 20000, "share": 1.0 } ],
+  "candidate": [ { "type": "DOUBLE", "docs": 20000, "share": 1.0 } ]
+} ]</pre></div>
+        <p>The same check reports fields that disappeared from every document (<code>missingPaths</code>, RED),
+          new fields (YELLOW) and fields that became much rarer or more common (<code>presenceDeltas</code>, YELLOW).</p>
+      </div>
+    </details>
+
+    <details class="scenario">
+      <summary><strong>Gate a deployment or script</strong><span>CLI exit codes and jq</span></summary>
+      <div class="body">
+        <p>The CLI maps the verdict to the exit code and prints nothing but JSON on stdout, so it fits into shell
+          scripts and CI pipelines:</p>
+        <div class="code"><span class="label">bash</span><pre>java -jar comparator-cli.jar --uri="$MONGO_URI" --db=shop \
+  --baseline=products_backup --candidate=products --ignore=meta.syncedAt \
+  --out=report.json &gt; /dev/null
+case $? in
+  0) echo "GREEN" ;;
+  1) echo "YELLOW, continuing"; jq '.rules[] | select(.level != "GREEN") | .reason' report.json ;;
+  2) echo "RED, aborting"; exit 1 ;;
+  *) echo "comparison failed"; exit 1 ;;
+esac</pre></div>
+      </div>
+    </details>
+
+    <details class="scenario">
+      <summary><strong>Tune thresholds from history</strong><span>persist every report</span></summary>
+      <div class="body">
+        <p>The default thresholds are a starting point. Store every report, and after a few weeks you know what normal
+          churn looks like for each collection:</p>
+        <div class="code"><span class="label">application.yml</span><pre>comparator:
+  persistence:
+    enabled: true                     <span class="c"># stores reports in comparison_reports</span>
+  thresholds:
+    unchanged-rate:
+      green: 0.90                     <span class="c"># this collection normally changes ~6% per day</span>
+      yellow: 0.80</pre></div>
+        <div class="code"><span class="label">mongosh</span><pre>db.comparison_reports.find(
+  { candidate: "shop.products" },
+  { verdict: 1, "content.unchangedRate.value": 1, createdAt: 1 }
+).sort({ createdAt: -1 }).limit(30)</pre></div>
+      </div>
+    </details>
+  </section>
+
+  <section id="config">
+    <h2>Configuration</h2>
+    <p class="lead">
+      Every option has a default in <code>application.yml</code> under <code>comparator.*</code>. A request option,
+      when set, overrides the property for that comparison. The report includes the effective settings under
+      <code>run.settings</code>.
+    </p>
+
+    <h3>What to compare</h3>
+    <div class="table"><table>
+      <tr><th>Property</th><th>Request option</th><th>Default</th><th>Meaning</th></tr>
+      <tr><td><code>key-field</code></td><td><code>keyField</code></td><td class="def">_id</td><td>Top-level field matching documents. Must be unique on both sides</td></tr>
+      <tr><td><code>ignored-paths</code></td><td><code>ignoredPaths</code></td><td class="def">–</td><td>Removed before comparing and profiling, e.g. sync timestamps</td></tr>
+      <tr><td><code>order-sensitive-paths</code></td><td><code>orderSensitivePaths</code></td><td class="def">–</td><td>Arrays whose element order matters. All other arrays are multisets</td></tr>
+      <tr><td><code>wildcard-paths</code></td><td><code>wildcardPaths</code></td><td class="def">–</td><td>Maps with dynamic keys, reported as one path. Must end in <code>.*</code></td></tr>
+      <tr><td><code>null-equals-missing</code></td><td><code>nullEqualsMissing</code></td><td class="def">false</td><td>Treat <code>field: null</code> like an absent field</td></tr>
+      <tr><td><code>mixed-key-types</code></td><td><code>mixedKeyPolicy</code></td><td class="def">REJECT</td><td><code>REJECT</code>, or <code>COMPARE</code> to accept keys of different BSON types (e.g. strings and ObjectIds)</td></tr>
+      <tr><td><code>mode</code></td><td><code>fullScan()</code> / <code>sample(n)</code></td><td class="def">FULL</td><td><code>FULL</code> or <code>SAMPLE</code></td></tr>
+      <tr><td><code>sample.size</code></td><td>(in <code>sample(n)</code>)</td><td class="def">10000</td><td>Keys sampled per side</td></tr>
+      <tr><td><code>sample.verdict-basis</code></td><td><code>verdictBasis</code></td><td class="def">CONSERVATIVE</td><td>Evaluate the worse confidence bound, or the <code>POINT</code> estimate</td></tr>
+    </table></div>
+
+    <h3>Path syntax</h3>
+    <div class="table"><table>
+      <tr><th>Pattern</th><th>Matches</th></tr>
+      <tr><td><code>meta.syncedAt</code></td><td>A nested field</td></tr>
+      <tr><td><code>items[].price</code></td><td>Field <code>price</code> of every element of array <code>items</code>; <code>matrix[][]</code> for nested arrays</td></tr>
+      <tr><td><code>attributes.*</code></td><td><code>*</code> matches exactly one field name, e.g. <code>attributes.color</code></td></tr>
+    </table></div>
+
+    <h3>Thresholds</h3>
+    <div class="table"><table>
+      <tr><th>Property (<code>comparator.thresholds.</code>…)</th><th>Default</th><th>Rule</th></tr>
+      <tr><td><code>key-similarity.green / .yellow</code></td><td class="def">0.99 / 0.97</td><td><span class="chip green">GREEN</span> if ≥ green, <span class="chip yellow">YELLOW</span> if ≥ yellow, else <span class="chip red">RED</span></td></tr>
+      <tr><td><code>unchanged-rate.green / .yellow</code></td><td class="def">0.95 / 0.85</td><td>Same: higher is better</td></tr>
+      <tr><td><code>max-path-change-rate.green / .yellow</code></td><td class="def">0.05 / 0.20</td><td><span class="chip green">GREEN</span> if &lt; green, <span class="chip yellow">YELLOW</span> if &lt; yellow, else <span class="chip red">RED</span></td></tr>
+      <tr><td><code>structure.type-share-delta</code></td><td class="def">0.01</td><td>A type's share on a path may move this much before it's a type shift (<span class="chip red">RED</span>)</td></tr>
+      <tr><td><code>structure.presence-delta</code></td><td class="def">0.05</td><td>Presence changes beyond this are <span class="chip yellow">YELLOW</span></td></tr>
+      <tr><td><code>structure.vanished-min-presence</code></td><td class="def">0.0</td><td>Vanished paths rarer than this are <span class="chip yellow">YELLOW</span> instead of <span class="chip red">RED</span></td></tr>
+    </table></div>
+    <p>New paths are always <span class="chip yellow">YELLOW</span>. Per request, use
+      <code>.thresholds(Thresholds.DEFAULTS.withKeySimilarity(new Thresholds.AtLeast(0.995, 0.98)))</code>.</p>
+
+    <h3>Technical settings and persistence</h3>
+    <div class="table"><table>
+      <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
+      <tr><td><code>batch-size</code></td><td class="def">1000</td><td>Cursor batch size</td></tr>
+      <tr><td><code>no-cursor-timeout</code></td><td class="def">false</td><td>Keep idle server cursors alive (long runs of added/removed keys on very large collections)</td></tr>
+      <tr><td><code>max-examples</code></td><td class="def">20</td><td>Example keys per category and per changed path</td></tr>
+      <tr><td><code>max-tracked-paths</code></td><td class="def">10000</td><td>Distinct paths tracked per side; bounds memory. Exceeding it adds a warning</td></tr>
+      <tr><td><code>top-changed-paths</code></td><td class="def">50</td><td>Changed paths listed in the report</td></tr>
+      <tr><td><code>progress-interval</code></td><td class="def">10s</td><td>Progress logging and listener interval</td></tr>
+      <tr><td><code>sample.lookup-batch-size</code></td><td class="def">500</td><td>Keys per <code>$in</code> lookup in SAMPLE mode</td></tr>
+      <tr><td><code>persistence.enabled</code></td><td class="def">false</td><td>Store every report in MongoDB</td></tr>
+      <tr><td><code>persistence.collection</code></td><td class="def">comparison_reports</td><td>Report collection</td></tr>
+      <tr><td><code>persistence.database</code></td><td class="def">default db</td><td>Report database</td></tr>
+    </table></div>
+    <p>The connection itself uses Spring Boot's <code>spring.mongodb.*</code> properties.</p>
+  </section>
+
+  <section id="report">
+    <h2>Reading a report</h2>
+    <p class="lead">Start at the top and work down: verdict, the rules that fired, then the metrics that explain them.</p>
+    <div class="code"><span class="label">report.json (abbreviated)</span><pre>{
+  "verdict": "YELLOW",
+  "rules": [
+    { "rule": "keySimilarity", "level": "GREEN", "observed": 0.9950,
+      "reason": "0.9950 meets GREEN (&gt;= 0.9900) (matched 19900, added 50, removed 50)" },
+    { "rule": "maxPathChangeRate", "level": "YELLOW", "observed": 0.0812,
+      "reason": "Path 'price' changed in 0.0812 of matched documents, at or above the GREEN limit 0.0500 ...",
+      "details": [ "price: 0.0812 (1616 documents)" ] },
+    ...
+  ],
+  "keys":            { "matched": 19900, "added": 50, "removed": 50, "keySimilarity": { "kind": "exact", "value": 0.995 } },
+  "content":         { "unchanged": 18284, "changed": 1616, "unchangedRate": { "value": 0.9188 } },
+  "topChangedPaths": [ { "path": "price", "changedDocs": 1616,
+                         "examples": [ { "type": "OBJECT_ID", "value": "{\"$oid\": \"6553f1212161972337cc2db4\"}" } ] } ],
+  "structure":       { "newPaths": [], "missingPaths": [], "typeShifts": [], "presenceDeltas": [] },
+  "examples":        { "changed": [...], "added": [...], "removed": [...] },
+  "run":             { "durationMillis": 686, "baselineCount": 19950, "settings": { ... } },
+  "warnings":        []
+}</pre></div>
+    <div class="table"><table>
+      <tr><th>If you see…</th><th>It usually means…</th></tr>
+      <tr><td>Many <code>removed</code>, few <code>added</code></td><td>A partial or aborted load</td></tr>
+      <tr><td>Many <code>removed</code> <em>and</em> many <code>added</code></td><td>Key values changed format (<code>"123"</code> vs <code>123</code>) or a new ID scheme</td></tr>
+      <tr><td>One path changed in ~100% of documents</td><td>A mapping/format change in that field, or a technical field that should be ignored</td></tr>
+      <tr><td>Many paths at low rates</td><td>Normal data churn</td></tr>
+      <tr><td>A type shift with unchanged content</td><td>Same values, different BSON type: consumers that read typed values may break</td></tr>
+      <tr><td><code>warnings</code> about the path cap</td><td>A map with dynamic keys: add it to <code>wildcard-paths</code></td></tr>
+    </table></div>
+    <p>Example keys are relaxed Extended JSON, ready for mongosh:
+      <code>db.products.find({_id: {"$oid": "6553f1212161972337cc2db4"}})</code>. Look the same key up in both
+      collections to see the difference.</p>
+  </section>
+
+  <section id="cli">
+    <h2>CLI reference</h2>
+    <p class="lead">Short options map onto the request. Any <code>--comparator.*</code> or
+      <code>--spring.mongodb.*</code> property also works.</p>
+    <div class="table"><table>
+      <tr><th>Option</th><th>Meaning</th></tr>
+      <tr><td><code>--uri</code>, <code>--db</code></td><td>Connection string (default <code>mongodb://localhost:27017</code>) and default database (default <code>test</code>)</td></tr>
+      <tr><td><code>--baseline</code>, <code>--candidate</code></td><td>Collections to compare (required)</td></tr>
+      <tr><td><code>--baseline-db</code>, <code>--candidate-db</code></td><td>Database per side, if not <code>--db</code></td></tr>
+      <tr><td><code>--key</code></td><td>Key field</td></tr>
+      <tr><td><code>--ignore</code>, <code>--ordered</code>, <code>--wildcard</code></td><td>Comma-separated path lists</td></tr>
+      <tr><td><code>--mode=full|sample</code>, <code>--sample-size=n</code></td><td>Comparison mode</td></tr>
+      <tr><td><code>--null-equals-missing</code>, <code>--mixed-key-types</code>, <code>--verdict-basis</code></td><td>As in the configuration table</td></tr>
+      <tr><td><code>--persist</code></td><td>Store the report in MongoDB</td></tr>
+      <tr><td><code>--out=file</code></td><td>Also write the report to a file</td></tr>
+      <tr><td><code>--help</code></td><td>Full usage</td></tr>
+    </table></div>
+
+    <h3 id="generate">Test-data generator</h3>
+    <p><code>java -jar comparator-cli.jar generate</code> writes a baseline and a modified copy of product-like
+      documents. They include nested objects, arrays of objects, a dynamic-key map, an ordered event list,
+      decimals, dates and nullable fields.</p>
+    <div class="table"><table>
+      <tr><th>Option</th><th>Default</th><th>Meaning</th></tr>
+      <tr><td><code>--baseline</code> / <code>--candidate</code></td><td class="def">demo_backup / demo</td><td>Collection names (dropped and recreated)</td></tr>
+      <tr><td><code>--docs</code></td><td class="def">10000</td><td>Baseline size</td></tr>
+      <tr><td><code>--seed</code></td><td class="def">42</td><td>Same seed, same data</td></tr>
+      <tr><td><code>--touch-sync</code></td><td class="def">true</td><td>Refresh <code>meta.syncedAt</code> in every candidate document, like a real sync</td></tr>
+      <tr><td><code>--changes</code></td><td class="def">–</td><td>Comma-separated <code>kind[:path]:fraction</code>, e.g. <code>modify:price:0.05,drop-field:legacyCode:1,int-to-double:qty:0.5,shuffle-arrays:1,delete-docs:0.01,add-docs:0.01</code></td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Good to know</h2>
+    <ul>
+      <li><strong>Memory stays flat.</strong> FULL mode is a single streaming merge-join over both collections sorted by
+        key. There's no <code>$lookup</code>, and nothing is loaded into memory as a whole.</li>
+      <li><strong>Key order is verified.</strong> The Java key order reproduces MongoDB's sort order (simple collation),
+        and a test checks it against a real server. Every key read must be strictly greater than the previous
+        one, so duplicate keys abort the comparison instead of skewing the numbers.</li>
+      <li><strong>Index custom key fields.</strong> <code>_id</code> is always indexed. Other key fields need an
+        index, or the server sorts the whole collection; ditto warns about this.</li>
+      <li><strong>Compare after the writes are done.</strong> Reads aren't a snapshot.</li>
+    </ul>
+    <p>More detail in the <a href="https://github.com/danielbartl/ditto#readme">README</a>, including limitations
+      and a sketch of a JobRunr integration with rollback.</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>ditto · <a href="https://github.com/danielbartl/ditto/blob/master/LICENSE">MIT License</a> · © 2026 Daniel Bartl</span>
+    <span><a href="https://github.com/danielbartl/ditto">github.com/danielbartl/ditto</a></span>
+  </div>
+</footer>
+
+<script>
+// tabs
+document.querySelectorAll('[data-tabs]').forEach(function (tabs) {
+  var buttons = Array.prototype.slice.call(tabs.querySelectorAll('[role=tab]'));
+  function select(button) {
+    buttons.forEach(function (b) {
+      var selected = b === button;
+      b.setAttribute('aria-selected', selected);
+      b.tabIndex = selected ? 0 : -1;
+      document.getElementById(b.getAttribute('aria-controls')).hidden = !selected;
+    });
+  }
+  buttons.forEach(function (button, i) {
+    button.addEventListener('click', function () { select(button); });
+    button.addEventListener('keydown', function (e) {
+      var next = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : null;
+      if (next === null) return;
+      var target = buttons[(next + buttons.length) % buttons.length];
+      select(target);
+      target.focus();
+    });
+  });
+});
+
+// copy buttons
+document.querySelectorAll('.code').forEach(function (block) {
+  var button = document.createElement('button');
+  button.className = 'copy';
+  button.type = 'button';
+  button.textContent = 'Copy';
+  button.addEventListener('click', function () {
+    var text = block.querySelector('pre').innerText;
+    navigator.clipboard.writeText(text).then(function () {
+      button.textContent = 'Copied';
+      setTimeout(function () { button.textContent = 'Copy'; }, 1500);
+    });
+  });
+  block.appendChild(button);
+});
+</script>
+</body>
+</html>

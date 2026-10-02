@@ -19,6 +19,8 @@ documents mean.
 
 Requirements: Java 25, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integration tests need Docker.
 
+**Home page:** https://danielbartl.github.io/ditto/
+
 ---
 
 ## Contents
