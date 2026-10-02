@@ -13,7 +13,7 @@
 
     <groupId>dev.jbaby.ditto</groupId>
     <artifactId>ditto-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>ditto</name>

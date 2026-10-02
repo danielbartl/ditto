@@ -308,11 +308,11 @@ Then add the repository and the dependency to your project:
 <dependency>
     <groupId>dev.jbaby.ditto</groupId>
     <artifactId>comparator-core</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
-Alternatively, build it yourself with `./mvnw install -DskipTests`, which installs `0.1.0-SNAPSHOT` into your local
+Alternatively, build it yourself with `./mvnw install -DskipTests`, which installs `0.3.0-SNAPSHOT` into your local
 repository.
 
 The host needs Spring Boot 4 with a configured MongoDB (`spring.mongodb.*`). The auto-configuration
