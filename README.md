@@ -30,6 +30,7 @@ Requirements: Java 25, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integrat
 ## Contents
 
 - [Quick start](#quick-start)
+- [Conventions: what works without configuration](#conventions-what-works-without-configuration)
 - [What ditto measures](#what-ditto-measures)
 - [Running the CLI](#running-the-cli)
 - [Embedding the library](#embedding-the-library)
@@ -56,15 +57,57 @@ docker compose up -d mongo                         # MongoDB 8 on localhost:2701
 SEED_ARGS="--docs=50000 --changes=modify:price:0.03,delete-docs:0.005,add-docs:0.005" \
   docker compose run --rm seed
 
-java -jar comparator-cli/target/comparator-cli.jar --db=ditto \
-  --baseline=demo_backup --candidate=demo \
-  --ignore=meta.syncedAt --wildcard='attributes.*' --ordered=history > report.json
+# compares demo_backup (baseline) with demo (candidate), no configuration
+java -jar comparator-cli/target/comparator-cli.jar --db=ditto --collection=demo > report.json
 echo $?    # 0 = GREEN, 1 = YELLOW, 2 = RED, 3 = error
+```
+
+The first run is RED, and stderr explains why and what to do about it:
+
+```
+Verdict RED: keySimilarity 0.9901, unchangedRate 0.0000, 2 changed paths, 1598 ms
+Hints:
+  - meta.syncedAt changed in 100% of matched documents and holds dates: it looks like a technical timestamp
+    written by every run. If so, ignore it.
+    --ignore=meta.syncedAt
+```
+
+Add the suggested option, and the run shows what really changed:
+
+```bash
+java -jar comparator-cli/target/comparator-cli.jar --db=ditto --collection=demo --ignore=meta.syncedAt > report.json
+# Verdict GREEN: keySimilarity 0.9901, unchangedRate 0.9711, 1 changed paths, 1529 ms
 ```
 
 You can also run the generator without Docker:
 `java -jar comparator-cli/target/comparator-cli.jar generate --db=ditto --docs=50000 --changes=...`
 See [generate](#generate).
+
+---
+
+## Conventions: what works without configuration
+
+ditto needs no configuration to start. `comparator.compareWithBackup("products")` (or `--collection=products` on
+the CLI) works out of the box, through the following conventions:
+
+| Convention                       | What happens                                                                                   | Change it with                                  |
+|----------------------------------|------------------------------------------------------------------------------------------------|-------------------------------------------------|
+| Backup naming                    | `products_backup` is the baseline, `products` the candidate                                     | `backup-suffix`, or name both collections       |
+| Key                              | Documents are matched by `_id`                                                                 | `key-field`                                     |
+| Spring Data type hints           | `_class` is ignored everywhere                                                                 | `always-ignored-paths`                          |
+| Mode                             | **AUTO**: FULL scan up to 5,000,000 documents per side, a sample of 20,000 keys above that     | `mode`, `full-scan-limit`, `sample.size`        |
+| Maps with dynamic keys           | Detected in a small sample and treated as wildcard paths (e.g. `attributes.*`)                 | `wildcard-paths`, `map-detection.enabled`       |
+| Array order                      | Doesn't matter                                                                                 | `order-sensitive-paths`                         |
+| Thresholds                       | Sensible fixed defaults; **learned from history** as soon as reports are stored                | `thresholds.*`, `adaptive-thresholds.*`         |
+| Everything ditto can't safely guess | Reported as **hints** with ready-to-paste configuration                                     | –                                               |
+
+ditto deliberately does **not** guess which fields to ignore from their names, like `updatedAt` or `lastModified`.
+Hiding such fields could hide a real problem, for example a sync that stopped updating them. When a field looks
+technical, ditto *suggests* ignoring it, and leaves the decision to you.
+
+The report records every convention it applied in `run.decisions`, e.g. `Mode AUTO chose FULL: …` or
+`Treated attributes.* as a map …`. Its `run.settings` shows the effective configuration, so every result can be
+reproduced.
 
 ---
 
@@ -187,8 +230,8 @@ java -jar comparator-cli.jar generate [options]
 java -jar comparator-cli.jar --help
 ```
 
-The report goes to **stdout** as JSON, and nothing else does. Logs and a one-line summary go to **stderr**, so
-`> report.json` and pipes into `jq` work.
+The report goes to **stdout** as JSON, and nothing else does. Logs, a one-line summary and the hints with
+ready-made options go to **stderr**, so `> report.json` and pipes into `jq` work.
 
 | Exit code | Meaning                                                                                            |
 |-----------|----------------------------------------------------------------------------------------------------|
@@ -203,8 +246,9 @@ The report goes to **stdout** as JSON, and nothing else does. Logs and a one-lin
 |---------------------------------|----------------------------------------------------------------------------|
 | `--uri=<uri>`                   | MongoDB connection string. Default `mongodb://localhost:27017`             |
 | `--db=<database>`               | Default database. Default `test`                                           |
-| `--baseline=<collection>`       | Reference collection, e.g. the backup. **Required**                        |
-| `--candidate=<collection>`      | Collection to judge. **Required**                                          |
+| `--collection=<collection>`     | Compares `<collection>_backup` (baseline) with `<collection>` (candidate)  |
+| `--baseline=<collection>`       | Reference collection, e.g. the backup (instead of `--collection`)          |
+| `--candidate=<collection>`      | Collection to judge (instead of `--collection`)                            |
 | `--baseline-db` / `--candidate-db` | Database per side, if it differs from `--db`                           |
 | `--key=<field>`                 | Top-level key field. Default `_id`                                         |
 | `--ignore=<path,...>`           | Ignored paths, e.g. `meta.syncedAt,items[].etag`                           |
@@ -212,7 +256,7 @@ The report goes to **stdout** as JSON, and nothing else does. Logs and a one-lin
 | `--wildcard=<path,...>`         | Maps with dynamic keys, e.g. `attributes.*`                                |
 | `--expected=<path,...>`         | Paths that are supposed to change, see [expected changes](#expected-changes-and-value-examples) |
 | `--redact=<path,...>`           | Paths whose values are shown as `***` in value examples                    |
-| `--mode=full\|sample`           | Default `full`                                                             |
+| `--mode=auto\|full\|sample`      | Default `auto`: FULL up to 5,000,000 documents per side, else SAMPLE       |
 | `--sample-size=<n>`             | Sample size. Implies `--mode=sample`                                       |
 | `--null-equals-missing`         | Treat `null` fields like missing fields                                    |
 | `--mixed-key-types=reject\|compare` | See [mixed key types](#keys-and-sort-order)                            |
@@ -321,6 +365,8 @@ bean is `@ConditionalOnMissingBean`, so you can replace any of them.
 
 ### Call it
 
+Without configuration:
+
 ```java
 @Service
 class ReplicationCheck {
@@ -332,15 +378,21 @@ class ReplicationCheck {
     }
 
     Level check() {
-        ComparisonReport report = comparator.compare(
-                ComparisonRequest.builder("products_backup", "products")
-                        .ignoredPaths("meta.syncedAt", "_class")
-                        .wildcardPaths("attributes.*")
-                        .orderSensitivePaths("history")
-                        .build());
+        ComparisonReport report = comparator.compareWithBackup("products");   // products_backup -> products
+        report.hints().forEach(hint -> log.info("{}", hint.message()));      // what to configure next
         return report.verdict();
     }
 }
+```
+
+Once the hints have told you what your data needs, add it as properties (`comparator.ignored-paths`, …) or per
+request:
+
+```java
+comparator.compare(comparator.backupRequest("products")
+        .ignoredPaths("meta.syncedAt")
+        .expectedChangePaths("price", "stock")
+        .build());
 ```
 
 Notes on the API:
@@ -350,7 +402,7 @@ Notes on the API:
 - **Other databases**: use `ComparisonRequest.builder(CollectionRef.of("archive", "products"), CollectionRef.of("products"))`
   to compare collections in other databases of the same cluster.
 - **Thresholds per request**: `.thresholds(Thresholds.DEFAULTS.withKeySimilarity(new Thresholds.AtLeast(0.995, 0.98)))`.
-- **SAMPLE mode**: `.sample(20_000)`.
+- **Mode**: AUTO by default. Force a mode with `.fullScan()` or `.sample(20_000)`.
 - **Progress**: `comparator.compare(request, progress -> ...)` receives a `Progress` snapshot every
   `comparator.progress-interval`, with documents read, rate and `fractionDone()`.
 - **Blocking and cancellable**: `compare` runs on the calling thread. It stops when that thread is interrupted and
@@ -390,9 +442,7 @@ normal for each pair of collections:
 ```yaml
 comparator:
   persistence:
-    enabled: true
-  adaptive-thresholds:
-    enabled: true
+    enabled: true          # also switches on adaptive-thresholds; set adaptive-thresholds.enabled=false to opt out
 ```
 
 How the learned thresholds are computed:
@@ -454,43 +504,65 @@ already has them.
 ## Configuration reference
 
 All properties have the prefix `comparator`. Request values take precedence where the request has a matching option.
+You can start with none of them: see [conventions](#conventions-what-works-without-configuration). The report's
+hints tell you which ones your data needs.
+
+### Essentials
 
 | Property                                   | Default              | Meaning                                                                         |
 |--------------------------------------------|----------------------|---------------------------------------------------------------------------------|
+| `ignored-paths`                            | –                    | Technical fields removed before comparing, e.g. sync timestamps                 |
+| `expected-change-paths`                    | –                    | Fields that are supposed to change (prices, counters); not counted against the verdict |
 | `key-field`                                | `_id`                | Top-level key field. Must be unique on both sides                               |
-| `ignored-paths`                            | –                    | Paths removed before comparing                                                  |
-| `order-sensitive-paths`                    | –                    | Arrays whose order matters                                                      |
-| `wildcard-paths`                           | –                    | Maps with dynamic keys, `….*`                                                   |
-| `expected-change-paths`                    | –                    | Paths that are supposed to change; not counted against the verdict              |
-| `redacted-paths`                           | –                    | Paths whose values are shown as `***` in value examples                         |
-| `null-equals-missing`                      | `false`              | Treat `null` fields as missing                                                  |
-| `mixed-key-types`                          | `REJECT`             | `REJECT` or `COMPARE`, see below                                                |
-| `mode`                                     | `FULL`               | `FULL` or `SAMPLE`                                                              |
-| `sample.size`                              | `10000`              | Sample size per side when the mode is SAMPLE                                    |
-| `sample.verdict-basis`                     | `CONSERVATIVE`       | `CONSERVATIVE` (worse confidence bound) or `POINT`                              |
-| `sample.lookup-batch-size`                 | `500`                | Keys per `$in` lookup                                                           |
-| `batch-size`                               | `1000`               | Cursor batch size                                                               |
-| `no-cursor-timeout`                        | `false`              | Keep idle server cursors alive, see [operational notes](#performance-and-operational-notes) |
-| `max-examples`                             | `20`                 | Example keys per category and per changed path                                  |
-| `max-value-examples`                       | `3`                  | Before/after value examples per changed path; `0` disables them                 |
-| `max-tracked-paths`                        | `10000`              | Distinct paths tracked per side. Further paths are counted, and a warning is added |
-| `top-changed-paths`                        | `50`                 | Changed paths listed in the report                                              |
-| `progress-interval`                        | `10s`                | Progress logging and listener interval                                          |
+| `mode`                                     | `AUTO`               | `AUTO`, `FULL` or `SAMPLE`                                                      |
+| `persistence.enabled`                      | `false`              | Store reports. This also turns on thresholds learned from history               |
 | `thresholds.key-similarity.green/yellow`   | `0.99` / `0.97`      | GREEN if ≥ green, YELLOW if ≥ yellow, else RED                                  |
 | `thresholds.unchanged-rate.green/yellow`   | `0.95` / `0.85`      | GREEN if ≥ green, YELLOW if ≥ yellow, else RED                                  |
 | `thresholds.max-path-change-rate.green/yellow` | `0.05` / `0.20`  | GREEN if < green, YELLOW if < yellow, else RED                                  |
+
+### Advanced
+
+These are rarely needed. The defaults fit most data.
+
+| Property                                   | Default              | Meaning                                                                         |
+|--------------------------------------------|----------------------|---------------------------------------------------------------------------------|
+| **Paths**                                  |                      |                                                                                 |
+| `wildcard-paths`                           | detected             | Maps with dynamic keys, `….*`. Usually detected automatically                   |
+| `order-sensitive-paths`                    | –                    | Arrays whose order matters                                                      |
+| `redacted-paths`                           | –                    | Paths whose values are shown as `***` in value examples                         |
+| `always-ignored-paths`                     | `_class`             | Ignored in every comparison, in addition to `ignored-paths`                     |
+| `null-equals-missing`                      | `false`              | Treat `null` fields as missing                                                  |
+| `mixed-key-types`                          | `REJECT`             | `REJECT` or `COMPARE`, see [keys](#keys-and-sort-order)                         |
+| `backup-suffix`                            | `_backup`            | Baseline name used by `compareWithBackup` / `--collection`                      |
+| **Mode**                                   |                      |                                                                                 |
+| `full-scan-limit`                          | `5000000`            | AUTO scans fully up to this many documents per side                             |
+| `sample.size`                              | `20000`              | Keys sampled per side (SAMPLE, and AUTO above the limit)                        |
+| `sample.verdict-basis`                     | `CONSERVATIVE`       | `CONSERVATIVE` (worse confidence bound) or `POINT`                              |
+| `sample.lookup-batch-size`                 | `500`                | Keys per `$in` lookup                                                           |
+| `map-detection.enabled`                    | `true`               | Detect maps with dynamic keys before comparing                                  |
+| `map-detection.sample-size`                | `500`                | Documents sampled per side for detection                                        |
+| `map-detection.min-distinct-keys`          | `20`                 | Distinct field names needed before an object counts as a map                    |
+| **Thresholds**                             |                      |                                                                                 |
 | `thresholds.structure.type-share-delta`    | `0.01`               | Type-share change that counts as a type shift                                   |
 | `thresholds.structure.presence-delta`      | `0.05`               | Presence change reported as YELLOW                                              |
 | `thresholds.structure.vanished-min-presence` | `0.0`              | Vanished paths present in at most this fraction of baseline documents are YELLOW instead of RED |
-| `persistence.enabled`                      | `false`              | Store reports                                                                   |
-| `persistence.collection`                   | `comparison_reports` | Report collection                                                               |
-| `persistence.database`                     | default database     | Report database                                                                 |
-| `adaptive-thresholds.enabled`              | `false`              | Derive thresholds from stored reports, see [history](#thresholds-learned-from-history) |
+| `adaptive-thresholds.enabled`              | = `persistence.enabled` | Derive thresholds from stored reports, see [history](#thresholds-learned-from-history) |
 | `adaptive-thresholds.history-size`         | `20`                 | Previous non-RED runs considered                                                |
 | `adaptive-thresholds.min-history`          | `5`                  | Runs needed before history is used                                              |
 | `adaptive-thresholds.green-sigma`          | `2.0`                | GREEN bound distance from the mean, in standard deviations                      |
 | `adaptive-thresholds.yellow-sigma`         | `3.0`                | YELLOW bound distance from the mean, in standard deviations                     |
 | `adaptive-thresholds.min-spread`           | `0.005`              | Lower limit for the standard deviation                                          |
+| **Persistence**                            |                      |                                                                                 |
+| `persistence.collection`                   | `comparison_reports` | Report collection                                                               |
+| `persistence.database`                     | default database     | Report database                                                                 |
+| **Report and resources**                   |                      |                                                                                 |
+| `max-examples`                             | `20`                 | Example keys per category and per changed path                                  |
+| `max-value-examples`                       | `3`                  | Before/after value examples per changed path; `0` disables them                 |
+| `top-changed-paths`                        | `50`                 | Changed paths listed in the report                                              |
+| `max-tracked-paths`                        | `10000`              | Distinct paths tracked per side. Further paths are counted, and a warning is added |
+| `batch-size`                               | `1000`               | Cursor batch size                                                               |
+| `no-cursor-timeout`                        | `false`              | Keep idle server cursors alive, see [operational notes](#performance-and-operational-notes) |
+| `progress-interval`                        | `10s`                | Progress logging and listener interval                                          |
 
 The MongoDB connection itself is configured with Spring Boot's own properties (`spring.mongodb.uri`,
 `spring.mongodb.database`, …).
@@ -562,9 +634,13 @@ How to read it:
    - `newPaths` and `presenceDeltas` are softer signals.
 5. **`examples`**: keys as relaxed Extended JSON, ready for mongosh:
    `db.products.find({_id: {"$oid": "6553f1212161972337cc2db4"}})`. Look at the same key in both collections.
-6. **`run.thresholdSource`**: whether the thresholds came from the configuration, the request or the history, and
-   how history-based ones were derived.
-7. **`warnings`**: conditions that limit the result. Examples: more distinct paths than `max-tracked-paths` (use
+6. **`hints`**: what to configure next. Each hint has a message, plus a ready-to-use `property` and `cliOption` where
+   there is something to configure. Kinds: `IGNORE_TECHNICAL_FIELD`, `EXPECTED_CHANGE`, `WILDCARD`, `LARGER_SAMPLE`,
+   `INVESTIGATE`.
+7. **`run.decisions`** and **`run.thresholdSource`**: which conventions ditto applied (mode, detected maps), and
+   where the thresholds came from (configuration, request or history), including how history-based ones were
+   derived.
+8. **`warnings`**: conditions that limit the result. Examples: more distinct paths than `max-tracked-paths` (use
    wildcard paths for maps), no usable index on a custom key field, mixed key types compared under `COMPARE`.
 
 ### SAMPLE mode

@@ -198,6 +198,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
     <a class="brand" href="#"><span class="dots"><i></i><i></i></span>ditto</a>
     <nav class="links" aria-label="Sections">
       <a href="#how">How it works</a>
+      <a href="#conventions">Conventions</a>
       <a href="#start">Get started</a>
       <a href="#scenarios">Scenarios</a>
       <a href="#config">Configuration</a>
@@ -233,7 +234,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
     </div>
     <div class="meta">
       <span>Java 25</span><span>Spring Boot 4.1</span><span>MongoDB 4.4+</span>
-      <span>Library + CLI</span><span>Streaming, constant memory</span><span>Learns from history</span><span>MIT licensed</span>
+      <span>Zero configuration to start</span><span>Library + CLI</span><span>Streaming, constant memory</span><span>Learns from history</span><span>MIT licensed</span>
     </div>
   </section>
 
@@ -272,6 +273,24 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
       Each signal gets a level from configurable thresholds, and the <strong>overall verdict is the worst level</strong>.
       The report records which rule fired and why, with example keys you can paste straight into mongosh.
     </p>
+  </section>
+
+  <section id="conventions">
+    <h2>Zero configuration to start</h2>
+    <p class="lead">ditto guesses what it can guess safely, and tells you about everything else.</p>
+    <div class="table"><table>
+      <tr><th>Convention</th><th>Default behaviour</th><th>Change with</th></tr>
+      <tr><td>Backup naming</td><td><code>compareWithBackup("products")</code>: <code>products_backup</code> → <code>products</code></td><td><code>backup-suffix</code></td></tr>
+      <tr><td>Key</td><td>Documents matched by <code>_id</code></td><td><code>key-field</code></td></tr>
+      <tr><td>Type hints</td><td>Spring Data's <code>_class</code> is ignored</td><td><code>always-ignored-paths</code></td></tr>
+      <tr><td>Mode</td><td>AUTO: full scan up to 5 million documents per side, a 20,000-key sample above</td><td><code>mode</code>, <code>full-scan-limit</code></td></tr>
+      <tr><td>Maps</td><td>Objects with dynamic keys are detected and reported as <code>attributes.*</code></td><td><code>wildcard-paths</code></td></tr>
+      <tr><td>Thresholds</td><td>Sensible defaults; learned from history once reports are stored</td><td><code>thresholds.*</code></td></tr>
+      <tr><td>Everything else</td><td>Reported as <strong>hints</strong> with ready-to-paste configuration</td><td>–</td></tr>
+    </table></div>
+    <p>ditto never ignores a field just because of its name, like <code>updatedAt</code>, because that could hide a
+      sync that stopped working. It suggests, you decide. Every convention it applied is listed in the report under
+      <code>run.decisions</code>.</p>
   </section>
 
   <section id="start">
@@ -319,7 +338,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
               <code>0.3.0-SNAPSHOT</code> locally.</p>
           </li>
           <li>
-            <p><strong>Inject <code>CollectionComparator</code> and compare.</strong></p>
+            <p><strong>Inject <code>CollectionComparator</code> and compare.</strong> No configuration needed:</p>
             <div class="code"><span class="label">Java</span><pre>@Service
 class ReplicationCheck {
 
@@ -330,19 +349,23 @@ class ReplicationCheck {
     }
 
     Level verify() {
-        ComparisonReport report = comparator.compare(
-                ComparisonRequest.builder("products_backup", "products")
-                        .ignoredPaths("meta.syncedAt", "_class")   <span class="c">// technical fields</span>
-                        .wildcardPaths("attributes.*")             <span class="c">// map with dynamic keys</span>
-                        .build());
-        return report.verdict();                                   <span class="c">// GREEN, YELLOW or RED</span>
+        ComparisonReport report = comparator.compareWithBackup("products");  <span class="c">// products_backup → products</span>
+        report.hints().forEach(hint -&gt; log.info(hint.message()));          <span class="c">// what to configure next</span>
+        return report.verdict();                                            <span class="c">// GREEN, YELLOW or RED</span>
     }
 }</pre></div>
           </li>
+          <li>
+            <p><strong>Follow the hints.</strong> The first report tells you what your data needs, e.g. a sync
+              timestamp to ignore. Add it once:</p>
+            <div class="code"><span class="label">application.yml</span><pre>comparator:
+  ignored-paths: [meta.syncedAt]
+  expected-change-paths: [price, stock]</pre></div>
+          </li>
         </ol>
-        <div class="note"><p>Options you don't set on the request fall back to the <a href="#config"><code>comparator.*</code>
-          properties</a>. Every auto-configured bean is <code>@ConditionalOnMissingBean</code>, so you can replace any
-          of them.</p></div>
+        <div class="note"><p>Options can also be set per request:
+          <code>comparator.compare(comparator.backupRequest("products").ignoredPaths("meta.syncedAt").build())</code>.
+          Every auto-configured bean is <code>@ConditionalOnMissingBean</code>, so you can replace any of them.</p></div>
       </div>
 
       <div class="tabpanel" role="tabpanel" id="tab-cli" aria-labelledby="t-cli" hidden>
@@ -357,11 +380,15 @@ cd ditto &amp;&amp; ./mvnw package -DskipTests
           <li>
             <p><strong>Compare two collections.</strong> The report goes to stdout as JSON; logs and a one-line summary
               go to stderr.</p>
-            <div class="code"><pre>java -jar comparator-cli.jar \
-  --uri="mongodb://user:pass@host:27017" --db=shop \
-  --baseline=products_backup --candidate=products \
-  --ignore=meta.syncedAt --wildcard='attributes.*' \
-  &gt; report.json</pre></div>
+            <div class="code"><pre><span class="c"># products_backup (baseline) vs. products (candidate)</span>
+java -jar comparator-cli.jar --uri="mongodb://user:pass@host:27017" --db=shop \
+  --collection=products &gt; report.json</pre></div>
+            <p>stderr shows the verdict, and hints with ready-made options for the next run:</p>
+            <div class="code"><pre>Verdict RED: keySimilarity 0.9901, unchangedRate 0.0000, 2 changed paths, 1598 ms
+Hints:
+  - meta.syncedAt changed in 100% of matched documents and holds dates: it looks like a
+    technical timestamp written by every run. If so, ignore it.
+    --ignore=meta.syncedAt</pre></div>
           </li>
           <li>
             <p><strong>Use the exit code.</strong></p>
@@ -386,9 +413,9 @@ cd ditto &amp;&amp; ./mvnw package -DskipTests
 SEED_ARGS="--docs=50000 --changes=modify:price:0.03,delete-docs:0.005,add-docs:0.005" \
   docker compose run --rm seed
 
-java -jar comparator-cli/target/comparator-cli.jar --db=ditto \
-  --baseline=demo_backup --candidate=demo \
-  --ignore=meta.syncedAt --wildcard='attributes.*' --ordered=history</pre></div>
+java -jar comparator-cli/target/comparator-cli.jar --db=ditto --collection=demo
+<span class="c"># → RED, with a hint to ignore meta.syncedAt; then:</span>
+java -jar comparator-cli/target/comparator-cli.jar --db=ditto --collection=demo --ignore=meta.syncedAt</pre></div>
         <p>Available changes: <code>modify</code>, <code>drop-field</code>, <code>add-field</code>, <code>set-null</code>,
           <code>int-to-double</code>, <code>to-string</code>, <code>shuffle-arrays</code>, <code>delete-docs</code>,
           <code>add-docs</code>. See <a href="#generate">the generator reference</a>.</p>
@@ -564,67 +591,80 @@ void onComparison(ComparisonCompletedEvent event) {
   <section id="config">
     <h2>Configuration</h2>
     <p class="lead">
-      Every option has a default in <code>application.yml</code> under <code>comparator.*</code>. A request option,
-      when set, overrides the property for that comparison. The report includes the effective settings under
-      <code>run.settings</code>.
+      You can start with none of it. The essentials below are what real data typically needs, and the report's hints
+      tell you which ones. Set them as <code>comparator.*</code> properties, or per request; request options win.
     </p>
 
-    <h3>What to compare</h3>
+    <h3>Essentials</h3>
     <div class="table"><table>
       <tr><th>Property</th><th>Request option</th><th>Default</th><th>Meaning</th></tr>
+      <tr><td><code>ignored-paths</code></td><td><code>ignoredPaths</code></td><td class="def">–</td><td>Technical fields removed before comparing, e.g. sync timestamps</td></tr>
+      <tr><td><code>expected-change-paths</code></td><td><code>expectedChangePaths</code></td><td class="def">–</td><td>Fields that are supposed to change (prices, counters): reported, not counted against the verdict</td></tr>
       <tr><td><code>key-field</code></td><td><code>keyField</code></td><td class="def">_id</td><td>Top-level field matching documents. Must be unique on both sides</td></tr>
-      <tr><td><code>ignored-paths</code></td><td><code>ignoredPaths</code></td><td class="def">–</td><td>Removed before comparing and profiling, e.g. sync timestamps</td></tr>
-      <tr><td><code>order-sensitive-paths</code></td><td><code>orderSensitivePaths</code></td><td class="def">–</td><td>Arrays whose element order matters. All other arrays are multisets</td></tr>
-      <tr><td><code>wildcard-paths</code></td><td><code>wildcardPaths</code></td><td class="def">–</td><td>Maps with dynamic keys, reported as one path. Must end in <code>.*</code></td></tr>
-      <tr><td><code>expected-change-paths</code></td><td><code>expectedChangePaths</code></td><td class="def">–</td><td>Fields that are supposed to change (prices, counters): reported, but not counted against the verdict</td></tr>
-      <tr><td><code>redacted-paths</code></td><td><code>redactedPaths</code></td><td class="def">–</td><td>Values shown as <code>***</code> in value examples, e.g. personal data</td></tr>
-      <tr><td><code>null-equals-missing</code></td><td><code>nullEqualsMissing</code></td><td class="def">false</td><td>Treat <code>field: null</code> like an absent field</td></tr>
-      <tr><td><code>mixed-key-types</code></td><td><code>mixedKeyPolicy</code></td><td class="def">REJECT</td><td><code>REJECT</code>, or <code>COMPARE</code> to accept keys of different BSON types (e.g. strings and ObjectIds)</td></tr>
-      <tr><td><code>mode</code></td><td><code>fullScan()</code> / <code>sample(n)</code></td><td class="def">FULL</td><td><code>FULL</code> or <code>SAMPLE</code></td></tr>
-      <tr><td><code>sample.size</code></td><td>(in <code>sample(n)</code>)</td><td class="def">10000</td><td>Keys sampled per side</td></tr>
-      <tr><td><code>sample.verdict-basis</code></td><td><code>verdictBasis</code></td><td class="def">CONSERVATIVE</td><td>Evaluate the worse confidence bound, or the <code>POINT</code> estimate</td></tr>
+      <tr><td><code>mode</code></td><td><code>fullScan()</code> / <code>sample(n)</code></td><td class="def">AUTO</td><td><code>AUTO</code>, <code>FULL</code> or <code>SAMPLE</code></td></tr>
+      <tr><td><code>persistence.enabled</code></td><td>–</td><td class="def">false</td><td>Store every report; also switches on thresholds learned from history</td></tr>
+      <tr><td><code>thresholds.key-similarity.green / .yellow</code></td><td rowspan="3"><code>thresholds</code></td><td class="def">0.99 / 0.97</td><td><span class="chip green">GREEN</span> if ≥ green, <span class="chip yellow">YELLOW</span> if ≥ yellow, else <span class="chip red">RED</span></td></tr>
+      <tr><td><code>thresholds.unchanged-rate.green / .yellow</code></td><td class="def">0.95 / 0.85</td><td>Same: higher is better</td></tr>
+      <tr><td><code>thresholds.max-path-change-rate.green / .yellow</code></td><td class="def">0.05 / 0.20</td><td><span class="chip green">GREEN</span> if &lt; green, <span class="chip yellow">YELLOW</span> if &lt; yellow, else <span class="chip red">RED</span></td></tr>
     </table></div>
 
     <h3>Path syntax</h3>
     <div class="table"><table>
       <tr><th>Pattern</th><th>Matches</th></tr>
-      <tr><td><code>meta.syncedAt</code></td><td>A nested field</td></tr>
+      <tr><td><code>meta.syncedAt</code></td><td>A nested field; also everything below it</td></tr>
       <tr><td><code>items[].price</code></td><td>Field <code>price</code> of every element of array <code>items</code>; <code>matrix[][]</code> for nested arrays</td></tr>
       <tr><td><code>attributes.*</code></td><td><code>*</code> matches exactly one field name, e.g. <code>attributes.color</code></td></tr>
     </table></div>
 
-    <h3>Thresholds</h3>
-    <div class="table"><table>
-      <tr><th>Property (<code>comparator.thresholds.</code>…)</th><th>Default</th><th>Rule</th></tr>
-      <tr><td><code>key-similarity.green / .yellow</code></td><td class="def">0.99 / 0.97</td><td><span class="chip green">GREEN</span> if ≥ green, <span class="chip yellow">YELLOW</span> if ≥ yellow, else <span class="chip red">RED</span></td></tr>
-      <tr><td><code>unchanged-rate.green / .yellow</code></td><td class="def">0.95 / 0.85</td><td>Same: higher is better</td></tr>
-      <tr><td><code>max-path-change-rate.green / .yellow</code></td><td class="def">0.05 / 0.20</td><td><span class="chip green">GREEN</span> if &lt; green, <span class="chip yellow">YELLOW</span> if &lt; yellow, else <span class="chip red">RED</span></td></tr>
-      <tr><td><code>structure.type-share-delta</code></td><td class="def">0.01</td><td>A type's share on a path may move this much before it's a type shift (<span class="chip red">RED</span>)</td></tr>
-      <tr><td><code>structure.presence-delta</code></td><td class="def">0.05</td><td>Presence changes beyond this are <span class="chip yellow">YELLOW</span></td></tr>
-      <tr><td><code>structure.vanished-min-presence</code></td><td class="def">0.0</td><td>Vanished paths rarer than this are <span class="chip yellow">YELLOW</span> instead of <span class="chip red">RED</span></td></tr>
-    </table></div>
-    <p>New paths are always <span class="chip yellow">YELLOW</span>. Per request, use
-      <code>.thresholds(Thresholds.DEFAULTS.withKeySimilarity(new Thresholds.AtLeast(0.995, 0.98)))</code>.</p>
-
-    <h3>Technical settings and persistence</h3>
-    <div class="table"><table>
-      <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
-      <tr><td><code>batch-size</code></td><td class="def">1000</td><td>Cursor batch size</td></tr>
-      <tr><td><code>no-cursor-timeout</code></td><td class="def">false</td><td>Keep idle server cursors alive (long runs of added/removed keys on very large collections)</td></tr>
-      <tr><td><code>max-examples</code></td><td class="def">20</td><td>Example keys per category and per changed path</td></tr>
-      <tr><td><code>max-value-examples</code></td><td class="def">3</td><td>Before/after values per changed path; <code>0</code> disables them</td></tr>
-      <tr><td><code>max-tracked-paths</code></td><td class="def">10000</td><td>Distinct paths tracked per side; bounds memory. Exceeding it adds a warning</td></tr>
-      <tr><td><code>top-changed-paths</code></td><td class="def">50</td><td>Changed paths listed in the report</td></tr>
-      <tr><td><code>progress-interval</code></td><td class="def">10s</td><td>Progress logging and listener interval</td></tr>
-      <tr><td><code>sample.lookup-batch-size</code></td><td class="def">500</td><td>Keys per <code>$in</code> lookup in SAMPLE mode</td></tr>
-      <tr><td><code>persistence.enabled</code></td><td class="def">false</td><td>Store every report in MongoDB</td></tr>
-      <tr><td><code>persistence.collection</code></td><td class="def">comparison_reports</td><td>Report collection</td></tr>
-      <tr><td><code>persistence.database</code></td><td class="def">default db</td><td>Report database</td></tr>
-      <tr><td><code>adaptive-thresholds.enabled</code></td><td class="def">false</td><td>Derive thresholds from stored reports (needs persistence)</td></tr>
-      <tr><td><code>adaptive-thresholds.history-size</code> / <code>.min-history</code></td><td class="def">20 / 5</td><td>Previous non-RED runs considered / needed</td></tr>
-      <tr><td><code>adaptive-thresholds.green-sigma</code> / <code>.yellow-sigma</code></td><td class="def">2.0 / 3.0</td><td>Band distance from the historical mean, in standard deviations</td></tr>
-      <tr><td><code>adaptive-thresholds.min-spread</code></td><td class="def">0.005</td><td>Lower limit for the standard deviation</td></tr>
-    </table></div>
+    <details class="scenario">
+      <summary><strong>Advanced options</strong><span>rarely needed; the defaults fit most data</span></summary>
+      <div class="body">
+        <h3>Paths and keys</h3>
+        <div class="table"><table>
+          <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
+          <tr><td><code>wildcard-paths</code></td><td class="def">detected</td><td>Maps with dynamic keys, <code>….*</code>; usually detected automatically</td></tr>
+          <tr><td><code>order-sensitive-paths</code></td><td class="def">–</td><td>Arrays whose element order matters</td></tr>
+          <tr><td><code>redacted-paths</code></td><td class="def">–</td><td>Values shown as <code>***</code> in value examples</td></tr>
+          <tr><td><code>always-ignored-paths</code></td><td class="def">_class</td><td>Ignored in every comparison, on top of <code>ignored-paths</code></td></tr>
+          <tr><td><code>null-equals-missing</code></td><td class="def">false</td><td>Treat <code>field: null</code> like an absent field</td></tr>
+          <tr><td><code>mixed-key-types</code></td><td class="def">REJECT</td><td><code>COMPARE</code> accepts keys of different BSON types</td></tr>
+          <tr><td><code>backup-suffix</code></td><td class="def">_backup</td><td>Baseline name for <code>compareWithBackup</code> / <code>--collection</code></td></tr>
+        </table></div>
+        <h3>Mode and detection</h3>
+        <div class="table"><table>
+          <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
+          <tr><td><code>full-scan-limit</code></td><td class="def">5000000</td><td>AUTO scans fully up to this many documents per side</td></tr>
+          <tr><td><code>sample.size</code></td><td class="def">20000</td><td>Keys sampled per side</td></tr>
+          <tr><td><code>sample.verdict-basis</code></td><td class="def">CONSERVATIVE</td><td>Evaluate the worse confidence bound, or the <code>POINT</code> estimate</td></tr>
+          <tr><td><code>sample.lookup-batch-size</code></td><td class="def">500</td><td>Keys per <code>$in</code> lookup</td></tr>
+          <tr><td><code>map-detection.enabled</code></td><td class="def">true</td><td>Detect maps with dynamic keys before comparing</td></tr>
+          <tr><td><code>map-detection.sample-size</code> / <code>.min-distinct-keys</code></td><td class="def">500 / 20</td><td>Documents sampled per side / distinct names needed for a map</td></tr>
+        </table></div>
+        <h3>Thresholds and history</h3>
+        <div class="table"><table>
+          <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
+          <tr><td><code>thresholds.structure.type-share-delta</code></td><td class="def">0.01</td><td>Type-share change that counts as a type shift (<span class="chip red">RED</span>)</td></tr>
+          <tr><td><code>thresholds.structure.presence-delta</code></td><td class="def">0.05</td><td>Presence changes beyond this are <span class="chip yellow">YELLOW</span></td></tr>
+          <tr><td><code>thresholds.structure.vanished-min-presence</code></td><td class="def">0.0</td><td>Vanished paths rarer than this are <span class="chip yellow">YELLOW</span> instead of <span class="chip red">RED</span></td></tr>
+          <tr><td><code>adaptive-thresholds.enabled</code></td><td class="def">= persistence</td><td>Derive thresholds from stored reports</td></tr>
+          <tr><td><code>adaptive-thresholds.history-size</code> / <code>.min-history</code></td><td class="def">20 / 5</td><td>Previous non-RED runs considered / needed</td></tr>
+          <tr><td><code>adaptive-thresholds.green-sigma</code> / <code>.yellow-sigma</code></td><td class="def">2.0 / 3.0</td><td>Band distance from the historical mean, in standard deviations</td></tr>
+          <tr><td><code>adaptive-thresholds.min-spread</code></td><td class="def">0.005</td><td>Lower limit for the standard deviation</td></tr>
+        </table></div>
+        <h3>Report, persistence and resources</h3>
+        <div class="table"><table>
+          <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
+          <tr><td><code>persistence.collection</code> / <code>.database</code></td><td class="def">comparison_reports / default</td><td>Where reports are stored</td></tr>
+          <tr><td><code>max-examples</code></td><td class="def">20</td><td>Example keys per category and per changed path</td></tr>
+          <tr><td><code>max-value-examples</code></td><td class="def">3</td><td>Before/after values per changed path; <code>0</code> disables them</td></tr>
+          <tr><td><code>top-changed-paths</code></td><td class="def">50</td><td>Changed paths listed in the report</td></tr>
+          <tr><td><code>max-tracked-paths</code></td><td class="def">10000</td><td>Distinct paths tracked per side; bounds memory</td></tr>
+          <tr><td><code>batch-size</code></td><td class="def">1000</td><td>Cursor batch size</td></tr>
+          <tr><td><code>no-cursor-timeout</code></td><td class="def">false</td><td>Keep idle server cursors alive on very large collections</td></tr>
+          <tr><td><code>progress-interval</code></td><td class="def">10s</td><td>Progress logging and listener interval</td></tr>
+        </table></div>
+      </div>
+    </details>
     <p>The connection itself uses Spring Boot's <code>spring.mongodb.*</code> properties.</p>
   </section>
 
@@ -649,7 +689,10 @@ void onComparison(ComparisonCompletedEvent event) {
   "structure":       { "newPaths": [], "missingPaths": [], "typeShifts": [], "presenceDeltas": [] },
   "examples":        { "changed": [...], "added": [...], "removed": [...] },
   "run":             { "durationMillis": 686, "baselineCount": 19950, "settings": { ... } },
-  "warnings":        []
+  "warnings":        [],
+  "hints":           [ { "kind": "EXPECTED_CHANGE", "path": "price",
+                         "message": "price changed in 8% of matched documents. If this field is supposed to change …",
+                         "property": "comparator.expected-change-paths=price", "cliOption": "--expected=price" } ]
 }</pre></div>
     <div class="table"><table>
       <tr><th>If you see…</th><th>It usually means…</th></tr>
@@ -658,6 +701,7 @@ void onComparison(ComparisonCompletedEvent event) {
       <tr><td>One path changed in ~100% of documents</td><td>A mapping/format change in that field, or a technical field that should be ignored</td></tr>
       <tr><td>Many paths at low rates</td><td>Normal data churn</td></tr>
       <tr><td>Fields that change in most documents every run</td><td>Legitimate churn: declare them as <code>expected-change-paths</code></td></tr>
+      <tr><td>Anything in <code>hints</code></td><td>A ready-to-paste property or CLI option for the next run</td></tr>
       <tr><td>A type shift with unchanged content</td><td>Same values, different BSON type: consumers that read typed values may break</td></tr>
       <tr><td><code>warnings</code> about the path cap</td><td>A map with dynamic keys: add it to <code>wildcard-paths</code></td></tr>
     </table></div>
@@ -673,11 +717,12 @@ void onComparison(ComparisonCompletedEvent event) {
     <div class="table"><table>
       <tr><th>Option</th><th>Meaning</th></tr>
       <tr><td><code>--uri</code>, <code>--db</code></td><td>Connection string (default <code>mongodb://localhost:27017</code>) and default database (default <code>test</code>)</td></tr>
-      <tr><td><code>--baseline</code>, <code>--candidate</code></td><td>Collections to compare (required)</td></tr>
+      <tr><td><code>--collection</code></td><td>Compares <code>&lt;collection&gt;_backup</code> with <code>&lt;collection&gt;</code></td></tr>
+      <tr><td><code>--baseline</code>, <code>--candidate</code></td><td>Or name both collections explicitly</td></tr>
       <tr><td><code>--baseline-db</code>, <code>--candidate-db</code></td><td>Database per side, if not <code>--db</code></td></tr>
       <tr><td><code>--key</code></td><td>Key field</td></tr>
       <tr><td><code>--ignore</code>, <code>--ordered</code>, <code>--wildcard</code>, <code>--expected</code>, <code>--redact</code></td><td>Comma-separated path lists</td></tr>
-      <tr><td><code>--mode=full|sample</code>, <code>--sample-size=n</code></td><td>Comparison mode</td></tr>
+      <tr><td><code>--mode=auto|full|sample</code>, <code>--sample-size=n</code></td><td>Comparison mode (default auto)</td></tr>
       <tr><td><code>--null-equals-missing</code>, <code>--mixed-key-types</code>, <code>--verdict-basis</code></td><td>As in the configuration table</td></tr>
       <tr><td><code>--persist</code></td><td>Store the report in MongoDB</td></tr>
       <tr><td><code>--out=file</code></td><td>Also write the report to a file</td></tr>
