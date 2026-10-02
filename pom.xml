@@ -18,6 +18,14 @@
 
     <name>ditto</name>
     <description>Generic comparison of two MongoDB collections</description>
+    <url>https://github.com/danielbartl/ditto</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
 
     <modules>
         <module>comparator-core</module>

@@ -33,6 +33,7 @@ Requirements: Java 25, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integrat
 - [Performance and operational notes](#performance-and-operational-notes)
 - [Limitations](#limitations)
 - [Building and testing](#building-and-testing)
+- [License](#license)
 
 ---
 
@@ -600,3 +601,9 @@ Package layout of `comparator-core` (`dev.jbaby.ditto.comparator`):
 | `verdict`        | `Rule` (sealed), `VerdictEvaluator`                                                          |
 | `report`         | `ReportAssembler`, `ReportJson`, `ReportRepository`                                          |
 | `autoconfigure`  | `ComparatorAutoConfiguration`, `ComparatorProperties`                                        |
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Daniel Bartl
