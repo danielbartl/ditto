@@ -39,6 +39,8 @@ jobs:
 
   # Disabled until the repository variable MAVEN_CENTRAL_ENABLED is 'true' and these secrets exist:
   # CENTRAL_USERNAME / CENTRAL_TOKEN (Sonatype Central Portal user token), GPG_PRIVATE_KEY / GPG_PASSPHRASE.
+  # With the variable CENTRAL_AUTO_PUBLISH set to 'false', the release is uploaded and validated but waits for
+  # "Publish" in the Central Portal (recommended for the first release: published versions can never be removed).
   central:
     name: Maven Central
     if: vars.MAVEN_CENTRAL_ENABLED == 'true'
@@ -65,8 +67,14 @@ jobs:
         run: ./mvnw -B -ntp versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false
 
       - name: Deploy to Maven Central
-        run: ./mvnw -B -ntp -Prelease,central -DskipTests deploy
+        run: |
+          if [ "${{ vars.CENTRAL_AUTO_PUBLISH }}" = "false" ]; then
+            publish="-Dcentral.autoPublish=false -Dcentral.waitUntil=validated"
+          fi
+          ./mvnw -B -ntp -Prelease,central -DskipTests $publish deploy
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          # maven-gpg-plugin 3.2+ reads the passphrase from this variable (and signs with loopback pinentry)
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

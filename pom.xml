@@ -66,6 +66,9 @@
         <argLine>-XX:+EnableDynamicAgentLoading</argLine>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
+        <!-- false: upload and validate only, then publish by hand in the Central Portal -->
+        <central.autoPublish>true</central.autoPublish>
+        <central.waitUntil>published</central.waitUntil>
     </properties>
 
     <dependencyManagement>
@@ -166,8 +169,8 @@
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>central</publishingServerId>
-                            <autoPublish>true</autoPublish>
-                            <waitUntil>published</waitUntil>
+                            <autoPublish>${central.autoPublish}</autoPublish>
+                            <waitUntil>${central.waitUntil}</waitUntil>
                             <excludeArtifacts>
                                 <artifact>comparator-cli</artifact>
                             </excludeArtifacts>
