@@ -89,6 +89,6 @@ class ThresholdAdvisorTest {
                 new ComparisonReport.Examples(List.of(), List.of(), List.of()),
                 new ComparisonReport.RunMetadata(Instant.EPOCH, Instant.EPOCH, 0, 0, 0, 0, 0, COMPARISON,
                         ThresholdSource.configured(), List.of()),
-                List.of());
+                List.of(), List.of());
     }
 }

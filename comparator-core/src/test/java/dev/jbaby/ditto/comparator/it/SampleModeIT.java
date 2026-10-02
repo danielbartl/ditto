@@ -109,6 +109,10 @@ class SampleModeIT {
 
         // the conservative verdict evaluates the worse bound, so it is never better than the point verdict
         assertThat(conservative.verdict()).isGreaterThanOrEqualTo(point.verdict());
+        if (conservative.verdict().compareTo(point.verdict()) > 0) {
+            assertThat(conservative.hints()).anyMatch(hint -> hint.kind() == dev.jbaby.ditto.comparator.api.Hint.Kind.LARGER_SAMPLE
+                    && "--sample-size=4000".equals(hint.cliOption()));
+        }
         var estimate = (Rate.Estimate) conservative.keys().keySimilarity();
         assertThat(conservative.rules().getFirst().observed()).isEqualTo(estimate.lower());
         assertThat(estimate.lower()).isLessThan(estimate.value());

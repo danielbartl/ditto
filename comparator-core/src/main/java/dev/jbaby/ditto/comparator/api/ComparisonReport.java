@@ -20,6 +20,7 @@ import org.jspecify.annotations.Nullable;
  * @param examples        example keys per category, for manual inspection
  * @param run             timing, document counts and the effective settings
  * @param warnings        conditions that limit the meaning of the report, e.g. a path cap was hit
+ * @param hints           suggestions what to configure next, e.g. a technical timestamp to ignore
  */
 public record ComparisonReport(
         String id,
@@ -31,12 +32,15 @@ public record ComparisonReport(
         StructureMetrics structure,
         Examples examples,
         RunMetadata run,
-        List<String> warnings) {
+        List<String> warnings,
+        List<Hint> hints) {
 
     public ComparisonReport {
         rules = List.copyOf(rules);
         topChangedPaths = List.copyOf(topChangedPaths);
         warnings = List.copyOf(warnings);
+        // reports stored before hints existed
+        hints = hints == null ? List.of() : List.copyOf(hints);
     }
 
     /**

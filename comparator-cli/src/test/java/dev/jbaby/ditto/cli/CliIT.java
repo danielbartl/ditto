@@ -38,8 +38,10 @@ class CliIT {
         assertThat(generated.code()).isEqualTo(ExitCodes.OK);
         assertThat(generated.err()).contains("Generated cli_it.g_base (3000 documents)");
 
-        // touch-sync changes meta.syncedAt everywhere: RED unless ignored
-        assertThat(run("--baseline=g_base", "--candidate=g_same").code()).isEqualTo(ExitCodes.RED);
+        // touch-sync changes meta.syncedAt everywhere: RED unless ignored, and the hint says so
+        Result unconfigured = run("--baseline=g_base", "--candidate=g_same");
+        assertThat(unconfigured.code()).isEqualTo(ExitCodes.RED);
+        assertThat(unconfigured.err()).contains("Hints:").contains("--ignore=meta.syncedAt");
         Result green = run("compare", "--baseline=g_base", "--candidate=g_same", "--ignore=meta.syncedAt",
                 "--out=" + tmp.resolve("report.json"));
         run("generate", "--docs=500", "--baseline=stock_backup", "--candidate=stock");

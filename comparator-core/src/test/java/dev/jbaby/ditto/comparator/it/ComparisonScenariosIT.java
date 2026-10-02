@@ -27,6 +27,7 @@ import dev.jbaby.ditto.comparator.api.ComparisonReport.PathPresence;
 import dev.jbaby.ditto.comparator.api.ComparisonReport.RuleResult;
 import dev.jbaby.ditto.comparator.api.ComparisonReport.TypeShare;
 import dev.jbaby.ditto.comparator.api.ComparisonRequest;
+import dev.jbaby.ditto.comparator.api.Hint;
 import dev.jbaby.ditto.comparator.api.KeyRef;
 import dev.jbaby.ditto.comparator.api.Level;
 import dev.jbaby.ditto.comparator.api.MixedKeyPolicy;
@@ -328,6 +329,43 @@ class ComparisonScenariosIT {
         assertThat(email.valueExamples()).allSatisfy(change -> {
             assertThat(change.baseline()).containsExactly("***");
             assertThat(change.candidate()).containsExactly("***");
+        });
+    }
+
+    @Test
+    void hintsTellAFirstTimeUserWhatToConfigure() {
+        // a sync timestamp changes everywhere, prices churn in 30%, names were re-formatted in every document
+        Collections.create(DB, "hint_a", documents(200, i -> "{_id: " + i + ", name: 'item " + i + "', price: " + i
+                + ", syncedAt: {$date: '2026-01-01T00:00:00Z'}}"));
+        Collections.create(DB, "hint_b", documents(200, i -> "{_id: " + i + ", name: 'ITEM " + i + "', price: "
+                + (i % 10 < 3 ? i + 1 : i) + ", syncedAt: {$date: '2026-01-02T00:00:00Z'}}"));
+
+        ComparisonReport report = compare("hint_a", "hint_b");
+
+        assertThat(report.verdict()).isEqualTo(Level.RED);
+        assertThat(report.hints()).extracting(Hint::kind, Hint::path, Hint::cliOption).containsExactly(
+                org.assertj.core.groups.Tuple.tuple(Hint.Kind.INVESTIGATE, "name", null),
+                org.assertj.core.groups.Tuple.tuple(Hint.Kind.IGNORE_TECHNICAL_FIELD, "syncedAt", "--ignore=syncedAt"),
+                org.assertj.core.groups.Tuple.tuple(Hint.Kind.EXPECTED_CHANGE, "price", "--expected=price"));
+        assertThat(report.hints().get(1).property()).isEqualTo("comparator.ignored-paths=syncedAt");
+
+        // following the configuration hints leaves only the real finding
+        ComparisonReport configured = comparator.compare(ComparisonRequest.builder("hint_a", "hint_b")
+                .ignoredPaths("syncedAt").expectedChangePaths("price").build());
+        assertThat(configured.hints()).extracting(Hint::kind).containsExactly(Hint.Kind.INVESTIGATE);
+    }
+
+    @Test
+    void hintsAboutReplacedKeys() {
+        Collections.create(DB, "rekey_a", documents(100, i -> "{_id: " + i + ", v: 1}"));
+        Collections.create(DB, "rekey_b", documents(100, i -> "{_id: '" + i + "', v: 1}"));
+
+        ComparisonReport report = comparator.compare(ComparisonRequest.builder("rekey_a", "rekey_b")
+                .mixedKeyPolicy(MixedKeyPolicy.COMPARE).build());
+
+        assertThat(report.hints()).singleElement().satisfies(hint -> {
+            assertThat(hint.kind()).isEqualTo(Hint.Kind.INVESTIGATE);
+            assertThat(hint.message()).startsWith("Most keys were replaced");
         });
     }
 

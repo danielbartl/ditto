@@ -44,6 +44,7 @@ import dev.jbaby.ditto.comparator.structure.MapDetector;
  * <pre>{@code
  * ComparisonReport report = comparator.compareWithBackup("products");   // products_backup -> products
  * if (report.verdict() == Level.RED) { ... }
+ * report.hints().forEach(hint -> log.info(hint.message()));            // what to configure next
  * }</pre>
  * With options:
  * <pre>{@code
@@ -187,6 +188,8 @@ public class CollectionComparator {
         log.info("{}: verdict {} (keySimilarity {}, unchangedRate {}, {} ms)", label, report.verdict(),
                 report.keys().keySimilarity().value(), report.content().unchangedRate().value(),
                 report.run().durationMillis());
+        report.hints().forEach(hint -> log.info("{}: hint: {}{}", label, hint.message(),
+                hint.property() == null ? "" : " [" + hint.property() + "]"));
         store(report, label);
         return report;
     }

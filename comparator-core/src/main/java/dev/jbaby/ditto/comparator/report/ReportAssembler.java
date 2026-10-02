@@ -51,8 +51,11 @@ public final class ReportAssembler {
         };
         StructureMetrics structure = StructureDiff.compare(scan.baselineProfile(), scan.candidateProfile(),
                 settings.thresholds().structure());
-        var verdict = verdictEvaluator.evaluate(new RuleInput(measured.keys(), measured.content(),
-                measured.changedPaths(), structure, settings.thresholds(), settings.verdictBasis()));
+        var input = new RuleInput(measured.keys(), measured.content(), measured.changedPaths(), structure,
+                settings.thresholds(), settings.verdictBasis());
+        var verdict = verdictEvaluator.evaluate(input);
+        var hints = new HintAdvisor(verdictEvaluator).advise(settings, input, verdict.rules(), scan.baselineProfile(),
+                scan.candidateProfile());
 
         boolean full = settings.mode() instanceof ComparisonMode.Full;
         var run = new RunMetadata(startedAt, finishedAt, Duration.between(startedAt, finishedAt).toMillis(),
@@ -62,7 +65,7 @@ public final class ReportAssembler {
         return new ComparisonReport(UUID.randomUUID().toString(), verdict.overall(), verdict.rules(),
                 measured.keys(), measured.content(), measured.changedPaths(), structure,
                 new Examples(scan.changedExamples(), scan.addedExamples(), scan.removedExamples()), run,
-                warnings(preflight, scan, structure, settings));
+                warnings(preflight, scan, structure, settings), hints);
     }
 
     private record Measured(KeyMetrics keys, ContentMetrics content, List<PathChange> changedPaths) {

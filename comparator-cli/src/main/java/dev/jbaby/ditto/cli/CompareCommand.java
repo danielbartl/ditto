@@ -51,6 +51,11 @@ public class CompareCommand {
             write(Path.of(out), text);
         }
         console.err().println(summary(report) + (out != null ? "; report written to " + out : ""));
+        if (!report.hints().isEmpty()) {
+            console.err().println("Hints:");
+            report.hints().forEach(hint -> console.err().println("  - " + hint.message()
+                    + (hint.cliOption() == null ? "" : System.lineSeparator() + "    " + hint.cliOption())));
+        }
         return ExitCodes.of(report.verdict());
     }
 
