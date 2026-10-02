@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import org.bson.BsonDocument;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ import dev.jbaby.ditto.comparator.scan.MergeJoinComparator;
 import dev.jbaby.ditto.comparator.scan.Preflight;
 import dev.jbaby.ditto.comparator.scan.ProgressReporter;
 import dev.jbaby.ditto.comparator.scan.SampleComparator;
+import dev.jbaby.ditto.comparator.structure.MapDetector;
 
 /**
  * Compares two MongoDB collections and judges how similar they are. Without any configuration:
@@ -166,6 +168,7 @@ public class CollectionComparator {
         Preflight.Result checked = preflight.run(baseline, candidate, settings);
         checked.warnings().forEach(warning -> log.warn("{}: {}", label, warning));
         settings = settings.withMode(resolveMode(settings, checked, decisions));
+        settings = detectMaps(settings, baseline, candidate, decisions);
         log.info("Comparing {}, mode {}, thresholds {}", label, describe(settings.mode()),
                 thresholdSource.kind() == ThresholdSource.Kind.HISTORY
                         ? "from " + thresholdSource.historyRuns() + " previous runs" : thresholdSource.kind());
@@ -186,6 +189,31 @@ public class CollectionComparator {
                 report.run().durationMillis());
         store(report, label);
         return report;
+    }
+
+    /** Adds maps with dynamic keys found in a small sample of both sides to the wildcard paths. */
+    private ComparisonSettings detectMaps(ComparisonSettings settings, CollectionHandle baseline,
+                                          CollectionHandle candidate, List<String> decisions) {
+        ComparatorProperties.MapDetection detection = properties.getMapDetection();
+        if (!detection.isEnabled()) {
+            return settings;
+        }
+        List<BsonDocument> sample = new ArrayList<>(baseline.randomDocuments(detection.getSampleSize()));
+        sample.addAll(candidate.randomDocuments(detection.getSampleSize()));
+        List<MapDetector.DetectedMap> maps = new MapDetector(detection.getMinDistinctKeys())
+                .detect(sample, settings.ignoredPaths(), settings.orderSensitivePaths(), settings.wildcardPaths());
+        if (maps.isEmpty()) {
+            return settings;
+        }
+        List<String> wildcards = new ArrayList<>(settings.wildcardPaths());
+        for (MapDetector.DetectedMap map : maps) {
+            wildcards.add(map.pattern());
+            decisions.add(String.format(Locale.ROOT, "Treated %s as a map with dynamic keys (%,d distinct field names,"
+                    + " %.1f per object, in %,d sampled documents); configure wildcard-paths to make it explicit or"
+                    + " set comparator.map-detection.enabled=false", map.pattern(), map.distinctKeys(),
+                    map.averageKeys(), map.documents()));
+        }
+        return settings.withWildcardPaths(wildcards);
     }
 
     /** AUTO: FULL up to the full-scan limit per side, SAMPLE above. Explicit modes are kept. */

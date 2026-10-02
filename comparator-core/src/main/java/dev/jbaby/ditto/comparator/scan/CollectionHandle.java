@@ -1,12 +1,17 @@
 package dev.jbaby.ditto.comparator.scan;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.bson.BsonDocument;
 import org.bson.BsonValue;
 import org.bson.RawBsonDocument;
+import org.bson.codecs.BsonDocumentCodec;
 
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Sorts;
 
 import dev.jbaby.ditto.comparator.api.CollectionRef;
@@ -43,6 +48,14 @@ public record CollectionHandle(String side, CollectionRef ref, MongoDatabase dat
                 .batchSize(batchSize)
                 .noCursorTimeout(noCursorTimeout)
                 .allowDiskUse(true);
+    }
+
+    /** Up to {@code size} random documents ({@code $sample}), decoded. */
+    public List<BsonDocument> randomDocuments(int size) {
+        List<BsonDocument> documents = new ArrayList<>(Math.min(size, 1024));
+        collection.aggregate(List.of(Aggregates.sample(size))).allowDiskUse(true)
+                .forEach(document -> documents.add(document.decode(new BsonDocumentCodec())));
+        return documents;
     }
 
     /** The key of a document read from this side. */

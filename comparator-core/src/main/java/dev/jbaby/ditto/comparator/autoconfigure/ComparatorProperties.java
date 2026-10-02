@@ -95,6 +95,8 @@ public class ComparatorProperties {
 
     private final AdaptiveThresholds adaptiveThresholds = new AdaptiveThresholds();
 
+    private final MapDetection mapDetection = new MapDetection();
+
     /**
      * Merges the request with these defaults.
      *
@@ -213,6 +215,46 @@ public class ComparatorProperties {
 
         public void setDatabase(@Nullable String database) {
             this.database = database;
+        }
+    }
+
+    /**
+     * Detects objects with dynamic keys (maps) in a small sample before comparing and treats them as wildcard paths,
+     * so they neither flood the path statistics nor need configuring.
+     */
+    public static class MapDetection {
+
+        /** Detect maps automatically. */
+        private boolean enabled = true;
+
+        /** Documents sampled per side for detection. */
+        private int sampleSize = 500;
+
+        /** Minimum number of distinct field names for an object to count as a map. */
+        private int minDistinctKeys = 20;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getSampleSize() {
+            return sampleSize;
+        }
+
+        public void setSampleSize(int sampleSize) {
+            this.sampleSize = sampleSize;
+        }
+
+        public int getMinDistinctKeys() {
+            return minDistinctKeys;
+        }
+
+        public void setMinDistinctKeys(int minDistinctKeys) {
+            this.minDistinctKeys = minDistinctKeys;
         }
     }
 
@@ -596,5 +638,9 @@ public class ComparatorProperties {
 
     public AdaptiveThresholds getAdaptiveThresholds() {
         return adaptiveThresholds;
+    }
+
+    public MapDetection getMapDetection() {
+        return mapDetection;
     }
 }

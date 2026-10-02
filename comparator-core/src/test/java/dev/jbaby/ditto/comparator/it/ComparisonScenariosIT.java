@@ -264,15 +264,20 @@ class ComparisonScenariosIT {
         Collections.create(DB, "wild_b", documents(100, i -> "{_id: " + i + ", syncedAt: 2, attributes: {c" + i
                 + ": 'y', common: 1}, items: [{p: 1, etag: 'b'}]}"));
 
+        // without configuration the map is detected; the technical fields still show up as changes
         ComparisonReport plain = compare("wild_a", "wild_b");
-        assertThat(plain.structure().baselinePaths()).isGreaterThan(100);
-        assertThat(plain.topChangedPaths()).hasSize(50); // capped by topChangedPaths
+        assertThat(plain.run().settings().wildcardPaths()).containsExactly("attributes.*");
+        assertThat(plain.run().decisions()).anyMatch(decision -> decision.startsWith(
+                "Treated attributes.* as a map with dynamic keys"));
+        assertThat(plain.topChangedPaths()).extracting(PathChange::path)
+                .containsExactly("attributes.*", "items[].etag", "syncedAt");
 
         ComparisonReport configured = comparator.compare(ComparisonRequest.builder("wild_a", "wild_b")
                 .ignoredPaths("syncedAt", "items[].etag").wildcardPaths("attributes.*").build());
         assertThat(configured.topChangedPaths()).extracting(PathChange::path).containsExactly("attributes.*");
         assertThat(configured.topChangedPaths().getFirst().changedDocs()).isEqualTo(100);
         assertThat(configured.structure().baselinePaths()).isEqualTo(6); // _id, attributes, attributes.*, items, items[], items[].p
+        assertThat(configured.run().decisions()).noneMatch(decision -> decision.startsWith("Treated"));
     }
 
     @Test
