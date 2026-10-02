@@ -8,12 +8,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 
 import dev.jbaby.ditto.comparator.CollectionComparator;
 import dev.jbaby.ditto.comparator.canonical.CanonicalEncoder;
 import dev.jbaby.ditto.comparator.canonical.Hasher;
+import dev.jbaby.ditto.comparator.history.ReportHistory;
+import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
 import dev.jbaby.ditto.comparator.key.KeyInspector;
 import dev.jbaby.ditto.comparator.report.ReportAssembler;
 import dev.jbaby.ditto.comparator.report.ReportJson;
@@ -63,12 +66,27 @@ public class ComparatorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "comparator.adaptive-thresholds", name = "enabled", havingValue = "true")
+    public ThresholdAdvisor comparatorThresholdAdvisor(ObjectProvider<ReportRepository> repository,
+                                                       ComparatorProperties properties) {
+        ReportRepository reports = repository.getIfAvailable();
+        if (reports == null) {
+            throw new IllegalStateException("comparator.adaptive-thresholds.enabled=true needs stored reports:"
+                    + " set comparator.persistence.enabled=true (or define a ReportRepository bean)");
+        }
+        return new ThresholdAdvisor(ReportHistory.of(reports), properties.getAdaptiveThresholds().toSettings());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public CollectionComparator collectionComparator(MongoDatabaseFactory databaseFactory,
                                                      ComparatorProperties properties, Hasher hasher,
                                                      VerdictEvaluator verdictEvaluator,
-                                                     ObjectProvider<ReportRepository> repository) {
+                                                     ObjectProvider<ReportRepository> repository,
+                                                     ObjectProvider<ThresholdAdvisor> thresholdAdvisor,
+                                                     ApplicationEventPublisher events) {
         return new CollectionComparator(databaseFactory, properties, hasher, new Preflight(new KeyInspector()),
                 new MergeJoinComparator(), new SampleComparator(), new ReportAssembler(verdictEvaluator),
-                repository.getIfAvailable());
+                repository.getIfAvailable(), thresholdAdvisor.getIfAvailable(), events);
     }
 }

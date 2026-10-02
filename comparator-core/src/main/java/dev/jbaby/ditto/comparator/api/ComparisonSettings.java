@@ -43,8 +43,15 @@ public record ComparisonSettings(
         ignoredPaths = sorted(ignoredPaths);
         orderSensitivePaths = sorted(orderSensitivePaths);
         wildcardPaths = sorted(wildcardPaths);
-        expectedChangePaths = sorted(expectedChangePaths);
-        redactedPaths = sorted(redactedPaths);
+        // reports stored before these options existed
+        expectedChangePaths = expectedChangePaths == null ? List.of() : sorted(expectedChangePaths);
+        redactedPaths = redactedPaths == null ? List.of() : sorted(redactedPaths);
+    }
+
+    public ComparisonSettings withThresholds(Thresholds thresholds) {
+        return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
+                expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy, verdictBasis, thresholds,
+                tuning);
     }
 
     private static List<String> sorted(List<String> paths) {

@@ -18,6 +18,7 @@ import dev.jbaby.ditto.comparator.api.ComparisonReport.RunMetadata;
 import dev.jbaby.ditto.comparator.api.ComparisonReport.StructureMetrics;
 import dev.jbaby.ditto.comparator.api.ComparisonSettings;
 import dev.jbaby.ditto.comparator.api.Rate;
+import dev.jbaby.ditto.comparator.api.ThresholdSource;
 import dev.jbaby.ditto.comparator.metrics.PathChangeStats.PathChangeCount;
 import dev.jbaby.ditto.comparator.metrics.ScanResult;
 import dev.jbaby.ditto.comparator.metrics.Wilson;
@@ -39,8 +40,9 @@ public final class ReportAssembler {
         this.verdictEvaluator = verdictEvaluator;
     }
 
-    public ComparisonReport assemble(ComparisonSettings settings, Preflight.Result preflight, ScanResult scan,
-                                     Instant startedAt, Instant finishedAt) {
+    public ComparisonReport assemble(ComparisonSettings settings, ThresholdSource thresholdSource,
+                                     Preflight.Result preflight, ScanResult scan, Instant startedAt,
+                                     Instant finishedAt) {
         Measured measured = switch (settings.mode()) {
             case ComparisonMode.Full _ -> exact(scan, settings.tuning().topChangedPaths(), expected(settings));
             case ComparisonMode.Sample _ -> estimated(scan, preflight, settings.tuning().topChangedPaths(),
@@ -55,7 +57,7 @@ public final class ReportAssembler {
         var run = new RunMetadata(startedAt, finishedAt, Duration.between(startedAt, finishedAt).toMillis(),
                 full ? scan.baselineDocsRead() : preflight.baselineCount(),
                 full ? scan.candidateDocsRead() : preflight.candidateCount(),
-                scan.baselineDocsRead(), scan.candidateDocsRead(), settings);
+                scan.baselineDocsRead(), scan.candidateDocsRead(), settings, thresholdSource);
         return new ComparisonReport(UUID.randomUUID().toString(), verdict.overall(), verdict.rules(),
                 measured.keys(), measured.content(), measured.changedPaths(), structure,
                 new Examples(scan.changedExamples(), scan.addedExamples(), scan.removedExamples()), run,

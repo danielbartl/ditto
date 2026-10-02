@@ -15,6 +15,7 @@ import dev.jbaby.ditto.comparator.api.ComparisonSettings;
 import dev.jbaby.ditto.comparator.api.MixedKeyPolicy;
 import dev.jbaby.ditto.comparator.api.Thresholds;
 import dev.jbaby.ditto.comparator.api.VerdictBasis;
+import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
 
 /**
  * Defaults for every {@link ComparisonRequest} option, plus technical settings. A request overrides an option by
@@ -79,6 +80,8 @@ public class ComparatorProperties {
     private final Persistence persistence = new Persistence();
 
     private final ThresholdProperties thresholds = new ThresholdProperties();
+
+    private final AdaptiveThresholds adaptiveThresholds = new AdaptiveThresholds();
 
     /**
      * Merges the request with these defaults.
@@ -189,6 +192,83 @@ public class ComparatorProperties {
 
         public void setDatabase(@Nullable String database) {
             this.database = database;
+        }
+    }
+
+    /**
+     * Thresholds derived from previous runs of the same comparison (needs persistence). Thresholds set on a request
+     * always win.
+     */
+    public static class AdaptiveThresholds {
+
+        /** Derive keySimilarity, unchangedRate and maxPathChangeRate thresholds from stored reports. */
+        private boolean enabled = false;
+
+        /** Previous non-RED runs considered at most. */
+        private int historySize = 20;
+
+        /** Previous non-RED runs needed before history is used; until then the configured thresholds apply. */
+        private int minHistory = 5;
+
+        /** Distance of the GREEN bound from the historical mean, in standard deviations. */
+        private double greenSigma = 2.0;
+
+        /** Distance of the YELLOW bound from the historical mean, in standard deviations. */
+        private double yellowSigma = 3.0;
+
+        /** Lower limit for the standard deviation, so a perfectly stable history tolerates small deviations. */
+        private double minSpread = 0.005;
+
+        public ThresholdAdvisor.Settings toSettings() {
+            return new ThresholdAdvisor.Settings(historySize, minHistory, greenSigma, yellowSigma, minSpread);
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getHistorySize() {
+            return historySize;
+        }
+
+        public void setHistorySize(int historySize) {
+            this.historySize = historySize;
+        }
+
+        public int getMinHistory() {
+            return minHistory;
+        }
+
+        public void setMinHistory(int minHistory) {
+            this.minHistory = minHistory;
+        }
+
+        public double getGreenSigma() {
+            return greenSigma;
+        }
+
+        public void setGreenSigma(double greenSigma) {
+            this.greenSigma = greenSigma;
+        }
+
+        public double getYellowSigma() {
+            return yellowSigma;
+        }
+
+        public void setYellowSigma(double yellowSigma) {
+            this.yellowSigma = yellowSigma;
+        }
+
+        public double getMinSpread() {
+            return minSpread;
+        }
+
+        public void setMinSpread(double minSpread) {
+            this.minSpread = minSpread;
         }
     }
 
@@ -464,5 +544,9 @@ public class ComparatorProperties {
 
     public ThresholdProperties getThresholds() {
         return thresholds;
+    }
+
+    public AdaptiveThresholds getAdaptiveThresholds() {
+        return adaptiveThresholds;
     }
 }

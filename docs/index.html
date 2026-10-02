@@ -233,7 +233,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
     </div>
     <div class="meta">
       <span>Java 25</span><span>Spring Boot 4.1</span><span>MongoDB 4.4+</span>
-      <span>Library + CLI</span><span>Streaming, constant memory</span><span>MIT licensed</span>
+      <span>Library + CLI</span><span>Streaming, constant memory</span><span>Learns from history</span><span>MIT licensed</span>
     </div>
   </section>
 
@@ -519,21 +519,44 @@ esac</pre></div>
     </details>
 
     <details class="scenario">
-      <summary><strong>Tune thresholds from history</strong><span>persist every report</span></summary>
+      <summary><strong>Learn what's normal for each collection</strong><span>thresholds from history</span></summary>
       <div class="body">
-        <p>The default thresholds are a starting point. Store every report, and after a few weeks you know what normal
-          churn looks like for each collection:</p>
+        <p>Fixed thresholds fit some collections badly: one where 8% of documents change every day is permanently
+          <span class="chip yellow">YELLOW</span>. Store every report, and let ditto derive the thresholds from the
+          last runs of the same comparison:</p>
         <div class="code"><span class="label">application.yml</span><pre>comparator:
   persistence:
     enabled: true                     <span class="c"># stores reports in comparison_reports</span>
-  thresholds:
-    unchanged-rate:
-      green: 0.90                     <span class="c"># this collection normally changes ~6% per day</span>
-      yellow: 0.80</pre></div>
-        <div class="code"><span class="label">mongosh</span><pre>db.comparison_reports.find(
-  { candidate: "shop.products" },
-  { verdict: 1, "content.unchangedRate.value": 1, createdAt: 1 }
-).sort({ createdAt: -1 }).limit(30)</pre></div>
+  adaptive-thresholds:
+    enabled: true                     <span class="c"># after 5 runs: GREEN within 2σ, YELLOW within 3σ of the mean</span></pre></div>
+        <p>ditto uses the last 20 non-RED runs, so a broken run doesn't lower the bar for the next one. The report says
+          where its thresholds came from:</p>
+        <div class="code"><span class="label">report.json</span><pre>"thresholdSource": {
+  "kind": "HISTORY", "historyRuns": 14,
+  "notes": [ "unchangedRate: mean 0.9120, standard deviation 0.0071 over 14 runs -&gt; GREEN &gt;= 0.8978, YELLOW &gt;= 0.8907", ... ]
+}</pre></div>
+      </div>
+    </details>
+
+    <details class="scenario">
+      <summary><strong>Alert and monitor</strong><span>events, Micrometer metrics, Actuator endpoint</span></summary>
+      <div class="body">
+        <p>Every comparison publishes a Spring event, whoever triggered it. Alerting is one listener:</p>
+        <div class="code"><span class="label">Java</span><pre>@EventListener
+void onComparison(ComparisonCompletedEvent event) {
+    if (event.report().verdict() == Level.RED) {
+        alerts.critical(event.report());
+    }
+}
+<span class="c">// ComparisonFailedEvent for comparisons that could not run</span></pre></div>
+        <p>If the application has Micrometer, ditto records <code>ditto.comparison</code> (timer, tagged with
+          verdict), <code>ditto.comparison.errors</code>, and gauges with the latest verdict, key similarity,
+          unchanged rate and max path change rate per collection pair. That's enough for a dashboard and an alert
+          rule.</p>
+        <p>With Actuator and persistence, the read-only <code>comparisons</code> endpoint lists stored reports
+          (<code>/actuator/comparisons</code>, <code>/actuator/comparisons/{id}</code>) once exposed via
+          <code>management.endpoints.web.exposure.include</code>. Both integrations are optional: ditto doesn't
+          bring Micrometer or Actuator into an application that doesn't use them.</p>
       </div>
     </details>
   </section>
@@ -597,6 +620,10 @@ esac</pre></div>
       <tr><td><code>persistence.enabled</code></td><td class="def">false</td><td>Store every report in MongoDB</td></tr>
       <tr><td><code>persistence.collection</code></td><td class="def">comparison_reports</td><td>Report collection</td></tr>
       <tr><td><code>persistence.database</code></td><td class="def">default db</td><td>Report database</td></tr>
+      <tr><td><code>adaptive-thresholds.enabled</code></td><td class="def">false</td><td>Derive thresholds from stored reports (needs persistence)</td></tr>
+      <tr><td><code>adaptive-thresholds.history-size</code> / <code>.min-history</code></td><td class="def">20 / 5</td><td>Previous non-RED runs considered / needed</td></tr>
+      <tr><td><code>adaptive-thresholds.green-sigma</code> / <code>.yellow-sigma</code></td><td class="def">2.0 / 3.0</td><td>Band distance from the historical mean, in standard deviations</td></tr>
+      <tr><td><code>adaptive-thresholds.min-spread</code></td><td class="def">0.005</td><td>Lower limit for the standard deviation</td></tr>
     </table></div>
     <p>The connection itself uses Spring Boot's <code>spring.mongodb.*</code> properties.</p>
   </section>

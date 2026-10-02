@@ -381,6 +381,74 @@ db.comparison_reports.find({candidate: "shop.products"}, {verdict: 1, "keys.keyS
 
 If storing a report fails, the failure is logged and the report is still returned.
 
+### Thresholds learned from history
+
+Fixed thresholds fit some collections badly. A collection where 8% of documents change every day is permanently
+YELLOW under the default `unchangedRate` GREEN bound of 0.95. With stored reports, ditto can instead learn what is
+normal for each pair of collections:
+
+```yaml
+comparator:
+  persistence:
+    enabled: true
+  adaptive-thresholds:
+    enabled: true
+```
+
+How the learned thresholds are computed:
+
+- ditto takes the last `history-size` (20) **non-RED** comparisons of the same baseline/candidate pair, and the
+  observed `keySimilarity`, `unchangedRate` and `maxPathChangeRate` of each.
+- **GREEN** starts `green-sigma` (2) standard deviations from the mean, and **YELLOW** `yellow-sigma` (3) standard
+  deviations, in the direction that is worse for the metric.
+- The standard deviation is at least `min-spread` (0.005). A perfectly stable history therefore still tolerates small
+  deviations.
+- Structure thresholds stay as configured.
+
+Until `min-history` (5) runs exist, the configured thresholds apply. Thresholds set on a request always win.
+`run.thresholdSource` in the report says which thresholds were used, and lists how they were derived, e.g.
+`unchangedRate: mean 0.9120, standard deviation 0.0071 over 14 runs -> GREEN >= 0.8978, YELLOW >= 0.8907`.
+
+RED runs are left out of the history, so a broken run doesn't lower the bar for the next one. A slow drift across
+many GREEN or YELLOW runs is still learned. Keep an eye on the derived values, e.g. with the metrics below.
+
+### Events, metrics and the Actuator endpoint
+
+Every comparison publishes a Spring application event: a `ComparisonCompletedEvent` (with the report, whatever the
+verdict) or a `ComparisonFailedEvent` (with the settings and the exception, before it is thrown). Hosts can react
+without wrapping the comparator:
+
+```java
+@EventListener
+void onComparison(ComparisonCompletedEvent event) {
+    if (event.report().verdict() == Level.RED) {
+        alerts.critical(event.report());
+    }
+}
+```
+
+**Micrometer.** If Micrometer is on the classpath and the application has a `MeterRegistry` (for example through
+Spring Boot Actuator), ditto records the following meters. All of them are tagged with `baseline` and `candidate`, in
+the form `db.collection`.
+
+| Meter                                    | Type    | Meaning                                                           |
+|------------------------------------------|---------|-------------------------------------------------------------------|
+| `ditto.comparison`                       | timer   | Duration, also tagged with `mode` and `verdict`                   |
+| `ditto.comparison.errors`                | counter | Comparisons that failed, also tagged with `exception`             |
+| `ditto.comparison.verdict`               | gauge   | Latest verdict: 0 GREEN, 1 YELLOW, 2 RED                          |
+| `ditto.comparison.key.similarity`        | gauge   | Latest key similarity                                             |
+| `ditto.comparison.unchanged.rate`        | gauge   | Latest unchanged rate                                             |
+| `ditto.comparison.max.path.change.rate`  | gauge   | Latest highest change rate of an unexpected path                  |
+
+**Actuator.** If Actuator is on the classpath and persistence is enabled, the read-only `comparisons` endpoint lists
+stored reports. Expose it like any endpoint, with `management.endpoints.web.exposure.include=comparisons`.
+
+- `GET /actuator/comparisons` returns summaries of the 50 most recent reports.
+- `GET /actuator/comparisons/{id}` returns one full report.
+
+Micrometer and Actuator are optional dependencies of `comparator-core`. They are only used if the host application
+already has them.
+
 ---
 
 ## Configuration reference
@@ -417,6 +485,12 @@ All properties have the prefix `comparator`. Request values take precedence wher
 | `persistence.enabled`                      | `false`              | Store reports                                                                   |
 | `persistence.collection`                   | `comparison_reports` | Report collection                                                               |
 | `persistence.database`                     | default database     | Report database                                                                 |
+| `adaptive-thresholds.enabled`              | `false`              | Derive thresholds from stored reports, see [history](#thresholds-learned-from-history) |
+| `adaptive-thresholds.history-size`         | `20`                 | Previous non-RED runs considered                                                |
+| `adaptive-thresholds.min-history`          | `5`                  | Runs needed before history is used                                              |
+| `adaptive-thresholds.green-sigma`          | `2.0`                | GREEN bound distance from the mean, in standard deviations                      |
+| `adaptive-thresholds.yellow-sigma`         | `3.0`                | YELLOW bound distance from the mean, in standard deviations                     |
+| `adaptive-thresholds.min-spread`           | `0.005`              | Lower limit for the standard deviation                                          |
 
 The MongoDB connection itself is configured with Spring Boot's own properties (`spring.mongodb.uri`,
 `spring.mongodb.database`, …).
@@ -488,7 +562,9 @@ How to read it:
    - `newPaths` and `presenceDeltas` are softer signals.
 5. **`examples`**: keys as relaxed Extended JSON, ready for mongosh:
    `db.products.find({_id: {"$oid": "6553f1212161972337cc2db4"}})`. Look at the same key in both collections.
-6. **`warnings`**: conditions that limit the result. Examples: more distinct paths than `max-tracked-paths` (use
+6. **`run.thresholdSource`**: whether the thresholds came from the configuration, the request or the history, and
+   how history-based ones were derived.
+7. **`warnings`**: conditions that limit the result. Examples: more distinct paths than `max-tracked-paths` (use
    wildcard paths for maps), no usable index on a custom key field, mixed key types compared under `COMPARE`.
 
 ### SAMPLE mode
@@ -580,7 +656,10 @@ Points to consider:
 - **Make sure the next scheduled sync can't overwrite the backup before verification and rollback are done.** Use a
   JobRunr mutex/label, or chain the jobs.
 - **Persist reports** (`comparator.persistence.enabled=true`). Put the report id in alerts, so people can open the
-  report with its example keys. After a few weeks of history, tune the thresholds to your normal churn.
+  report with its example keys. With `comparator.adaptive-thresholds.enabled=true`, ditto tunes the thresholds to your
+  normal churn by itself.
+- **Alerts** can also come from an `@EventListener` for `ComparisonCompletedEvent`, which works no matter who
+  triggered the comparison.
 - **Progress and cancellation**: the `ProgressListener` maps onto the dashboard progress bar. If the job is deleted
   while it's running, JobRunr interrupts the worker thread. The comparison then stops within a few hundred documents and throws
   `ComparisonException`.

@@ -9,6 +9,9 @@ import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import dev.jbaby.ditto.comparator.CollectionComparator;
+import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
+import dev.jbaby.ditto.comparator.observability.ComparisonMetrics;
+import dev.jbaby.ditto.comparator.observability.ComparisonsEndpoint;
 import dev.jbaby.ditto.comparator.report.ReportRepository;
 import dev.jbaby.ditto.comparator.verdict.VerdictEvaluator;
 
@@ -40,6 +43,31 @@ class ComparatorAutoConfigurationTest {
         var custom = new VerdictEvaluator();
         runner.withBean(VerdictEvaluator.class, () -> custom)
                 .run(context -> assertThat(context.getBean(VerdictEvaluator.class)).isSameAs(custom));
+    }
+
+    @Test
+    void registersMetricsAndEndpointWhenAvailable() {
+        var withAll = runner.withConfiguration(AutoConfigurations.of(ComparatorMetricsAutoConfiguration.class,
+                ComparatorEndpointAutoConfiguration.class));
+
+        withAll.run(context -> {
+            assertThat(context).hasSingleBean(ComparisonMetrics.class);
+            assertThat(context).doesNotHaveBean(ComparisonsEndpoint.class); // needs persistence
+        });
+        withAll.withPropertyValues("comparator.persistence.enabled=true")
+                .run(context -> assertThat(context).doesNotHaveBean(ComparisonsEndpoint.class)); // not exposed
+        withAll.withPropertyValues("comparator.persistence.enabled=true",
+                        "management.endpoints.web.exposure.include=comparisons")
+                .run(context -> assertThat(context).hasSingleBean(ComparisonsEndpoint.class));
+    }
+
+    @Test
+    void adaptiveThresholdsNeedPersistence() {
+        runner.withPropertyValues("comparator.adaptive-thresholds.enabled=true")
+                .run(context -> assertThat(context).getFailure().rootCause()
+                        .hasMessageContaining("set comparator.persistence.enabled=true"));
+        runner.withPropertyValues("comparator.adaptive-thresholds.enabled=true", "comparator.persistence.enabled=true")
+                .run(context -> assertThat(context).hasSingleBean(ThresholdAdvisor.class));
     }
 
     @Test

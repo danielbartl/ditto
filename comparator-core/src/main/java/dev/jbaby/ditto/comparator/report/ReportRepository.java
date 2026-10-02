@@ -10,6 +10,8 @@ import org.bson.conversions.Bson;
 import org.bson.json.JsonMode;
 import org.bson.json.JsonWriterSettings;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 
 import com.mongodb.client.MongoCollection;
@@ -25,6 +27,7 @@ import dev.jbaby.ditto.comparator.api.ComparisonReport;
  */
 public final class ReportRepository {
 
+    private static final Logger log = LoggerFactory.getLogger(ReportRepository.class);
     private static final JsonWriterSettings RELAXED = JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build();
     private static final List<String> QUERY_FIELDS = List.of("_id", "createdAt", "baseline", "candidate");
 
@@ -71,6 +74,31 @@ public final class ReportRepository {
         List<ComparisonReport> reports = new ArrayList<>();
         collection().find(filter).sort(Sorts.descending("createdAt")).limit(limit)
                 .forEach(document -> reports.add(toReport(document)));
+        return reports;
+    }
+
+    /**
+     * Previous comparisons of the same pair of collections, most recent first, for deriving thresholds.
+     *
+     * @param baseline     {@code db.collection} of the baseline
+     * @param candidate    {@code db.collection} of the candidate
+     * @param includeRed   whether RED reports are included
+     * @param limit        maximum number of reports
+     */
+    public List<ComparisonReport> findHistory(String baseline, String candidate, boolean includeRed, int limit) {
+        Bson filter = Filters.and(Filters.eq("baseline", baseline), Filters.eq("candidate", candidate));
+        if (!includeRed) {
+            filter = Filters.and(filter, Filters.ne("verdict", "RED"));
+        }
+        List<ComparisonReport> reports = new ArrayList<>();
+        collection().find(filter).sort(Sorts.descending("createdAt")).limit(limit).forEach(document -> {
+            try {
+                reports.add(toReport(document));
+            } catch (RuntimeException e) {
+                log.warn("Skipping unreadable report {} in the history of {}: {}", document.get("_id"), candidate,
+                        e.getMessage());
+            }
+        });
         return reports;
     }
 

@@ -78,6 +78,13 @@ public record ComparisonReport(
      */
     public record ContentMetrics(long unchanged, long changed, long changedExpectedOnly, Rate unchangedRate,
                                  Rate changedRate, Rate unchangedOrExpectedRate) {
+
+        public ContentMetrics {
+            // reports stored before expected-change paths existed
+            if (unchangedOrExpectedRate == null) {
+                unchangedOrExpectedRate = unchangedRate;
+            }
+        }
     }
 
     /**
@@ -93,7 +100,8 @@ public record ComparisonReport(
 
         public PathChange {
             examples = List.copyOf(examples);
-            valueExamples = List.copyOf(valueExamples);
+            // reports stored before value examples existed
+            valueExamples = valueExamples == null ? List.of() : List.copyOf(valueExamples);
         }
     }
 
@@ -175,9 +183,17 @@ public record ComparisonReport(
      * @param baselineDocsRead  baseline documents actually read (equals the count in FULL mode)
      * @param candidateDocsRead candidate documents actually read
      * @param settings          the effective settings
+     * @param thresholdSource   where {@code settings.thresholds()} came from
      */
     public record RunMetadata(Instant startedAt, Instant finishedAt, long durationMillis, long baselineCount,
                               long candidateCount, long baselineDocsRead, long candidateDocsRead,
-                              ComparisonSettings settings) {
+                              ComparisonSettings settings, ThresholdSource thresholdSource) {
+
+        public RunMetadata {
+            // reports stored before threshold sources existed
+            if (thresholdSource == null) {
+                thresholdSource = ThresholdSource.configured();
+            }
+        }
     }
 }
