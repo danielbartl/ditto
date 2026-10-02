@@ -71,6 +71,15 @@ class ComparatorAutoConfigurationTest {
     }
 
     @Test
+    void persistenceImpliesAdaptiveThresholdsUnlessSwitchedOff() {
+        runner.run(context -> assertThat(context).doesNotHaveBean(ThresholdAdvisor.class));
+        runner.withPropertyValues("comparator.persistence.enabled=true")
+                .run(context -> assertThat(context).hasSingleBean(ThresholdAdvisor.class));
+        runner.withPropertyValues("comparator.persistence.enabled=true", "comparator.adaptive-thresholds.enabled=false")
+                .run(context -> assertThat(context).doesNotHaveBean(ThresholdAdvisor.class));
+    }
+
+    @Test
     void staysAwayWithoutMongo() {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(ComparatorAutoConfiguration.class))

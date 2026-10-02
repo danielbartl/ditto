@@ -222,8 +222,11 @@ public class ComparatorProperties {
      */
     public static class AdaptiveThresholds {
 
-        /** Derive keySimilarity, unchangedRate and maxPathChangeRate thresholds from stored reports. */
-        private boolean enabled = false;
+        /**
+         * Derive keySimilarity, unchangedRate and maxPathChangeRate thresholds from stored reports. Not set: on
+         * whenever persistence is enabled.
+         */
+        private @Nullable Boolean enabled;
 
         /** Previous non-RED runs considered at most. */
         private int historySize = 20;
@@ -244,11 +247,11 @@ public class ComparatorProperties {
             return new ThresholdAdvisor.Settings(historySize, minHistory, greenSigma, yellowSigma, minSpread);
         }
 
-        public boolean isEnabled() {
+        public @Nullable Boolean getEnabled() {
             return enabled;
         }
 
-        public void setEnabled(boolean enabled) {
+        public void setEnabled(@Nullable Boolean enabled) {
             this.enabled = enabled;
         }
 

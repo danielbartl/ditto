@@ -41,7 +41,6 @@ import dev.jbaby.ditto.comparator.support.TestApplication;
 @SpringBootTest(classes = TestApplication.class, properties = {
         "comparator.persistence.enabled=true",
         "comparator.persistence.collection=history_it_reports",
-        "comparator.adaptive-thresholds.enabled=true",
         "comparator.adaptive-thresholds.min-history=3",
         "management.endpoints.web.exposure.include=comparisons"})
 @Import(HistoryAndObservabilityIT.Listeners.class)
