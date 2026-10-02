@@ -30,13 +30,13 @@ class ComparatorPropertiesTest {
         assertThat(settings.candidate()).isEqualTo(CollectionRef.of("shop", "products"));
         assertThat(settings.keyField()).isEqualTo("_id");
         assertThat(settings.ignoredPaths()).containsExactly("_class");
-        assertThat(settings.mode()).isEqualTo(ComparisonMode.full());
+        assertThat(settings.mode()).isEqualTo(ComparisonMode.auto());
         assertThat(settings.nullEqualsMissing()).isFalse();
         assertThat(settings.mixedKeyPolicy()).isEqualTo(MixedKeyPolicy.REJECT);
         assertThat(settings.verdictBasis()).isEqualTo(VerdictBasis.CONSERVATIVE);
         assertThat(settings.thresholds()).isEqualTo(Thresholds.DEFAULTS);
         assertThat(settings.tuning()).isEqualTo(new ComparisonSettings.Tuning(
-                1000, false, 20, 3, 10_000, 50, Duration.ofSeconds(10), 500));
+                1000, false, 20, 3, 10_000, 50, Duration.ofSeconds(10), 500, 5_000_000, 20_000));
         assertThat(settings.expectedChangePaths()).isEmpty();
         assertThat(settings.redactedPaths()).isEmpty();
     }

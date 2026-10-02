@@ -60,8 +60,11 @@ public class ComparatorProperties {
     /** What to do if key values of different BSON types are found. */
     private MixedKeyPolicy mixedKeyTypes = MixedKeyPolicy.REJECT;
 
-    /** Default comparison mode. */
-    private Mode mode = Mode.FULL;
+    /** Default comparison mode: AUTO picks FULL or SAMPLE by collection size, see full-scan-limit. */
+    private Mode mode = Mode.AUTO;
+
+    /** AUTO mode scans fully if neither collection has more documents than this; otherwise it samples. */
+    private long fullScanLimit = 5_000_000;
 
     /** Cursor batch size. */
     private int batchSize = 1000;
@@ -113,11 +116,13 @@ public class ComparatorProperties {
                 Objects.requireNonNullElse(request.verdictBasis(), sample.verdictBasis),
                 Objects.requireNonNullElseGet(request.thresholds(), thresholds::toThresholds),
                 new ComparisonSettings.Tuning(batchSize, noCursorTimeout, maxExamples, maxValueExamples,
-                        maxTrackedPaths, topChangedPaths, progressInterval, sample.lookupBatchSize));
+                        maxTrackedPaths, topChangedPaths, progressInterval, sample.lookupBatchSize, fullScanLimit,
+                        sample.size));
     }
 
     private ComparisonMode defaultMode() {
         return switch (mode) {
+            case AUTO -> ComparisonMode.auto();
             case FULL -> ComparisonMode.full();
             case SAMPLE -> ComparisonMode.sample(sample.size);
         };
@@ -134,14 +139,15 @@ public class ComparatorProperties {
     }
 
     public enum Mode {
+        AUTO,
         FULL,
         SAMPLE
     }
 
     public static class Sample {
 
-        /** Sample size used when the mode is SAMPLE and the request gives no size. */
-        private int size = 10_000;
+        /** Keys sampled per side in SAMPLE mode (and by AUTO above the full-scan limit) unless a request gives one. */
+        private int size = 20_000;
 
         /** Which value of estimated rates the verdict evaluates. */
         private VerdictBasis verdictBasis = VerdictBasis.CONSERVATIVE;
@@ -507,6 +513,14 @@ public class ComparatorProperties {
 
     public void setMixedKeyTypes(MixedKeyPolicy mixedKeyTypes) {
         this.mixedKeyTypes = mixedKeyTypes;
+    }
+
+    public long getFullScanLimit() {
+        return fullScanLimit;
+    }
+
+    public void setFullScanLimit(long fullScanLimit) {
+        this.fullScanLimit = fullScanLimit;
     }
 
     public Mode getMode() {

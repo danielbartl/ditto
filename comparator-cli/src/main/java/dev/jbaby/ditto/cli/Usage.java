@@ -27,7 +27,8 @@ final class Usage {
               --expected=<path,...>         paths that are supposed to change (prices, counters); reported but
                                             not counted against the verdict
               --redact=<path,...>           paths whose values are shown as *** in value examples
-              --mode=full|sample            default full
+              --mode=auto|full|sample       default auto: full scan up to 5,000,000 documents per side, else
+                                            a sample (--comparator.full-scan-limit, --comparator.sample.size)
               --sample-size=<n>             sample size (implies --mode=sample)
               --null-equals-missing         treat null fields like missing fields
               --mixed-key-types=reject|compare

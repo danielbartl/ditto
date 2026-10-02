@@ -1,6 +1,9 @@
 package dev.jbaby.ditto.comparator;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -154,16 +157,18 @@ public class CollectionComparator {
         }
         String label = label(settings);
         Instant startedAt = Instant.now();
+        List<String> decisions = new ArrayList<>();
         CollectionHandle baseline = CollectionHandle.of("baseline", settings.baseline(),
                 databaseFactory.getMongoDatabase(settings.baseline().database()));
         CollectionHandle candidate = CollectionHandle.of("candidate", settings.candidate(),
                 databaseFactory.getMongoDatabase(settings.candidate().database()));
-        log.info("Comparing {}, mode {}, thresholds {}", label, describe(settings.mode()),
-                thresholdSource.kind() == ThresholdSource.Kind.HISTORY
-                        ? "from " + thresholdSource.historyRuns() + " previous runs" : thresholdSource.kind());
 
         Preflight.Result checked = preflight.run(baseline, candidate, settings);
         checked.warnings().forEach(warning -> log.warn("{}: {}", label, warning));
+        settings = settings.withMode(resolveMode(settings, checked, decisions));
+        log.info("Comparing {}, mode {}, thresholds {}", label, describe(settings.mode()),
+                thresholdSource.kind() == ThresholdSource.Kind.HISTORY
+                        ? "from " + thresholdSource.historyRuns() + " previous runs" : thresholdSource.kind());
         ScanAccumulator accumulator = new ScanAccumulator(settings, hasher);
         ScanResult scan = switch (settings.mode()) {
             case ComparisonMode.Full _ -> mergeJoin.compare(baseline, candidate, settings, accumulator,
@@ -172,14 +177,34 @@ public class CollectionComparator {
             case ComparisonMode.Sample sample -> sampler.compare(baseline, candidate, settings, sample.size(),
                     accumulator, new ProgressReporter(label, settings.tuning().progressInterval(),
                             2L * sample.size(), listener));
+            case ComparisonMode.Auto _ -> throw new IllegalStateException("AUTO mode was not resolved");
         };
-        ComparisonReport report = assembler.assemble(settings, thresholdSource, checked, scan, startedAt,
+        ComparisonReport report = assembler.assemble(settings, thresholdSource, decisions, checked, scan, startedAt,
                 Instant.now());
         log.info("{}: verdict {} (keySimilarity {}, unchangedRate {}, {} ms)", label, report.verdict(),
                 report.keys().keySimilarity().value(), report.content().unchangedRate().value(),
                 report.run().durationMillis());
         store(report, label);
         return report;
+    }
+
+    /** AUTO: FULL up to the full-scan limit per side, SAMPLE above. Explicit modes are kept. */
+    private static ComparisonMode resolveMode(ComparisonSettings settings, Preflight.Result checked,
+                                              List<String> decisions) {
+        if (!(settings.mode() instanceof ComparisonMode.Auto)) {
+            return settings.mode();
+        }
+        ComparisonSettings.Tuning tuning = settings.tuning();
+        long largest = Math.max(checked.baselineCount(), checked.candidateCount());
+        if (largest <= tuning.fullScanLimit()) {
+            decisions.add(String.format(Locale.ROOT, "Mode AUTO chose FULL: %,d and %,d documents, full-scan limit"
+                    + " %,d", checked.baselineCount(), checked.candidateCount(), tuning.fullScanLimit()));
+            return ComparisonMode.full();
+        }
+        decisions.add(String.format(Locale.ROOT, "Mode AUTO chose SAMPLE of %,d keys per side: %,d documents exceed"
+                + " the full-scan limit %,d (comparator.full-scan-limit)", tuning.autoSampleSize(), largest,
+                tuning.fullScanLimit()));
+        return ComparisonMode.sample(tuning.autoSampleSize());
     }
 
     private void store(ComparisonReport report, String label) {
@@ -202,6 +227,7 @@ public class CollectionComparator {
         return switch (mode) {
             case ComparisonMode.Full _ -> "FULL";
             case ComparisonMode.Sample(int size) -> "SAMPLE (" + size + " keys per side)";
+            case ComparisonMode.Auto _ -> "AUTO";
         };
     }
 }

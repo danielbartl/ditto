@@ -48,6 +48,18 @@ public record ComparisonSettings(
         redactedPaths = redactedPaths == null ? List.of() : sorted(redactedPaths);
     }
 
+    public ComparisonSettings withMode(ComparisonMode mode) {
+        return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
+                expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy, verdictBasis, thresholds,
+                tuning);
+    }
+
+    public ComparisonSettings withWildcardPaths(List<String> wildcardPaths) {
+        return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
+                expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy, verdictBasis, thresholds,
+                tuning);
+    }
+
     public ComparisonSettings withThresholds(Thresholds thresholds) {
         return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
                 expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy, verdictBasis, thresholds,
@@ -70,10 +82,12 @@ public record ComparisonSettings(
      * @param topChangedPaths       changed paths listed in the report
      * @param progressInterval      how often progress is logged and reported
      * @param sampleLookupBatchSize keys per {@code $in} lookup in SAMPLE mode
+     * @param fullScanLimit         AUTO mode scans fully if neither side has more documents
+     * @param autoSampleSize        sample size AUTO mode uses above the limit
      */
     public record Tuning(int batchSize, boolean noCursorTimeout, int maxExamples, int maxValueExamples,
                          int maxTrackedPaths, int topChangedPaths, Duration progressInterval,
-                         int sampleLookupBatchSize) {
+                         int sampleLookupBatchSize, long fullScanLimit, int autoSampleSize) {
 
         public Tuning {
             requirePositive("batchSize", batchSize);
@@ -82,6 +96,10 @@ public record ComparisonSettings(
             requirePositive("maxTrackedPaths", maxTrackedPaths);
             requireNonNegative("topChangedPaths", topChangedPaths);
             requirePositive("sampleLookupBatchSize", sampleLookupBatchSize);
+            // reports stored before AUTO mode existed have 0 here
+            if (fullScanLimit < 0 || autoSampleSize < 0) {
+                throw new IllegalArgumentException("fullScanLimit and autoSampleSize must not be negative");
+            }
             requireNonNull(progressInterval, "progressInterval");
             if (progressInterval.isNegative() || progressInterval.isZero()) {
                 throw new IllegalArgumentException("progressInterval must be positive, was " + progressInterval);

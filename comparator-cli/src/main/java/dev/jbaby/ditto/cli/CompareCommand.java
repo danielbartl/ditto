@@ -94,6 +94,12 @@ public class CompareCommand {
             return size == null ? null : ComparisonMode.sample(size);
         }
         return switch (mode.toLowerCase(Locale.ROOT)) {
+            case "auto" -> {
+                if (size != null) {
+                    throw new CliUsageException("--sample-size cannot be combined with --mode=auto");
+                }
+                yield ComparisonMode.auto();
+            }
             case "full" -> {
                 if (size != null) {
                     throw new CliUsageException("--sample-size cannot be combined with --mode=full");
@@ -101,7 +107,7 @@ public class CompareCommand {
                 yield ComparisonMode.full();
             }
             case "sample" -> ComparisonMode.sample(size != null ? size : properties.getSample().getSize());
-            default -> throw new CliUsageException("Option --mode must be full or sample, was '" + mode + "'");
+            default -> throw new CliUsageException("Option --mode must be auto, full or sample, was '" + mode + "'");
         };
     }
 

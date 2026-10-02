@@ -41,12 +41,13 @@ public final class ReportAssembler {
     }
 
     public ComparisonReport assemble(ComparisonSettings settings, ThresholdSource thresholdSource,
-                                     Preflight.Result preflight, ScanResult scan, Instant startedAt,
-                                     Instant finishedAt) {
+                                     List<String> decisions, Preflight.Result preflight, ScanResult scan,
+                                     Instant startedAt, Instant finishedAt) {
         Measured measured = switch (settings.mode()) {
             case ComparisonMode.Full _ -> exact(scan, settings.tuning().topChangedPaths(), expected(settings));
             case ComparisonMode.Sample _ -> estimated(scan, preflight, settings.tuning().topChangedPaths(),
                     expected(settings));
+            case ComparisonMode.Auto _ -> throw new IllegalArgumentException("AUTO mode must be resolved first");
         };
         StructureMetrics structure = StructureDiff.compare(scan.baselineProfile(), scan.candidateProfile(),
                 settings.thresholds().structure());
@@ -57,7 +58,7 @@ public final class ReportAssembler {
         var run = new RunMetadata(startedAt, finishedAt, Duration.between(startedAt, finishedAt).toMillis(),
                 full ? scan.baselineDocsRead() : preflight.baselineCount(),
                 full ? scan.candidateDocsRead() : preflight.candidateCount(),
-                scan.baselineDocsRead(), scan.candidateDocsRead(), settings, thresholdSource);
+                scan.baselineDocsRead(), scan.candidateDocsRead(), settings, thresholdSource, decisions);
         return new ComparisonReport(UUID.randomUUID().toString(), verdict.overall(), verdict.rules(),
                 measured.keys(), measured.content(), measured.changedPaths(), structure,
                 new Examples(scan.changedExamples(), scan.addedExamples(), scan.removedExamples()), run,

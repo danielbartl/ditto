@@ -31,7 +31,9 @@ import dev.jbaby.ditto.comparator.support.TestApplication;
  * price change rate 0.1, all YELLOW) and tolerances are several standard errors wide, so random sampling does not make
  * the test flaky.
  */
-@SpringBootTest(classes = TestApplication.class)
+@SpringBootTest(classes = TestApplication.class, properties = {
+        "comparator.full-scan-limit=10000",
+        "comparator.sample.size=2000"})
 class SampleModeIT {
 
     private static final int DOCS = 20_000;
@@ -110,6 +112,16 @@ class SampleModeIT {
         var estimate = (Rate.Estimate) conservative.keys().keySimilarity();
         assertThat(conservative.rules().getFirst().observed()).isEqualTo(estimate.lower());
         assertThat(estimate.lower()).isLessThan(estimate.value());
+    }
+
+    @Test
+    void autoModeSamplesAboveTheFullScanLimit() {
+        ComparisonReport report = comparator.compare(ComparisonRequest.of("sample_base", "sample_cand"));
+
+        assertThat(report.run().settings().mode()).isEqualTo(dev.jbaby.ditto.comparator.api.ComparisonMode.sample(2000));
+        assertThat(report.run().decisions()).singleElement().asString()
+                .startsWith("Mode AUTO chose SAMPLE of 2,000 keys per side: 20,000 documents exceed");
+        assertThat(report.keys().keySimilarity()).isInstanceOf(Rate.Estimate.class);
     }
 
     @Test

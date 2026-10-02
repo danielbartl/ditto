@@ -90,7 +90,7 @@ class CliIT {
         assertThat(run("--baseline=only").err()).contains("Missing required option --candidate");
         assertThat(run("frobnicate").err()).contains("Unknown command 'frobnicate'");
         assertThat(run("--baseline=nope_a", "--candidate=nope_b").err()).contains("does not exist");
-        assertThat(run("--baseline=a", "--candidate=b", "--mode=fast").err()).contains("must be full or sample");
+        assertThat(run("--baseline=a", "--candidate=b", "--mode=fast").err()).contains("must be auto, full or sample");
 
         try (var client = MongoClients.create(MONGO.getConnectionString())) {
             var db = client.getDatabase(DB);

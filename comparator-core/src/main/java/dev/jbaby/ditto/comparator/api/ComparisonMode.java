@@ -4,12 +4,14 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
- * How much of the collections is read: everything, or a random sample of keys.
+ * How much of the collections is read: everything, a random sample of keys, or (the default) whichever fits the
+ * collection size.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = ComparisonMode.Full.class, name = "FULL"),
-        @JsonSubTypes.Type(value = ComparisonMode.Sample.class, name = "SAMPLE")
+        @JsonSubTypes.Type(value = ComparisonMode.Sample.class, name = "SAMPLE"),
+        @JsonSubTypes.Type(value = ComparisonMode.Auto.class, name = "AUTO")
 })
 public sealed interface ComparisonMode {
 
@@ -28,6 +30,18 @@ public sealed interface ComparisonMode {
                 throw new IllegalArgumentException("sample size must be positive, was " + size);
             }
         }
+    }
+
+    /**
+     * FULL if neither collection has more than {@code comparator.full-scan-limit} documents (default 5,000,000),
+     * otherwise SAMPLE with {@code comparator.sample.size} keys. The choice is recorded in the report
+     * ({@code run.decisions}), and the report's settings show the mode that ran.
+     */
+    record Auto() implements ComparisonMode {
+    }
+
+    static ComparisonMode auto() {
+        return new Auto();
     }
 
     static ComparisonMode full() {

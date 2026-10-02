@@ -63,6 +63,10 @@ class ComparisonScenariosIT {
         assertThat(report.content().unchanged()).isEqualTo(200);
         assertThat(report.topChangedPaths()).isEmpty();
         assertThat(report.warnings()).isEmpty();
+        // AUTO is the default: small collections are scanned fully
+        assertThat(report.run().settings().mode()).isEqualTo(dev.jbaby.ditto.comparator.api.ComparisonMode.full());
+        assertThat(report.run().decisions()).containsExactly(
+                "Mode AUTO chose FULL: 200 and 200 documents, full-scan limit 5,000,000");
     }
 
     @Test

@@ -118,6 +118,7 @@ public final class ComparisonMetrics {
         return switch (mode) {
             case ComparisonMode.Full _ -> "FULL";
             case ComparisonMode.Sample _ -> "SAMPLE";
+            case ComparisonMode.Auto _ -> "AUTO";
         };
     }
 }

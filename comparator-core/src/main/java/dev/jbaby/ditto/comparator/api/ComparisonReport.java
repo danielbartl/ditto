@@ -184,16 +184,18 @@ public record ComparisonReport(
      * @param candidateDocsRead candidate documents actually read
      * @param settings          the effective settings
      * @param thresholdSource   where {@code settings.thresholds()} came from
+     * @param decisions         what ditto decided by convention, e.g. which mode AUTO chose and why
      */
     public record RunMetadata(Instant startedAt, Instant finishedAt, long durationMillis, long baselineCount,
                               long candidateCount, long baselineDocsRead, long candidateDocsRead,
-                              ComparisonSettings settings, ThresholdSource thresholdSource) {
+                              ComparisonSettings settings, ThresholdSource thresholdSource, List<String> decisions) {
 
         public RunMetadata {
-            // reports stored before threshold sources existed
+            // reports stored before threshold sources and decisions existed
             if (thresholdSource == null) {
                 thresholdSource = ThresholdSource.configured();
             }
+            decisions = decisions == null ? List.of() : List.copyOf(decisions);
         }
     }
 }
