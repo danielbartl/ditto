@@ -271,6 +271,57 @@ class ComparisonScenariosIT {
         assertThat(configured.structure().baselinePaths()).isEqualTo(6); // _id, attributes, attributes.*, items, items[], items[].p
     }
 
+    @Test
+    void expectedChangePathsKeepChurnFromTurningRed() {
+        // prices and stock change in most documents every run; one name change is a real finding
+        Collections.create(DB, "churn_a", documents(100, i -> "{_id: " + i + ", name: 'n" + i
+                + "', price: " + i + ", stock: {qty: " + i + ", at: 1}}"));
+        Collections.create(DB, "churn_b", documents(100, i -> "{_id: " + i + ", name: '" + (i == 5 ? "renamed" : "n" + i)
+                + "', price: " + (i % 4 == 0 ? i : i + 1) + ", stock: {qty: " + (i + 2) + ", at: 2}}"));
+
+        ComparisonReport plain = compare("churn_a", "churn_b");
+        assertThat(plain.verdict()).isEqualTo(Level.RED);
+
+        ComparisonReport report = comparator.compare(ComparisonRequest.builder("churn_a", "churn_b")
+                .expectedChangePaths("price", "stock").build());
+
+        assertThat(report.verdict()).isEqualTo(Level.GREEN);
+        assertThat(report.content().changed()).isEqualTo(100);
+        assertThat(report.content().changedExpectedOnly()).isEqualTo(99);
+        assertThat(report.content().unchangedOrExpectedRate().value()).isEqualTo(0.99);
+        assertThat(report.topChangedPaths()).extracting(PathChange::path, PathChange::expected).containsExactly(
+                org.assertj.core.groups.Tuple.tuple("stock.at", true),
+                org.assertj.core.groups.Tuple.tuple("stock.qty", true),
+                org.assertj.core.groups.Tuple.tuple("price", true),
+                org.assertj.core.groups.Tuple.tuple("name", false));
+        assertThat(rule(report, "maxPathChangeRate").observed()).isEqualTo(0.01);
+    }
+
+    @Test
+    void valueExamplesShowBeforeAndAfter() {
+        Collections.create(DB, "values_a", documents(10, i -> "{_id: " + i + ", price: {$numberDecimal: '" + i
+                + ".50'}, customer: {email: 'c" + i + "@example.com'}}"));
+        Collections.create(DB, "values_b", documents(10, i -> "{_id: " + i + ", price: 0, customer: {email: 'x" + i
+                + "@example.com'}}"));
+
+        ComparisonReport report = comparator.compare(ComparisonRequest.builder("values_a", "values_b")
+                .redactedPaths("customer").build());
+
+        PathChange price = report.topChangedPaths().stream().filter(c -> c.path().equals("price")).findFirst()
+                .orElseThrow();
+        assertThat(price.valueExamples()).hasSize(3).first().satisfies(change -> {
+            assertThat(change.key()).isEqualTo(new KeyRef("INT32", "0"));
+            assertThat(change.baseline()).containsExactly("0.5");
+            assertThat(change.candidate()).containsExactly("0");
+        });
+        PathChange email = report.topChangedPaths().stream().filter(c -> c.path().equals("customer.email"))
+                .findFirst().orElseThrow();
+        assertThat(email.valueExamples()).allSatisfy(change -> {
+            assertThat(change.baseline()).containsExactly("***");
+            assertThat(change.candidate()).containsExactly("***");
+        });
+    }
+
     private ComparisonReport compare(String baseline, String candidate) {
         return comparator.compare(ComparisonRequest.of(baseline, candidate));
     }

@@ -1,5 +1,7 @@
 package dev.jbaby.ditto.comparator.metrics;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 
 import org.bson.BsonDocument;
@@ -8,19 +10,22 @@ import org.bson.RawBsonDocument;
 import org.bson.codecs.BsonDocumentCodec;
 
 import dev.jbaby.ditto.comparator.api.ComparisonSettings;
+import dev.jbaby.ditto.comparator.api.ValueChange;
 import dev.jbaby.ditto.comparator.canonical.CanonicalEncoder;
 import dev.jbaby.ditto.comparator.canonical.CanonicalValue.CDocument;
 import dev.jbaby.ditto.comparator.canonical.Hasher;
 import dev.jbaby.ditto.comparator.canonical.Normalizer;
 import dev.jbaby.ditto.comparator.flatten.DocumentDiff;
 import dev.jbaby.ditto.comparator.flatten.Flattener;
+import dev.jbaby.ditto.comparator.path.PathMatcher;
 import dev.jbaby.ditto.comparator.path.PathRules;
 import dev.jbaby.ditto.comparator.structure.StructureProfiler;
 
 /**
  * Classifies documents and accumulates every metric of a scan; used by both FULL and SAMPLE mode.
  * <ul>
- * <li>matched pairs: content hash comparison; for changed pairs the changed paths</li>
+ * <li>matched pairs: content hash comparison; for changed pairs the changed paths, whether they are all expected,
+ * and before/after values</li>
  * <li>every document read: structure profile of its side</li>
  * <li>example keys per category and per changed path</li>
  * </ul>
@@ -33,6 +38,8 @@ public final class ScanAccumulator {
     private final Normalizer normalizer;
     private final Hasher hasher;
     private final DocumentDiff diff;
+    private final PathMatcher expected;
+    private final ValueExamples valueExamples;
     private final StructureProfiler baselineProfiler;
     private final StructureProfiler candidateProfiler;
     private final PathChangeStats pathChanges;
@@ -43,6 +50,7 @@ public final class ScanAccumulator {
     private long matched;
     private long unchanged;
     private long changed;
+    private long changedExpectedOnly;
     private long added;
     private long removed;
 
@@ -55,9 +63,12 @@ public final class ScanAccumulator {
                 new CanonicalEncoder());
         this.hasher = hasher;
         this.diff = new DocumentDiff(rules, flattener);
+        this.expected = PathMatcher.of(settings.expectedChangePaths());
+        this.valueExamples = new ValueExamples(rules, flattener, PathMatcher.of(settings.redactedPaths()));
         this.baselineProfiler = new StructureProfiler(flattener, tuning.maxTrackedPaths());
         this.candidateProfiler = new StructureProfiler(flattener, tuning.maxTrackedPaths());
-        this.pathChanges = new PathChangeStats(tuning.maxTrackedPaths(), tuning.maxExamples());
+        this.pathChanges = new PathChangeStats(tuning.maxTrackedPaths(), tuning.maxExamples(),
+                tuning.maxValueExamples());
         this.changedExamples = new ExampleCollector(tuning.maxExamples());
         this.addedExamples = new ExampleCollector(tuning.maxExamples());
         this.removedExamples = new ExampleCollector(tuning.maxExamples());
@@ -82,7 +93,14 @@ public final class ScanAccumulator {
         changed++;
         changedExamples.offer(key);
         SortedSet<String> changedPaths = diff.changedPaths(canonicalBaseline, canonicalCandidate);
-        pathChanges.record(key, changedPaths);
+        if (!expected.isEmpty() && !changedPaths.isEmpty() && changedPaths.stream().allMatch(expected::matches)) {
+            changedExpectedOnly++;
+        }
+        Set<String> wantValues = pathChanges.record(key, changedPaths);
+        if (!wantValues.isEmpty()) {
+            Map<String, ValueChange> values = valueExamples.of(key, canonicalBaseline, canonicalCandidate, wantValues);
+            values.forEach(pathChanges::addValueExample);
+        }
     }
 
     public void removed(BsonValue key, RawBsonDocument baseline) {
@@ -103,9 +121,9 @@ public final class ScanAccumulator {
      * @param candidateSampled  candidate keys sampled for added detection (SAMPLE mode), else 0
      */
     public ScanResult result(long baselineDocsRead, long candidateDocsRead, long candidateSampled) {
-        return new ScanResult(baselineDocsRead, candidateDocsRead, matched, unchanged, changed, added, removed,
-                candidateSampled, pathChanges.sorted(), pathChanges.untrackedOccurrences(), changedExamples.keys(),
-                addedExamples.keys(), removedExamples.keys(), baselineProfiler.snapshot(),
+        return new ScanResult(baselineDocsRead, candidateDocsRead, matched, unchanged, changed, changedExpectedOnly,
+                added, removed, candidateSampled, pathChanges.sorted(), pathChanges.untrackedOccurrences(),
+                changedExamples.keys(), addedExamples.keys(), removedExamples.keys(), baselineProfiler.snapshot(),
                 candidateProfiler.snapshot());
     }
 

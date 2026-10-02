@@ -68,24 +68,32 @@ public record ComparisonReport(
     }
 
     /**
-     * @param unchanged     matched documents with identical canonical content
-     * @param changed       matched documents with different canonical content
-     * @param unchangedRate {@code unchanged / matched}
-     * @param changedRate   {@code changed / matched}
+     * @param unchanged               matched documents with identical canonical content
+     * @param changed                 matched documents with different canonical content
+     * @param changedExpectedOnly     changed documents whose changes are all in expected-change paths
+     * @param unchangedRate           {@code unchanged / matched}
+     * @param changedRate             {@code changed / matched}
+     * @param unchangedOrExpectedRate {@code (unchanged + changedExpectedOnly) / matched}; what the unchangedRate rule
+     *                                evaluates. Equals {@code unchangedRate} without expected-change paths
      */
-    public record ContentMetrics(long unchanged, long changed, Rate unchangedRate, Rate changedRate) {
+    public record ContentMetrics(long unchanged, long changed, long changedExpectedOnly, Rate unchangedRate,
+                                 Rate changedRate, Rate unchangedOrExpectedRate) {
     }
 
     /**
-     * @param path        leaf path, e.g. {@code items[].price}
-     * @param changedDocs matched documents in which this path differs
-     * @param changeRate  {@code changedDocs / matched}
-     * @param examples    keys of documents in which this path differs
+     * @param path          leaf path, e.g. {@code items[].price}
+     * @param changedDocs   matched documents in which this path differs
+     * @param changeRate    {@code changedDocs / matched}
+     * @param expected      whether the path is an expected-change path; those do not count for maxPathChangeRate
+     * @param examples      keys of documents in which this path differs
+     * @param valueExamples before/after values of some of these documents
      */
-    public record PathChange(String path, long changedDocs, Rate changeRate, List<KeyRef> examples) {
+    public record PathChange(String path, long changedDocs, Rate changeRate, boolean expected, List<KeyRef> examples,
+                             List<ValueChange> valueExamples) {
 
         public PathChange {
             examples = List.copyOf(examples);
+            valueExamples = List.copyOf(valueExamples);
         }
     }
 

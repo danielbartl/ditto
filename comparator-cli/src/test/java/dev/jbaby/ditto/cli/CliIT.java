@@ -57,6 +57,13 @@ class CliIT {
         assertThat(yellow.code()).isEqualTo(ExitCodes.YELLOW);
         assertThat(new ReportJson().read(yellow.out()).topChangedPaths())
                 .extracting(change -> change.path()).containsExactly("name");
+        // the name changes are expected: GREEN
+        Result expected = run("--baseline=g_base", "--candidate=g_yellow", "--ignore=meta.syncedAt",
+                "--wildcard=attributes.*", "--expected=name", "--redact=name");
+        assertThat(expected.code()).isEqualTo(ExitCodes.GREEN);
+        var name = new ReportJson().read(expected.out()).topChangedPaths().getFirst();
+        assertThat(name.expected()).isTrue();
+        assertThat(name.valueExamples()).isNotEmpty().allSatisfy(change -> assertThat(change.baseline()).containsExactly("***"));
         // unless the array is order-sensitive
         Result ordered = run("--baseline=g_base", "--candidate=g_yellow", "--ignore=meta.syncedAt",
                 "--wildcard=attributes.*", "--ordered=history");

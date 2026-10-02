@@ -21,6 +21,9 @@ import org.jspecify.annotations.Nullable;
  * @param ignoredPaths        paths removed before comparing, e.g. sync timestamps
  * @param orderSensitivePaths arrays whose element order matters (all other arrays are compared as multisets)
  * @param wildcardPaths       objects with dynamic keys (maps), collapsed to one path in path statistics
+ * @param expectedChangePaths paths that are supposed to change (prices, counters): reported, but they neither count
+ *                            for maxPathChangeRate nor make a document count as changed for the unchangedRate rule
+ * @param redactedPaths       paths whose values are shown as {@code ***} in value examples
  * @param mode                full scan or sample
  * @param nullEqualsMissing   whether a field with value {@code null} counts as equal to a missing field
  * @param mixedKeyPolicy      what to do if key values of different BSON types are found
@@ -34,6 +37,8 @@ public record ComparisonRequest(
         @Nullable Set<String> ignoredPaths,
         @Nullable Set<String> orderSensitivePaths,
         @Nullable Set<String> wildcardPaths,
+        @Nullable Set<String> expectedChangePaths,
+        @Nullable Set<String> redactedPaths,
         @Nullable ComparisonMode mode,
         @Nullable Boolean nullEqualsMissing,
         @Nullable MixedKeyPolicy mixedKeyPolicy,
@@ -49,6 +54,8 @@ public record ComparisonRequest(
         ignoredPaths = ignoredPaths == null ? null : Set.copyOf(ignoredPaths);
         orderSensitivePaths = orderSensitivePaths == null ? null : Set.copyOf(orderSensitivePaths);
         wildcardPaths = wildcardPaths == null ? null : Set.copyOf(wildcardPaths);
+        expectedChangePaths = expectedChangePaths == null ? null : Set.copyOf(expectedChangePaths);
+        redactedPaths = redactedPaths == null ? null : Set.copyOf(redactedPaths);
     }
 
     /** Request comparing two collections of the default database with all defaults. */
@@ -70,6 +77,8 @@ public record ComparisonRequest(
                 .ignoredPaths(ignoredPaths)
                 .orderSensitivePaths(orderSensitivePaths)
                 .wildcardPaths(wildcardPaths)
+                .expectedChangePaths(expectedChangePaths)
+                .redactedPaths(redactedPaths)
                 .mode(mode)
                 .nullEqualsMissing(nullEqualsMissing)
                 .mixedKeyPolicy(mixedKeyPolicy)
@@ -85,6 +94,8 @@ public record ComparisonRequest(
         private @Nullable Set<String> ignoredPaths;
         private @Nullable Set<String> orderSensitivePaths;
         private @Nullable Set<String> wildcardPaths;
+        private @Nullable Set<String> expectedChangePaths;
+        private @Nullable Set<String> redactedPaths;
         private @Nullable ComparisonMode mode;
         private @Nullable Boolean nullEqualsMissing;
         private @Nullable MixedKeyPolicy mixedKeyPolicy;
@@ -128,6 +139,24 @@ public record ComparisonRequest(
             return wildcardPaths(Arrays.asList(paths));
         }
 
+        public Builder expectedChangePaths(@Nullable Collection<String> paths) {
+            this.expectedChangePaths = paths == null ? null : Set.copyOf(paths);
+            return this;
+        }
+
+        public Builder expectedChangePaths(String... paths) {
+            return expectedChangePaths(Arrays.asList(paths));
+        }
+
+        public Builder redactedPaths(@Nullable Collection<String> paths) {
+            this.redactedPaths = paths == null ? null : Set.copyOf(paths);
+            return this;
+        }
+
+        public Builder redactedPaths(String... paths) {
+            return redactedPaths(Arrays.asList(paths));
+        }
+
         public Builder mode(@Nullable ComparisonMode mode) {
             this.mode = mode;
             return this;
@@ -163,7 +192,8 @@ public record ComparisonRequest(
 
         public ComparisonRequest build() {
             return new ComparisonRequest(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths,
-                    wildcardPaths, mode, nullEqualsMissing, mixedKeyPolicy, verdictBasis, thresholds);
+                    wildcardPaths, expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy,
+                    verdictBasis, thresholds);
         }
     }
 }

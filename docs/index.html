@@ -258,8 +258,8 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
       <div class="card">
         <span class="num">03</span>
         <h4>Changed paths</h4>
-        <p>Which fields changed, and how often, e.g. <code>items[].price</code> in 3% of documents. One field
-          changing everywhere means a broken mapping.</p>
+        <p>Which fields changed, how often, and from what to what, e.g. <code>items[].price</code> in 3% of
+          documents, <code>19.9 → 0</code>. One field changing everywhere means a broken mapping.</p>
       </div>
       <div class="card">
         <span class="num">04</span>
@@ -499,6 +499,26 @@ esac</pre></div>
     </details>
 
     <details class="scenario">
+      <summary><strong>Collections that change on purpose</strong><span>expected-change paths and value examples</span></summary>
+      <div class="body">
+        <p>Prices, stock levels and counters change in most documents on every run. Left as they are, they would make
+          the verdict <span class="chip red">RED</span>. Declare them as <strong>expected-change paths</strong>. They
+          stay in the report, flagged <code>"expected": true</code>, but don't count for
+          <code>maxPathChangeRate</code>. Documents changed only there count as unchanged for the
+          <code>unchangedRate</code> rule.</p>
+        <div class="code"><span class="label">application.yml</span><pre>comparator:
+  expected-change-paths: [price, stock]    <span class="c"># stock also covers stock.qty, stock.updatedAt …</span>
+  redacted-paths: [customer]               <span class="c"># values shown as *** in reports</span>
+  max-value-examples: 3                    <span class="c"># 0 keeps values out of reports</span></pre></div>
+        <p>Every changed path comes with a few before/after values, so a surprise is easy to judge:</p>
+        <div class="code"><span class="label">report.json</span><pre>{ "path": "name", "changedDocs": 1204, "expected": false,
+  "valueExamples": [
+    { "key": { "type": "INT32", "value": "4711" },
+      "baseline": [ "\"Oak desk\"" ], "candidate": [ "\"OAK DESK\"" ] } ] }</pre></div>
+      </div>
+    </details>
+
+    <details class="scenario">
       <summary><strong>Tune thresholds from history</strong><span>persist every report</span></summary>
       <div class="body">
         <p>The default thresholds are a starting point. Store every report, and after a few weeks you know what normal
@@ -533,6 +553,8 @@ esac</pre></div>
       <tr><td><code>ignored-paths</code></td><td><code>ignoredPaths</code></td><td class="def">–</td><td>Removed before comparing and profiling, e.g. sync timestamps</td></tr>
       <tr><td><code>order-sensitive-paths</code></td><td><code>orderSensitivePaths</code></td><td class="def">–</td><td>Arrays whose element order matters. All other arrays are multisets</td></tr>
       <tr><td><code>wildcard-paths</code></td><td><code>wildcardPaths</code></td><td class="def">–</td><td>Maps with dynamic keys, reported as one path. Must end in <code>.*</code></td></tr>
+      <tr><td><code>expected-change-paths</code></td><td><code>expectedChangePaths</code></td><td class="def">–</td><td>Fields that are supposed to change (prices, counters): reported, but not counted against the verdict</td></tr>
+      <tr><td><code>redacted-paths</code></td><td><code>redactedPaths</code></td><td class="def">–</td><td>Values shown as <code>***</code> in value examples, e.g. personal data</td></tr>
       <tr><td><code>null-equals-missing</code></td><td><code>nullEqualsMissing</code></td><td class="def">false</td><td>Treat <code>field: null</code> like an absent field</td></tr>
       <tr><td><code>mixed-key-types</code></td><td><code>mixedKeyPolicy</code></td><td class="def">REJECT</td><td><code>REJECT</code>, or <code>COMPARE</code> to accept keys of different BSON types (e.g. strings and ObjectIds)</td></tr>
       <tr><td><code>mode</code></td><td><code>fullScan()</code> / <code>sample(n)</code></td><td class="def">FULL</td><td><code>FULL</code> or <code>SAMPLE</code></td></tr>
@@ -567,6 +589,7 @@ esac</pre></div>
       <tr><td><code>batch-size</code></td><td class="def">1000</td><td>Cursor batch size</td></tr>
       <tr><td><code>no-cursor-timeout</code></td><td class="def">false</td><td>Keep idle server cursors alive (long runs of added/removed keys on very large collections)</td></tr>
       <tr><td><code>max-examples</code></td><td class="def">20</td><td>Example keys per category and per changed path</td></tr>
+      <tr><td><code>max-value-examples</code></td><td class="def">3</td><td>Before/after values per changed path; <code>0</code> disables them</td></tr>
       <tr><td><code>max-tracked-paths</code></td><td class="def">10000</td><td>Distinct paths tracked per side; bounds memory. Exceeding it adds a warning</td></tr>
       <tr><td><code>top-changed-paths</code></td><td class="def">50</td><td>Changed paths listed in the report</td></tr>
       <tr><td><code>progress-interval</code></td><td class="def">10s</td><td>Progress logging and listener interval</td></tr>
@@ -593,8 +616,9 @@ esac</pre></div>
   ],
   "keys":            { "matched": 19900, "added": 50, "removed": 50, "keySimilarity": { "kind": "exact", "value": 0.995 } },
   "content":         { "unchanged": 18284, "changed": 1616, "unchangedRate": { "value": 0.9188 } },
-  "topChangedPaths": [ { "path": "price", "changedDocs": 1616,
-                         "examples": [ { "type": "OBJECT_ID", "value": "{\"$oid\": \"6553f1212161972337cc2db4\"}" } ] } ],
+  "topChangedPaths": [ { "path": "price", "changedDocs": 1616, "expected": false,
+                         "examples": [ { "type": "OBJECT_ID", "value": "{\"$oid\": \"6553f1212161972337cc2db4\"}" } ],
+                         "valueExamples": [ { "baseline": [ "412.07" ], "candidate": [ "0" ], ... } ] } ],
   "structure":       { "newPaths": [], "missingPaths": [], "typeShifts": [], "presenceDeltas": [] },
   "examples":        { "changed": [...], "added": [...], "removed": [...] },
   "run":             { "durationMillis": 686, "baselineCount": 19950, "settings": { ... } },
@@ -606,6 +630,7 @@ esac</pre></div>
       <tr><td>Many <code>removed</code> <em>and</em> many <code>added</code></td><td>Key values changed format (<code>"123"</code> vs <code>123</code>) or a new ID scheme</td></tr>
       <tr><td>One path changed in ~100% of documents</td><td>A mapping/format change in that field, or a technical field that should be ignored</td></tr>
       <tr><td>Many paths at low rates</td><td>Normal data churn</td></tr>
+      <tr><td>Fields that change in most documents every run</td><td>Legitimate churn: declare them as <code>expected-change-paths</code></td></tr>
       <tr><td>A type shift with unchanged content</td><td>Same values, different BSON type: consumers that read typed values may break</td></tr>
       <tr><td><code>warnings</code> about the path cap</td><td>A map with dynamic keys: add it to <code>wildcard-paths</code></td></tr>
     </table></div>
@@ -624,7 +649,7 @@ esac</pre></div>
       <tr><td><code>--baseline</code>, <code>--candidate</code></td><td>Collections to compare (required)</td></tr>
       <tr><td><code>--baseline-db</code>, <code>--candidate-db</code></td><td>Database per side, if not <code>--db</code></td></tr>
       <tr><td><code>--key</code></td><td>Key field</td></tr>
-      <tr><td><code>--ignore</code>, <code>--ordered</code>, <code>--wildcard</code></td><td>Comma-separated path lists</td></tr>
+      <tr><td><code>--ignore</code>, <code>--ordered</code>, <code>--wildcard</code>, <code>--expected</code>, <code>--redact</code></td><td>Comma-separated path lists</td></tr>
       <tr><td><code>--mode=full|sample</code>, <code>--sample-size=n</code></td><td>Comparison mode</td></tr>
       <tr><td><code>--null-equals-missing</code>, <code>--mixed-key-types</code>, <code>--verdict-basis</code></td><td>As in the configuration table</td></tr>
       <tr><td><code>--persist</code></td><td>Store the report in MongoDB</td></tr>

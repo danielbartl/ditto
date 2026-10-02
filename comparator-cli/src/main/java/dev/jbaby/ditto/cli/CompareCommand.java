@@ -62,6 +62,8 @@ public class CompareCommand {
                 .ignoredPaths(options.list("ignore"))
                 .orderSensitivePaths(options.list("ordered"))
                 .wildcardPaths(options.list("wildcard"))
+                .expectedChangePaths(options.list("expected"))
+                .redactedPaths(options.list("redact"))
                 .mode(mode())
                 .nullEqualsMissing(options.bool("null-equals-missing"))
                 .mixedKeyPolicy(options.enumValue("mixed-key-types", MixedKeyPolicy.class))

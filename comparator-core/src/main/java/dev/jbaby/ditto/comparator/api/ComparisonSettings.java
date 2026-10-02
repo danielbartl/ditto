@@ -16,6 +16,8 @@ public record ComparisonSettings(
         List<String> ignoredPaths,
         List<String> orderSensitivePaths,
         List<String> wildcardPaths,
+        List<String> expectedChangePaths,
+        List<String> redactedPaths,
         ComparisonMode mode,
         boolean nullEqualsMissing,
         MixedKeyPolicy mixedKeyPolicy,
@@ -41,6 +43,8 @@ public record ComparisonSettings(
         ignoredPaths = sorted(ignoredPaths);
         orderSensitivePaths = sorted(orderSensitivePaths);
         wildcardPaths = sorted(wildcardPaths);
+        expectedChangePaths = sorted(expectedChangePaths);
+        redactedPaths = sorted(redactedPaths);
     }
 
     private static List<String> sorted(List<String> paths) {
@@ -54,17 +58,20 @@ public record ComparisonSettings(
      * @param noCursorTimeout       keep cursors open on the server while idle (one side may idle while the other
      *                              walks a long run of keys)
      * @param maxExamples           example keys kept per category and per changed path
+     * @param maxValueExamples      before/after value examples kept per changed path; 0 disables them
      * @param maxTrackedPaths       distinct paths tracked per collection before further paths are only counted
      * @param topChangedPaths       changed paths listed in the report
      * @param progressInterval      how often progress is logged and reported
      * @param sampleLookupBatchSize keys per {@code $in} lookup in SAMPLE mode
      */
-    public record Tuning(int batchSize, boolean noCursorTimeout, int maxExamples, int maxTrackedPaths,
-                         int topChangedPaths, Duration progressInterval, int sampleLookupBatchSize) {
+    public record Tuning(int batchSize, boolean noCursorTimeout, int maxExamples, int maxValueExamples,
+                         int maxTrackedPaths, int topChangedPaths, Duration progressInterval,
+                         int sampleLookupBatchSize) {
 
         public Tuning {
             requirePositive("batchSize", batchSize);
             requireNonNegative("maxExamples", maxExamples);
+            requireNonNegative("maxValueExamples", maxValueExamples);
             requirePositive("maxTrackedPaths", maxTrackedPaths);
             requireNonNegative("topChangedPaths", topChangedPaths);
             requirePositive("sampleLookupBatchSize", sampleLookupBatchSize);

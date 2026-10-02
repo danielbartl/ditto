@@ -56,7 +56,8 @@ class MergeJoinIT {
         assertThat(result.removed()).isEqualTo(1);
         assertThat(result.baselineDocsRead()).isEqualTo(4);
         assertThat(result.candidateDocsRead()).isEqualTo(5);
-        assertThat(result.pathChanges()).containsExactly(new PathChangeCount("name", 1, List.of(key(2))));
+        assertThat(result.pathChanges()).containsExactly(new PathChangeCount("name", 1, List.of(key(2)),
+                List.of(new dev.jbaby.ditto.comparator.api.ValueChange(key(2), List.of("\"b\""), List.of("\"B\"")))));
         assertThat(result.changedExamples()).containsExactly(key(2));
         assertThat(result.addedExamples()).containsExactly(key(0), key(4));
         assertThat(result.removedExamples()).containsExactly(key(5));

@@ -59,7 +59,10 @@ public sealed interface Rule {
         }
     }
 
-    /** {@code unchanged / matched}; higher is better. */
+    /**
+     * {@code unchanged / matched}; higher is better. Documents changed only in expected-change paths count as
+     * unchanged here.
+     */
     record UnchangedRate() implements Rule {
 
         @Override
@@ -71,20 +74,24 @@ public sealed interface Rule {
         public RuleResult evaluate(RuleInput input) {
             var content = input.content();
             Thresholds.AtLeast band = input.thresholds().unchangedRate();
-            Double value = content.unchangedRate().valueFor(input.basis(), true);
+            Rate rate = content.unchangedOrExpectedRate();
+            Double value = rate.valueFor(input.basis(), true);
             if (value == null) {
                 return new RuleResult(name(), Level.GREEN, null, band.toString(),
                         "Not applicable: no matched documents", List.of());
             }
             Level level = band.levelOf(value);
+            String expected = content.changedExpectedOnly() == 0 ? ""
+                    : "; " + content.changedExpectedOnly() + " documents changed only in expected-change paths"
+                            + " count as unchanged";
             return new RuleResult(name(), level, value, band.toString(),
-                    describe(content.unchangedRate(), input.basis(), true) + " " + compareTo(level, band)
-                            + " (unchanged " + content.unchanged() + ", changed " + content.changed() + ")",
+                    describe(rate, input.basis(), true) + " " + compareTo(level, band)
+                            + " (unchanged " + content.unchanged() + ", changed " + content.changed() + expected + ")",
                     List.of());
         }
     }
 
-    /** The highest change rate of a single path; lower is better. */
+    /** The highest change rate of a single path that is not an expected-change path; lower is better. */
     record MaxPathChangeRate() implements Rule {
 
         @Override
@@ -97,7 +104,9 @@ public sealed interface Rule {
             Thresholds.Below band = input.thresholds().maxPathChangeRate();
             PathChange worst = null;
             double max = 0.0;
-            for (PathChange change : input.changedPaths()) {
+            List<PathChange> unexpected = input.changedPaths().stream().filter(change -> !change.expected()).toList();
+            long expectedCount = input.changedPaths().size() - unexpected.size();
+            for (PathChange change : unexpected) {
                 Double value = change.changeRate().valueFor(input.basis(), false);
                 if (value != null && (worst == null || value > max)) {
                     worst = change;
@@ -105,11 +114,12 @@ public sealed interface Rule {
                 }
             }
             if (worst == null) {
-                return new RuleResult(name(), Level.GREEN, 0.0, band.toString(), "No path changed", List.of());
+                return new RuleResult(name(), Level.GREEN, 0.0, band.toString(), expectedCount == 0
+                        ? "No path changed" : "Only expected-change paths changed (" + expectedCount + ")", List.of());
             }
             Level level = band.levelOf(max);
             List<String> details = new ArrayList<>();
-            for (PathChange change : input.changedPaths()) {
+            for (PathChange change : unexpected) {
                 Double value = change.changeRate().valueFor(input.basis(), false);
                 if (value != null && band.levelOf(value) != Level.GREEN && details.size() < MAX_DETAILS) {
                     details.add(change.path() + ": " + format(value) + " (" + change.changedDocs() + " documents)");
@@ -117,7 +127,8 @@ public sealed interface Rule {
             }
             return new RuleResult(name(), level, max, band.toString(),
                     "Path '" + worst.path() + "' changed in " + describe(worst.changeRate(), input.basis(), false)
-                            + " of matched documents, " + compareTo(level, band),
+                            + " of matched documents, " + compareTo(level, band)
+                            + (expectedCount == 0 ? "" : " (" + expectedCount + " expected-change paths not counted)"),
                     details);
         }
     }

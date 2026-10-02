@@ -35,6 +35,15 @@ public class ComparatorProperties {
     /** Objects with dynamic keys (maps) collapsed to one path in path statistics, e.g. {@code attributes.*}. */
     private List<String> wildcardPaths = new ArrayList<>();
 
+    /**
+     * Paths that are supposed to change (prices, stock levels, counters): reported, but excluded from the
+     * maxPathChangeRate rule, and documents changed only there count as unchanged for the unchangedRate rule.
+     */
+    private List<String> expectedChangePaths = new ArrayList<>();
+
+    /** Paths whose values are shown as *** in value examples, e.g. personal data. */
+    private List<String> redactedPaths = new ArrayList<>();
+
     /** Whether a field with value null counts as equal to a missing field. */
     private boolean nullEqualsMissing = false;
 
@@ -52,6 +61,9 @@ public class ComparatorProperties {
 
     /** Example keys kept per category and per changed path. */
     private int maxExamples = 20;
+
+    /** Before/after value examples kept per changed path; 0 disables them. */
+    private int maxValueExamples = 3;
 
     /** Distinct paths tracked per collection; further paths are only counted. */
     private int maxTrackedPaths = 10_000;
@@ -81,13 +93,15 @@ public class ComparatorProperties {
                 orDefault(request.ignoredPaths(), ignoredPaths),
                 orDefault(request.orderSensitivePaths(), orderSensitivePaths),
                 orDefault(request.wildcardPaths(), wildcardPaths),
+                orDefault(request.expectedChangePaths(), expectedChangePaths),
+                orDefault(request.redactedPaths(), redactedPaths),
                 Objects.requireNonNullElseGet(request.mode(), this::defaultMode),
                 Objects.requireNonNullElse(request.nullEqualsMissing(), nullEqualsMissing),
                 Objects.requireNonNullElse(request.mixedKeyPolicy(), mixedKeyTypes),
                 Objects.requireNonNullElse(request.verdictBasis(), sample.verdictBasis),
                 Objects.requireNonNullElseGet(request.thresholds(), thresholds::toThresholds),
-                new ComparisonSettings.Tuning(batchSize, noCursorTimeout, maxExamples, maxTrackedPaths,
-                        topChangedPaths, progressInterval, sample.lookupBatchSize));
+                new ComparisonSettings.Tuning(batchSize, noCursorTimeout, maxExamples, maxValueExamples,
+                        maxTrackedPaths, topChangedPaths, progressInterval, sample.lookupBatchSize));
     }
 
     private ComparisonMode defaultMode() {
@@ -342,6 +356,30 @@ public class ComparatorProperties {
 
     public void setWildcardPaths(List<String> wildcardPaths) {
         this.wildcardPaths = wildcardPaths;
+    }
+
+    public List<String> getExpectedChangePaths() {
+        return expectedChangePaths;
+    }
+
+    public void setExpectedChangePaths(List<String> expectedChangePaths) {
+        this.expectedChangePaths = expectedChangePaths;
+    }
+
+    public List<String> getRedactedPaths() {
+        return redactedPaths;
+    }
+
+    public void setRedactedPaths(List<String> redactedPaths) {
+        this.redactedPaths = redactedPaths;
+    }
+
+    public int getMaxValueExamples() {
+        return maxValueExamples;
+    }
+
+    public void setMaxValueExamples(int maxValueExamples) {
+        this.maxValueExamples = maxValueExamples;
     }
 
     public boolean isNullEqualsMissing() {

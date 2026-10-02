@@ -21,6 +21,7 @@ import dev.jbaby.ditto.comparator.api.Rate;
 import dev.jbaby.ditto.comparator.metrics.PathChangeStats.PathChangeCount;
 import dev.jbaby.ditto.comparator.metrics.ScanResult;
 import dev.jbaby.ditto.comparator.metrics.Wilson;
+import dev.jbaby.ditto.comparator.path.PathMatcher;
 import dev.jbaby.ditto.comparator.scan.Preflight;
 import dev.jbaby.ditto.comparator.structure.StructureDiff;
 import dev.jbaby.ditto.comparator.verdict.RuleInput;
@@ -41,8 +42,9 @@ public final class ReportAssembler {
     public ComparisonReport assemble(ComparisonSettings settings, Preflight.Result preflight, ScanResult scan,
                                      Instant startedAt, Instant finishedAt) {
         Measured measured = switch (settings.mode()) {
-            case ComparisonMode.Full _ -> exact(scan, settings.tuning().topChangedPaths());
-            case ComparisonMode.Sample _ -> estimated(scan, preflight, settings.tuning().topChangedPaths());
+            case ComparisonMode.Full _ -> exact(scan, settings.tuning().topChangedPaths(), expected(settings));
+            case ComparisonMode.Sample _ -> estimated(scan, preflight, settings.tuning().topChangedPaths(),
+                    expected(settings));
         };
         StructureMetrics structure = StructureDiff.compare(scan.baselineProfile(), scan.candidateProfile(),
                 settings.thresholds().structure());
@@ -63,17 +65,23 @@ public final class ReportAssembler {
     private record Measured(KeyMetrics keys, ContentMetrics content, List<PathChange> changedPaths) {
     }
 
-    private static Measured exact(ScanResult scan, int topChangedPaths) {
+    private static PathMatcher expected(ComparisonSettings settings) {
+        return PathMatcher.of(settings.expectedChangePaths());
+    }
+
+    private static Measured exact(ScanResult scan, int topChangedPaths, PathMatcher expected) {
         long matched = scan.matched();
         var keys = new KeyMetrics(matched, scan.added(), scan.removed(),
                 Rate.exact(matched, matched + scan.added() + scan.removed()),
                 Rate.exact(scan.added(), scan.candidateDocsRead()),
                 Rate.exact(scan.removed(), scan.baselineDocsRead()));
-        var content = new ContentMetrics(scan.unchanged(), scan.changed(), Rate.exact(scan.unchanged(), matched),
-                Rate.exact(scan.changed(), matched));
+        var content = new ContentMetrics(scan.unchanged(), scan.changed(), scan.changedExpectedOnly(),
+                Rate.exact(scan.unchanged(), matched), Rate.exact(scan.changed(), matched),
+                Rate.exact(scan.unchanged() + scan.changedExpectedOnly(), matched));
         List<PathChange> paths = scan.pathChanges().stream().limit(topChangedPaths)
                 .map(change -> new PathChange(change.path(), change.documents(),
-                        Rate.exact(change.documents(), matched), change.examples()))
+                        Rate.exact(change.documents(), matched), expected.matches(change.path()), change.examples(),
+                        change.valueExamples()))
                 .toList();
         return new Measured(keys, content, paths);
     }
@@ -85,7 +93,8 @@ public final class ReportAssembler {
      * keySimilarity = Nb(1-r) / (Nb + Nc·a). keySimilarity falls with both r and a, so its interval combines the
      * worse bounds of both (lower bound from upper r and upper a), which is conservative.
      */
-    private static Measured estimated(ScanResult scan, Preflight.Result preflight, int topChangedPaths) {
+    private static Measured estimated(ScanResult scan, Preflight.Result preflight, int topChangedPaths,
+                                      PathMatcher expected) {
         long baselineSampled = scan.matched() + scan.removed();
         long nb = preflight.baselineCount();
         long nc = preflight.candidateCount();
@@ -106,15 +115,19 @@ public final class ReportAssembler {
                 Wilson.estimate(scan.removed(), baselineSampled));
 
         Rate.Estimate unchangedRate = Wilson.estimate(scan.unchanged(), scan.matched());
+        Rate.Estimate unchangedOrExpectedRate = Wilson.estimate(scan.unchanged() + scan.changedExpectedOnly(),
+                scan.matched());
         long unchanged = unchangedRate.value() == null ? 0 : Math.round(matchedEstimate * unchangedRate.value());
-        var content = new ContentMetrics(unchanged, Math.round(matchedEstimate) - unchanged, unchangedRate,
-                Wilson.estimate(scan.changed(), scan.matched()));
+        long expectedOnly = unchangedOrExpectedRate.value() == null ? 0
+                : Math.round(matchedEstimate * unchangedOrExpectedRate.value()) - unchanged;
+        var content = new ContentMetrics(unchanged, Math.round(matchedEstimate) - unchanged, expectedOnly,
+                unchangedRate, Wilson.estimate(scan.changed(), scan.matched()), unchangedOrExpectedRate);
 
         List<PathChange> paths = new ArrayList<>();
         for (PathChangeCount change : scan.pathChanges().stream().limit(topChangedPaths).toList()) {
             Rate.Estimate rate = Wilson.estimate(change.documents(), scan.matched());
             paths.add(new PathChange(change.path(), Math.round(matchedEstimate * rate.value()), rate,
-                    change.examples()));
+                    expected.matches(change.path()), change.examples(), change.valueExamples()));
         }
         return new Measured(keys, content, paths);
     }

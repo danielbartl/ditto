@@ -36,7 +36,9 @@ class ComparatorPropertiesTest {
         assertThat(settings.verdictBasis()).isEqualTo(VerdictBasis.CONSERVATIVE);
         assertThat(settings.thresholds()).isEqualTo(Thresholds.DEFAULTS);
         assertThat(settings.tuning()).isEqualTo(new ComparisonSettings.Tuning(
-                1000, false, 20, 10_000, 50, Duration.ofSeconds(10), 500));
+                1000, false, 20, 3, 10_000, 50, Duration.ofSeconds(10), 500));
+        assertThat(settings.expectedChangePaths()).isEmpty();
+        assertThat(settings.redactedPaths()).isEmpty();
     }
 
     @Test

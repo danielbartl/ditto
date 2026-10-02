@@ -98,7 +98,9 @@ byte encoding of that canonical form is equal. The canonical form is built like 
 - Dates are compared as epoch millis. A date never equals a number.
 - `null` and a missing field are **different** by default. This is configurable with `null-equals-missing`.
 
-**unchangedRate** = unchanged / matched.
+**unchangedRate** = unchanged / matched. Documents whose changes are all in
+[expected-change paths](#expected-changes-and-value-examples) count as unchanged for the verdict
+(`unchangedOrExpectedRate`).
 
 Type changes such as `int → double` do not change the content. They are reported by the structure check instead.
 
@@ -109,9 +111,40 @@ For each changed document, ditto finds the **leaf paths** that differ, and count
 Arrays are handled smartly. Elements that are equal on both sides cancel out first. So a price change in one element
 of a reordered `items` array is reported as `items[].price` only.
 
-The report lists the most frequently changed paths with their change rate (changed docs / matched docs) and example
-keys. The verdict looks at the **highest single-path change rate**. A field that changed in every document is a
-strong signal of a broken mapping, even when everything else looks fine.
+The report lists the most frequently changed paths with their change rate (changed docs / matched docs), example
+keys and a few **before/after values**. The verdict looks at the **highest single-path change rate**, ignoring
+expected-change paths. A field that changed in every document is a strong signal of a broken mapping, even when
+everything else looks fine.
+
+### Expected changes and value examples
+
+Some fields are supposed to change on every run: prices, stock levels, counters, computed scores. Without
+configuration, they make the verdict RED, because the field changes in most documents. List them as
+**expected-change paths**:
+
+```java
+ComparisonRequest.builder("products_backup", "products")
+        .expectedChangePaths("price", "stock")       // stock covers stock.qty, stock.updatedAt, ...
+        .build();
+```
+
+What an expected-change path does:
+
+- It is still reported in `topChangedPaths`, flagged with `"expected": true`.
+- It doesn't count for `maxPathChangeRate`.
+- A document whose changes are all in expected paths counts as unchanged for the `unchangedRate` rule
+  (`content.unchangedOrExpectedRate`).
+- The raw `unchangedRate` stays in the report unchanged.
+
+Each changed path carries up to `max-value-examples` (default 3) **value examples**. They show which values only the
+baseline has at that path and which only the candidate has, e.g. `{"baseline": ["19.9"], "candidate": ["0"]}`.
+
+For array paths, only the differing values are listed. An empty side means the field is missing on that side.
+
+Values at **redacted paths** (`redacted-paths`, e.g. `customer` for all personal data below it) are shown as `***`.
+Set `max-value-examples: 0` to leave values out of reports entirely.
+
+Expected-change and redacted patterns also cover descendants: `customer` matches `customer.email`.
 
 ### 4. Structure
 
@@ -177,6 +210,8 @@ The report goes to **stdout** as JSON, and nothing else does. Logs and a one-lin
 | `--ignore=<path,...>`           | Ignored paths, e.g. `meta.syncedAt,items[].etag`                           |
 | `--ordered=<path,...>`          | Order-sensitive arrays                                                     |
 | `--wildcard=<path,...>`         | Maps with dynamic keys, e.g. `attributes.*`                                |
+| `--expected=<path,...>`         | Paths that are supposed to change, see [expected changes](#expected-changes-and-value-examples) |
+| `--redact=<path,...>`           | Paths whose values are shown as `***` in value examples                    |
 | `--mode=full\|sample`           | Default `full`                                                             |
 | `--sample-size=<n>`             | Sample size. Implies `--mode=sample`                                       |
 | `--null-equals-missing`         | Treat `null` fields like missing fields                                    |
@@ -358,6 +393,8 @@ All properties have the prefix `comparator`. Request values take precedence wher
 | `ignored-paths`                            | –                    | Paths removed before comparing                                                  |
 | `order-sensitive-paths`                    | –                    | Arrays whose order matters                                                      |
 | `wildcard-paths`                           | –                    | Maps with dynamic keys, `….*`                                                   |
+| `expected-change-paths`                    | –                    | Paths that are supposed to change; not counted against the verdict              |
+| `redacted-paths`                           | –                    | Paths whose values are shown as `***` in value examples                         |
 | `null-equals-missing`                      | `false`              | Treat `null` fields as missing                                                  |
 | `mixed-key-types`                          | `REJECT`             | `REJECT` or `COMPARE`, see below                                                |
 | `mode`                                     | `FULL`               | `FULL` or `SAMPLE`                                                              |
@@ -367,6 +404,7 @@ All properties have the prefix `comparator`. Request values take precedence wher
 | `batch-size`                               | `1000`               | Cursor batch size                                                               |
 | `no-cursor-timeout`                        | `false`              | Keep idle server cursors alive, see [operational notes](#performance-and-operational-notes) |
 | `max-examples`                             | `20`                 | Example keys per category and per changed path                                  |
+| `max-value-examples`                       | `3`                  | Before/after value examples per changed path; `0` disables them                 |
 | `max-tracked-paths`                        | `10000`              | Distinct paths tracked per side. Further paths are counted, and a warning is added |
 | `top-changed-paths`                        | `50`                 | Changed paths listed in the report                                              |
 | `progress-interval`                        | `10s`                | Progress logging and listener interval                                          |
@@ -408,10 +446,13 @@ Below is an abbreviated real report (FULL mode, 20,000 generated documents, 3% p
     "addedRate":     { "kind": "exact", "count": 100, "total": 20000, "value": 0.005 },
     "removedRate":   { "kind": "exact", "count": 100, "total": 20000, "value": 0.005 }
   },
-  "content": { "unchanged": 19311, "changed": 589, "unchangedRate": { ... "value": 0.9704 }, "changedRate": { ... } },
+  "content": { "unchanged": 19311, "changed": 589, "changedExpectedOnly": 0,
+               "unchangedRate": { ... "value": 0.9704 }, "changedRate": { ... }, "unchangedOrExpectedRate": { ... } },
   "topChangedPaths": [
-    { "path": "price", "changedDocs": 589, "changeRate": { "kind": "exact", "value": 0.0296, ... },
-      "examples": [ { "type": "OBJECT_ID", "value": "{\"$oid\": \"6553f1212161972337cc2db4\"}" } ] }
+    { "path": "price", "changedDocs": 589, "changeRate": { "kind": "exact", "value": 0.0296, ... }, "expected": false,
+      "examples": [ { "type": "OBJECT_ID", "value": "{\"$oid\": \"6553f1212161972337cc2db4\"}" } ],
+      "valueExamples": [ { "key": { "type": "OBJECT_ID", "value": "{\"$oid\": \"6553f1212161972337cc2db4\"}" },
+                           "baseline": [ "412.07" ], "candidate": [ "413.07" ] } ] }
   ],
   "structure": {
     "baselineDocs": 20000, "candidateDocs": 20000, "baselinePaths": 34, "candidatePaths": 34,
@@ -437,8 +478,9 @@ How to read it:
    - Both high usually means the key values changed format, e.g. `"123"` vs `123`, or a new ID scheme.
 3. **`content` and `topChangedPaths`**: what changed inside matched documents.
    - A single path changed in close to 100% of documents usually means a mapping or format change in that field, or
-     a technical field that should be ignored.
+     a technical field that should be ignored. Its `valueExamples` usually show which one at a glance.
    - Many paths at low rates are normal data churn.
+   - Fields that legitimately change every run belong in `expected-change-paths`.
 4. **`structure`**: schema drift independent of values.
    - `missingPaths` means a field disappeared everywhere.
    - `typeShifts` shows the type distribution per side, e.g. `qty: INT32 1.0 → DOUBLE 1.0`. That is the case where

@@ -63,8 +63,7 @@ class VerdictEvaluatorTest {
 
     @Test
     void oneFieldChangedEverywhereIsRed() {
-        var changes = List.of(new PathChange("price", 1000, Rate.exact(1000, 1000), List.of()),
-                new PathChange("name", 30, Rate.exact(30, 1000), List.of()));
+        var changes = List.of(change("price", 1000, false), change("name", 30, false));
         var verdict = evaluator.evaluate(input(keys(1000, 0, 0), content(0, 1000), changes, structure()));
 
         assertThat(verdict.overall()).isEqualTo(Level.RED);
@@ -74,6 +73,25 @@ class VerdictEvaluatorTest {
         assertThat(pathRule.reason()).contains("'price'");
         assertThat(pathRule.details()).containsExactly("price: 1.0000 (1000 documents)");
         assertThat(rule(verdict, "unchangedRate").level()).isEqualTo(Level.RED);
+    }
+
+    @Test
+    void expectedChangePathsDoNotCountAgainstTheVerdict() {
+        var changes = List.of(change("price", 600, true), change("stock", 400, true), change("name", 20, false));
+        var content = new ContentMetrics(300, 700, 680, Rate.exact(300, 1000), Rate.exact(700, 1000),
+                Rate.exact(980, 1000));
+
+        var verdict = evaluator.evaluate(input(keys(1000, 0, 0), content, changes, structure()));
+
+        assertThat(verdict.overall()).isEqualTo(Level.GREEN);
+        assertThat(rule(verdict, "maxPathChangeRate").observed()).isEqualTo(0.02);
+        assertThat(rule(verdict, "maxPathChangeRate").reason()).contains("'name'").contains("2 expected-change paths not counted");
+        assertThat(rule(verdict, "unchangedRate").observed()).isEqualTo(0.98);
+        assertThat(rule(verdict, "unchangedRate").reason()).contains("680 documents changed only in expected-change paths");
+
+        var onlyExpected = evaluator.evaluate(input(keys(1000, 0, 0), content, List.of(change("price", 600, true)),
+                structure()));
+        assertThat(rule(onlyExpected, "maxPathChangeRate").reason()).isEqualTo("Only expected-change paths changed (1)");
     }
 
     @Test
@@ -106,8 +124,8 @@ class VerdictEvaluatorTest {
     void conservativeBasisEvaluatesTheWorseBound() {
         var estimatedKeys = new KeyMetrics(9950, 25, 25, new Rate.Estimate(0.995, 0.985, 0.998, 1000),
                 Rate.exact(0, 0), Rate.exact(0, 0));
-        var estimatedContent = new ContentMetrics(1000, 0, new Rate.Estimate(1.0, 0.996, 1.0, 1000),
-                new Rate.Estimate(0.0, 0.0, 0.004, 1000));
+        var estimatedContent = new ContentMetrics(1000, 0, 0, new Rate.Estimate(1.0, 0.996, 1.0, 1000),
+                new Rate.Estimate(0.0, 0.0, 0.004, 1000), new Rate.Estimate(1.0, 0.996, 1.0, 1000));
 
         var point = evaluator.evaluate(new RuleInput(estimatedKeys, estimatedContent, List.of(), structure(),
                 Thresholds.DEFAULTS, VerdictBasis.POINT));
@@ -131,8 +149,12 @@ class VerdictEvaluatorTest {
     }
 
     private static ContentMetrics content(long unchanged, long changed) {
-        return new ContentMetrics(unchanged, changed, Rate.exact(unchanged, unchanged + changed),
-                Rate.exact(changed, unchanged + changed));
+        return new ContentMetrics(unchanged, changed, 0, Rate.exact(unchanged, unchanged + changed),
+                Rate.exact(changed, unchanged + changed), Rate.exact(unchanged, unchanged + changed));
+    }
+
+    private static PathChange change(String path, long docs, boolean expected) {
+        return new PathChange(path, docs, Rate.exact(docs, 1000), expected, List.of(), List.of());
     }
 
     private static StructureMetrics structure() {

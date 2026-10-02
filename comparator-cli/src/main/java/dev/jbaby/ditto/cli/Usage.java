@@ -22,6 +22,9 @@ final class Usage {
               --ignore=<path,...>           paths to ignore, e.g. meta.syncedAt,items[].etag
               --ordered=<path,...>          arrays whose element order matters
               --wildcard=<path,...>         maps with dynamic keys, e.g. attributes.*
+              --expected=<path,...>         paths that are supposed to change (prices, counters); reported but
+                                            not counted against the verdict
+              --redact=<path,...>           paths whose values are shown as *** in value examples
               --mode=full|sample            default full
               --sample-size=<n>             sample size (implies --mode=sample)
               --null-equals-missing         treat null fields like missing fields

@@ -15,6 +15,7 @@ import dev.jbaby.ditto.comparator.structure.StructureProfile;
  * @param matched                    keys found on both sides
  * @param unchanged                  matched documents with equal content hash
  * @param changed                    matched documents with different content hash
+ * @param changedExpectedOnly        changed documents whose changed paths are all expected-change paths
  * @param added                      keys only in the candidate
  * @param removed                    keys only in the baseline
  * @param candidateSampled           candidate keys sampled to detect added documents (SAMPLE mode, else 0)
@@ -32,6 +33,7 @@ public record ScanResult(
         long matched,
         long unchanged,
         long changed,
+        long changedExpectedOnly,
         long added,
         long removed,
         long candidateSampled,
