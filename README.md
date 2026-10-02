@@ -1,5 +1,9 @@
 # ditto: MongoDB collection comparator
 
+[![CI](https://github.com/danielbartl/ditto/actions/workflows/ci.yml/badge.svg)](https://github.com/danielbartl/ditto/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/danielbartl/ditto)](https://github.com/danielbartl/ditto/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 ditto compares two MongoDB collections that have the same or a very similar document structure, and tells you how
 similar they are. Each comparison gives a **GREEN / YELLOW / RED** verdict plus the metrics behind it.
 
@@ -40,6 +44,9 @@ Requirements: Java 25, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integrat
 ---
 
 ## Quick start
+
+Download `comparator-cli.jar` from the [latest release](https://github.com/danielbartl/ditto/releases/latest), or
+build it from source as shown below.
 
 ```bash
 docker compose up -d mongo                         # MongoDB 8 on localhost:27017
@@ -237,13 +244,41 @@ In docker compose, the `seed` service runs `generate` against the compose MongoD
 
 ### Add the dependency
 
+Releases are published to **GitHub Packages**. Maven needs a token to read from GitHub Packages, even for public
+packages: create a GitHub personal access token (classic) with the `read:packages` scope and add it to
+`~/.m2/settings.xml`:
+
 ```xml
+<settings>
+    <servers>
+        <server>
+            <id>github-ditto</id>
+            <username>YOUR_GITHUB_USERNAME</username>
+            <password>YOUR_TOKEN</password>
+        </server>
+    </servers>
+</settings>
+```
+
+Then add the repository and the dependency to your project:
+
+```xml
+<repositories>
+    <repository>
+        <id>github-ditto</id>
+        <url>https://maven.pkg.github.com/danielbartl/ditto</url>
+    </repository>
+</repositories>
+
 <dependency>
     <groupId>dev.jbaby.ditto</groupId>
     <artifactId>comparator-core</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
+
+Alternatively, build it yourself with `./mvnw install -DskipTests`, which installs `0.1.0-SNAPSHOT` into your local
+repository.
 
 The host needs Spring Boot 4 with a configured MongoDB (`spring.mongodb.*`). The auto-configuration
 `ComparatorAutoConfiguration` registers a `CollectionComparator` that uses the host's `MongoDatabaseFactory`. Every
@@ -572,6 +607,8 @@ The collections are read with ordinary queries, not a snapshot. Compare after th
 
 ## Building and testing
 
+CI runs `./mvnw verify` on every push and pull request.
+
 ```bash
 ./mvnw verify            # unit tests (surefire, *Test) + integration tests (failsafe, *IT, needs Docker)
 ./mvnw test              # unit tests only
@@ -603,6 +640,24 @@ Package layout of `comparator-core` (`dev.jbaby.ditto.comparator`):
 | `verdict`        | `Rule` (sealed), `VerdictEvaluator`                                                          |
 | `report`         | `ReportAssembler`, `ReportJson`, `ReportRepository`                                          |
 | `autoconfigure`  | `ComparatorAutoConfiguration`, `ComparatorProperties`                                        |
+
+### Releasing
+
+Push a tag `vX.Y.Z`. The release workflow then:
+
+1. Takes the version from the tag. `master` stays on `-SNAPSHOT`.
+2. Runs the full build.
+3. Deploys the parent POM and `comparator-core` (with sources and javadoc) to GitHub Packages.
+4. Creates a GitHub Release with `comparator-cli.jar` attached.
+
+Publishing to Maven Central is prepared, but switched off. It needs four things:
+
+- a Sonatype Central Portal account with the verified namespace `dev.jbaby`;
+- a GPG key;
+- the repository secrets `CENTRAL_USERNAME`, `CENTRAL_TOKEN`, `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE`;
+- the repository variable `MAVEN_CENTRAL_ENABLED=true`.
+
+Locally the equivalent command is `./mvnw -Prelease,central deploy`.
 
 ---
 
