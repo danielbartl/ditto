@@ -99,7 +99,7 @@ public class CollectionComparator {
                 databaseFactory.getMongoDatabase(settings.baseline().database()));
         CollectionHandle candidate = CollectionHandle.of("candidate", settings.candidate(),
                 databaseFactory.getMongoDatabase(settings.candidate().database()));
-        log.info("Comparing {} ({} mode)", label, describe(settings.mode()));
+        log.info("Comparing {}, mode {}", label, describe(settings.mode()));
 
         Preflight.Result checked = preflight.run(baseline, candidate, settings);
         checked.warnings().forEach(warning -> log.warn("{}: {}", label, warning));
@@ -139,7 +139,7 @@ public class CollectionComparator {
     private static String describe(ComparisonMode mode) {
         return switch (mode) {
             case ComparisonMode.Full _ -> "FULL";
-            case ComparisonMode.Sample(int size) -> "SAMPLE of " + size;
+            case ComparisonMode.Sample(int size) -> "SAMPLE (" + size + " keys per side)";
         };
     }
 }

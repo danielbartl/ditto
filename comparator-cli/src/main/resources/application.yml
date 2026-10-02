@@ -1,0 +1,19 @@
+# Short command-line aliases (--uri, --db, --persist, ...) mapped onto the real properties.
+# The full property names (--spring.mongodb.uri, --comparator.*) work as well and take precedence.
+spring:
+  main:
+    web-application-type: none
+    banner-mode: off
+    log-startup-info: false
+  mongodb:
+    uri: ${uri:mongodb://localhost:27017}
+    database: ${db:test}
+
+comparator:
+  persistence:
+    enabled: ${persist:false}
+
+logging:
+  level:
+    root: WARN
+    dev.jbaby.ditto: INFO
