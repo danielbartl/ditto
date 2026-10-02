@@ -14,6 +14,11 @@
     <name>comparator-cli</name>
     <description>Command line runner for comparator-core, plus a test-data generator</description>
 
+    <properties>
+        <!-- an application, not a library: released as a jar on GitHub Releases, not to a Maven repository -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>dev.jbaby.ditto</groupId>

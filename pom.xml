@@ -27,6 +27,33 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <id>danielbartl</id>
+            <name>Daniel Bartl</name>
+            <url>https://github.com/danielbartl</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <url>https://github.com/danielbartl/ditto</url>
+        <connection>scm:git:https://github.com/danielbartl/ditto.git</connection>
+        <developerConnection>scm:git:https://github.com/danielbartl/ditto.git</developerConnection>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/danielbartl/ditto/issues</url>
+    </issueManagement>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/danielbartl/ditto</url>
+        </repository>
+    </distributionManagement>
+
     <modules>
         <module>comparator-core</module>
         <module>comparator-cli</module>
@@ -37,6 +64,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Mockito attaches its agent at runtime; allow it without JDK warnings -->
         <argLine>-XX:+EnableDynamicAgentLoading</argLine>
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -73,4 +102,79 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- sources, javadoc and signatures, as required by Maven Central; skip signing with -Dgpg.skip -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <doclint>all,-missing</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- deploy to Maven Central instead of GitHub Packages; use together with the release profile -->
+        <profile>
+            <id>central</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                            <excludeArtifacts>
+                                <artifact>comparator-cli</artifact>
+                            </excludeArtifacts>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

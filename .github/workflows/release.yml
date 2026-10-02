@@ -1,0 +1,72 @@
+name: Release
+
+# Push a tag like v0.2.0 to release: the version comes from the tag, master stays on -SNAPSHOT.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  github:
+    name: GitHub Packages and Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # writes a settings.xml with server "github" authenticated by GITHUB_TOKEN
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          server-id: github
+
+      - name: Set version from tag
+        run: ./mvnw -B -ntp versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false
+
+      - name: Build, test and deploy comparator-core to GitHub Packages
+        run: ./mvnw -B -ntp -Prelease -Dgpg.skip deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release with the CLI jar
+        run: gh release create "$GITHUB_REF_NAME" comparator-cli/target/comparator-cli.jar --generate-notes --title "$GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Disabled until the repository variable MAVEN_CENTRAL_ENABLED is 'true' and these secrets exist:
+  # CENTRAL_USERNAME / CENTRAL_TOKEN (Sonatype Central Portal user token), GPG_PRIVATE_KEY / GPG_PASSPHRASE.
+  central:
+    name: Maven Central
+    if: vars.MAVEN_CENTRAL_ENABLED == 'true'
+    needs: github
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_TOKEN
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Set version from tag
+        run: ./mvnw -B -ntp versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false
+
+      - name: Deploy to Maven Central
+        run: ./mvnw -B -ntp -Prelease,central -DskipTests deploy
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
