@@ -42,6 +42,8 @@ class CliIT {
         assertThat(run("--baseline=g_base", "--candidate=g_same").code()).isEqualTo(ExitCodes.RED);
         Result green = run("compare", "--baseline=g_base", "--candidate=g_same", "--ignore=meta.syncedAt",
                 "--out=" + tmp.resolve("report.json"));
+        run("generate", "--docs=500", "--baseline=stock_backup", "--candidate=stock");
+        assertThat(run("--collection=stock", "--ignore=meta.syncedAt").code()).isEqualTo(ExitCodes.GREEN);
         assertThat(green.code()).isEqualTo(ExitCodes.GREEN);
         ComparisonReport report = new ReportJson().read(green.out());
         assertThat(report.verdict()).isEqualTo(Level.GREEN);
@@ -82,6 +84,8 @@ class CliIT {
 
     @Test
     void errorsExitWithThree() {
+        assertThat(run().err()).contains("Missing collections: --collection=<name>");
+        assertThat(run("--collection=x", "--baseline=y").err()).contains("either --collection or --baseline");
         assertThat(run("--baseline=only").code()).isEqualTo(ExitCodes.ERROR);
         assertThat(run("--baseline=only").err()).contains("Missing required option --candidate");
         assertThat(run("frobnicate").err()).contains("Unknown command 'frobnicate'");

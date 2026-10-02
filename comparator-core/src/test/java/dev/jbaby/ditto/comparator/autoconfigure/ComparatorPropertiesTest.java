@@ -29,7 +29,7 @@ class ComparatorPropertiesTest {
         assertThat(settings.baseline()).isEqualTo(CollectionRef.of("shop", "products_backup"));
         assertThat(settings.candidate()).isEqualTo(CollectionRef.of("shop", "products"));
         assertThat(settings.keyField()).isEqualTo("_id");
-        assertThat(settings.ignoredPaths()).isEmpty();
+        assertThat(settings.ignoredPaths()).containsExactly("_class");
         assertThat(settings.mode()).isEqualTo(ComparisonMode.full());
         assertThat(settings.nullEqualsMissing()).isFalse();
         assertThat(settings.mixedKeyPolicy()).isEqualTo(MixedKeyPolicy.REJECT);
@@ -58,7 +58,8 @@ class ComparatorPropertiesTest {
         assertThat(settings.baseline()).isEqualTo(CollectionRef.of("archive", "p_backup"));
         assertThat(settings.candidate()).isEqualTo(CollectionRef.of("shop", "p"));
         assertThat(settings.keyField()).isEqualTo("sku");
-        assertThat(settings.ignoredPaths()).containsExactly("syncedAt");
+        // the request replaces configured ignored paths; always-ignored paths stay
+        assertThat(settings.ignoredPaths()).containsExactly("_class", "syncedAt");
         assertThat(settings.mode()).isEqualTo(ComparisonMode.sample(100));
         assertThat(settings.nullEqualsMissing()).isTrue();
         assertThat(settings.thresholds()).isEqualTo(thresholds);
@@ -89,6 +90,15 @@ class ComparatorPropertiesTest {
         assertThat(settings.thresholds().keySimilarity()).isEqualTo(new Thresholds.AtLeast(0.995, 0.97));
         assertThat(settings.thresholds().maxPathChangeRate()).isEqualTo(new Thresholds.Below(0.05, 0.3));
         assertThat(settings.thresholds().structure().vanishedMinPresence()).isEqualTo(0.001);
+    }
+
+    @Test
+    void alwaysIgnoredPathsCanBeCleared() {
+        var properties = bind(Map.of("comparator.always-ignored-paths", "",
+                "comparator.ignored-paths", "meta.syncedAt"));
+
+        assertThat(properties.settingsFor(ComparisonRequest.of("a", "b"), "db").ignoredPaths())
+                .containsExactly("meta.syncedAt");
     }
 
     @Test

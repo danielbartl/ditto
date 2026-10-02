@@ -55,9 +55,7 @@ public class CompareCommand {
     }
 
     ComparisonRequest request() {
-        var baseline = new CollectionRef(options.string("baseline-db"), options.required("baseline"));
-        var candidate = new CollectionRef(options.string("candidate-db"), options.required("candidate"));
-        return ComparisonRequest.builder(baseline, candidate)
+        return builder()
                 .keyField(options.string("key"))
                 .ignoredPaths(options.list("ignore"))
                 .orderSensitivePaths(options.list("ordered"))
@@ -69,6 +67,24 @@ public class CompareCommand {
                 .mixedKeyPolicy(options.enumValue("mixed-key-types", MixedKeyPolicy.class))
                 .verdictBasis(options.enumValue("verdict-basis", VerdictBasis.class))
                 .build();
+    }
+
+    /** {@code --collection=x} for x_backup vs. x, or explicit {@code --baseline} and {@code --candidate}. */
+    private ComparisonRequest.Builder builder() {
+        String collection = options.string("collection");
+        if (collection != null) {
+            if (options.string("baseline") != null || options.string("candidate") != null) {
+                throw new CliUsageException("Use either --collection or --baseline/--candidate, not both");
+            }
+            return comparator.backupRequest(collection);
+        }
+        if (options.string("baseline") == null && options.string("candidate") == null) {
+            throw new CliUsageException("Missing collections: --collection=<name> compares <name>"
+                    + properties.getBackupSuffix() + " with <name>, or give --baseline and --candidate");
+        }
+        var baseline = new CollectionRef(options.string("baseline-db"), options.required("baseline"));
+        var candidate = new CollectionRef(options.string("candidate-db"), options.required("candidate"));
+        return ComparisonRequest.builder(baseline, candidate);
     }
 
     private @Nullable ComparisonMode mode() {

@@ -6,7 +6,8 @@ package dev.jbaby.ditto.cli;
 final class Usage {
 
     static final String TEXT = """
-            Usage: java -jar comparator-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
+            Usage: java -jar comparator-cli.jar [compare] --collection=<collection> [options]
+                   java -jar comparator-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
                    java -jar comparator-cli.jar generate [options]
 
             Connection
@@ -14,8 +15,9 @@ final class Usage {
               --db=<database>               default database, default "test"
 
             compare (prints the report as JSON on stdout; exit code 0 GREEN, 1 YELLOW, 2 RED, 3 error)
-              --baseline=<collection>       reference collection, e.g. the backup (required)
-              --candidate=<collection>      collection to judge (required)
+              --collection=<collection>     compares <collection>_backup (baseline) with <collection> (candidate)
+              --baseline=<collection>       reference collection, e.g. the backup
+              --candidate=<collection>      collection to judge
               --baseline-db=<database>      database of the baseline if not --db
               --candidate-db=<database>     database of the candidate if not --db
               --key=<field>                 key field, default _id

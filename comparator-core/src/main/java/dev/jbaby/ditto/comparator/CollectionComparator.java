@@ -35,12 +35,14 @@ import dev.jbaby.ditto.comparator.scan.ProgressReporter;
 import dev.jbaby.ditto.comparator.scan.SampleComparator;
 
 /**
- * Compares two MongoDB collections and judges how similar they are.
+ * Compares two MongoDB collections and judges how similar they are. Without any configuration:
  * <pre>{@code
- * ComparisonReport report = comparator.compare(ComparisonRequest.builder("products_backup", "products")
- *         .ignoredPaths("meta.syncedAt")
- *         .build());
+ * ComparisonReport report = comparator.compareWithBackup("products");   // products_backup -> products
  * if (report.verdict() == Level.RED) { ... }
+ * }</pre>
+ * With options:
+ * <pre>{@code
+ * comparator.compare(comparator.backupRequest("products").ignoredPaths("meta.syncedAt").build());
  * }</pre>
  * Blocking; runs on the calling thread and honours thread interruption. Thread-safe: concurrent comparisons are
  * independent. Publishes a {@link ComparisonCompletedEvent} or {@link ComparisonFailedEvent} for every comparison.
@@ -79,6 +81,24 @@ public class CollectionComparator {
         this.repository = repository;
         this.thresholdAdvisor = thresholdAdvisor;
         this.events = events;
+    }
+
+    /**
+     * Compares {@code collection + backup-suffix} (default {@code _backup}) as baseline with {@code collection} as
+     * candidate, in the default database, with all defaults.
+     */
+    public ComparisonReport compareWithBackup(String collection) {
+        return compare(backupRequest(collection).build());
+    }
+
+    /** Compares two collections of the default database with all defaults. */
+    public ComparisonReport compare(String baselineCollection, String candidateCollection) {
+        return compare(ComparisonRequest.of(baselineCollection, candidateCollection));
+    }
+
+    /** A request builder for {@code collection + backup-suffix} vs. {@code collection}, to add options to. */
+    public ComparisonRequest.Builder backupRequest(String collection) {
+        return ComparisonRequest.builder(collection + properties.getBackupSuffix(), collection);
     }
 
     public ComparisonReport compare(ComparisonRequest request) {

@@ -55,6 +55,20 @@ class CollectionComparatorIT {
     }
 
     @Test
+    void comparesWithBackupByConvention() {
+        var db = Collections.database(TestApplication.DATABASE);
+        Collections.create(db, "orders_backup", "{_id: 1, a: 1, _class: 'com.acme.Order'}", "{_id: 2, a: 2}");
+        Collections.create(db, "orders", "{_id: 1, a: 1, _class: 'com.acme.v2.Order'}", "{_id: 2, a: 2}");
+
+        ComparisonReport report = comparator.compareWithBackup("orders");
+
+        assertThat(report.run().settings().baseline()).isEqualTo(CollectionRef.of(TestApplication.DATABASE, "orders_backup"));
+        assertThat(report.run().settings().candidate()).isEqualTo(CollectionRef.of(TestApplication.DATABASE, "orders"));
+        assertThat(report.content().unchanged()).as("_class is ignored by default").isEqualTo(2);
+        assertThat(comparator.compare("orders_backup", "orders").verdict()).isEqualTo(Level.GREEN);
+    }
+
+    @Test
     void comparesAcrossDatabases() {
         Collections.create(Collections.database("archive_db"), "products", "{_id: 1, a: 1}", "{_id: 2, a: 2}");
         Collections.create(Collections.database(TestApplication.DATABASE), "products", "{_id: 1, a: 1}", "{_id: 3, a: 3}");

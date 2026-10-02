@@ -27,8 +27,17 @@ public class ComparatorProperties {
     /** Top-level field identifying a document in both collections. */
     private String keyField = "_id";
 
-    /** Paths removed before comparing, e.g. technical sync timestamps. */
+    /** Paths removed before comparing, e.g. technical sync timestamps. A request's ignored paths replace these. */
     private List<String> ignoredPaths = new ArrayList<>();
+
+    /**
+     * Paths ignored in every comparison, in addition to the ignored paths of the configuration or the request. By
+     * default the type hint Spring Data writes into documents.
+     */
+    private List<String> alwaysIgnoredPaths = new ArrayList<>(List.of("_class"));
+
+    /** Suffix of the backup collection used by {@code compareWithBackup("products")}: products_backup. */
+    private String backupSuffix = "_backup";
 
     /** Arrays whose element order matters; all other arrays are compared as multisets. */
     private List<String> orderSensitivePaths = new ArrayList<>();
@@ -93,7 +102,7 @@ public class ComparatorProperties {
                 request.baseline().withDefaultDatabase(defaultDatabase),
                 request.candidate().withDefaultDatabase(defaultDatabase),
                 Objects.requireNonNullElse(request.keyField(), keyField),
-                orDefault(request.ignoredPaths(), ignoredPaths),
+                union(orDefault(request.ignoredPaths(), ignoredPaths), alwaysIgnoredPaths),
                 orDefault(request.orderSensitivePaths(), orderSensitivePaths),
                 orDefault(request.wildcardPaths(), wildcardPaths),
                 orDefault(request.expectedChangePaths(), expectedChangePaths),
@@ -112,6 +121,12 @@ public class ComparatorProperties {
             case FULL -> ComparisonMode.full();
             case SAMPLE -> ComparisonMode.sample(sample.size);
         };
+    }
+
+    private static List<String> union(List<String> a, List<String> b) {
+        List<String> union = new ArrayList<>(a);
+        b.stream().filter(path -> !union.contains(path)).forEach(union::add);
+        return union;
     }
 
     private static List<String> orDefault(@Nullable Set<String> requested, List<String> defaults) {
@@ -420,6 +435,22 @@ public class ComparatorProperties {
 
     public void setIgnoredPaths(List<String> ignoredPaths) {
         this.ignoredPaths = ignoredPaths;
+    }
+
+    public List<String> getAlwaysIgnoredPaths() {
+        return alwaysIgnoredPaths;
+    }
+
+    public void setAlwaysIgnoredPaths(List<String> alwaysIgnoredPaths) {
+        this.alwaysIgnoredPaths = alwaysIgnoredPaths;
+    }
+
+    public String getBackupSuffix() {
+        return backupSuffix;
+    }
+
+    public void setBackupSuffix(String backupSuffix) {
+        this.backupSuffix = backupSuffix;
     }
 
     public List<String> getOrderSensitivePaths() {
