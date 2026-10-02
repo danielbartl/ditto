@@ -1,0 +1,36 @@
+# Local MongoDB for manual experiments.
+#
+#   docker compose up -d                 start MongoDB on localhost:27017
+#   ./mvnw -q package -DskipTests        build comparator-cli/target/comparator-cli.jar
+#   docker compose run --rm seed         generate a baseline collection and a modified copy
+#
+# Override the generator arguments with SEED_ARGS, e.g.
+#   SEED_ARGS="--docs=200000 --changes=modify:price:0.1" docker compose run --rm seed
+
+services:
+  mongo:
+    image: mongo:8.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  seed:
+    image: eclipse-temurin:25-jre
+    profiles: ["seed"]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ./comparator-cli/target:/app:ro
+    entrypoint: ["sh", "-c", "exec java -jar /app/comparator-cli.jar generate --uri=mongodb://mongo:27017 --db=ditto $${SEED_ARGS}"]
+    environment:
+      SEED_ARGS: ${SEED_ARGS:---docs=50000 --baseline=demo_backup --candidate=demo --seed=42}
+
+volumes:
+  mongo-data:
