@@ -1,8 +1,8 @@
 package dev.jbaby.ditto.comparator.api;
 
 /**
- * Receives periodic {@link Progress} updates, e.g. to drive a JobRunr progress bar. Called on the comparing thread;
- * keep it fast.
+ * Receives periodic {@link Progress} updates, e.g. to log or display progress. Called on the comparing thread; keep
+ * it fast.
  */
 @FunctionalInterface
 public interface ProgressListener {
