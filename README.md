@@ -865,7 +865,8 @@ Package layout of `ditto-core` (`dev.jbaby.ditto.comparator`):
 
 ### Releasing
 
-Push a tag `vX.Y.Z`. The release workflow then:
+Rename the `[Unreleased]` section of the [changelog](CHANGELOG.md) to the new version and date, then push a tag
+`vX.Y.Z`. The release workflow then:
 
 1. Takes the version from the tag. `master` stays on `-SNAPSHOT`.
 2. Runs the full build.
