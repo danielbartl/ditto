@@ -6,7 +6,9 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ## [Unreleased]
 
-Planned as 0.3.0, the first release on Maven Central. It runs without any configuration: point it at a collection
+## [0.3.0] - 2026-10-03
+
+The first release on Maven Central. It runs without any configuration: point it at a collection
 and its backup, and the report tells you what to configure next.
 
 ### Breaking changes
@@ -94,6 +96,7 @@ First release.
   optional persistence of reports in MongoDB.
 - CLI with exit codes 0/1/2/3 (GREEN/YELLOW/RED/error), and a test-data generator.
 
-[Unreleased]: https://github.com/danielbartl/ditto/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/danielbartl/ditto/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/danielbartl/ditto/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/danielbartl/ditto/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/danielbartl/ditto/releases/tag/v0.1.0
