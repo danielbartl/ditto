@@ -307,35 +307,14 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
       <div class="tabpanel" role="tabpanel" id="tab-lib" aria-labelledby="t-lib">
         <ol class="steps">
           <li>
-            <p><strong>Point Maven at GitHub Packages.</strong> Releases are published there. Maven needs a
-              GitHub token with the <code>read:packages</code> scope to download from it, even for public packages:</p>
-            <div class="code"><span class="label">~/.m2/settings.xml</span><pre>&lt;settings&gt;
-  &lt;servers&gt;
-    &lt;server&gt;
-      &lt;id&gt;github-ditto&lt;/id&gt;
-      &lt;username&gt;YOUR_GITHUB_USERNAME&lt;/username&gt;
-      &lt;password&gt;YOUR_TOKEN&lt;/password&gt;
-    &lt;/server&gt;
-  &lt;/servers&gt;
-&lt;/settings&gt;</pre></div>
-          </li>
-          <li>
-            <p><strong>Add the repository and the dependency.</strong> Your application needs Spring Boot 4 with MongoDB
-              configured (<code>spring.mongodb.*</code>). Auto-configuration does the rest.</p>
-            <div class="code"><span class="label">pom.xml</span><pre>&lt;repositories&gt;
-  &lt;repository&gt;
-    &lt;id&gt;github-ditto&lt;/id&gt;
-    &lt;url&gt;https://maven.pkg.github.com/danielbartl/ditto&lt;/url&gt;
-  &lt;/repository&gt;
-&lt;/repositories&gt;
-
-&lt;dependency&gt;
+            <p><strong>Add the dependency.</strong> It is on Maven Central. Your application needs Spring Boot 4 with
+              MongoDB configured (<code>spring.mongodb.*</code>). Auto-configuration does the rest.</p>
+            <div class="code"><span class="label">pom.xml</span><pre>&lt;dependency&gt;
   &lt;groupId&gt;dev.jbaby.ditto&lt;/groupId&gt;
-  &lt;artifactId&gt;comparator-core&lt;/artifactId&gt;
-  &lt;version&gt;0.2.0&lt;/version&gt;
+  &lt;artifactId&gt;ditto-core&lt;/artifactId&gt;
+  &lt;version&gt;0.3.0&lt;/version&gt;
 &lt;/dependency&gt;</pre></div>
-            <p>Prefer no token? Build from source with <code>./mvnw install -DskipTests</code>, which installs
-              <code>0.3.0-SNAPSHOT</code> locally.</p>
+            <p>Gradle: <code>implementation("dev.jbaby.ditto:ditto-core:0.3.0")</code>.</p>
           </li>
           <li>
             <p><strong>Inject <code>CollectionComparator</code> and compare.</strong> No configuration needed:</p>

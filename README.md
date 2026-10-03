@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/danielbartl/ditto/actions/workflows/ci.yml/badge.svg)](https://github.com/danielbartl/ditto/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/danielbartl/ditto)](https://github.com/danielbartl/ditto/releases/latest)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.jbaby.ditto/ditto-core)](https://central.sonatype.com/artifact/dev.jbaby.ditto/ditto-core)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ditto compares two MongoDB collections that have the same or a very similar document structure, and tells you how
@@ -324,41 +325,21 @@ In docker compose, the `seed` service runs `generate` against the compose MongoD
 
 ### Add the dependency
 
-Releases are published to **GitHub Packages**. Maven needs a token to read from GitHub Packages, even for public
-packages: create a GitHub personal access token (classic) with the `read:packages` scope and add it to
-`~/.m2/settings.xml`:
+Releases are published to **Maven Central**:
 
 ```xml
-<settings>
-    <servers>
-        <server>
-            <id>github-ditto</id>
-            <username>YOUR_GITHUB_USERNAME</username>
-            <password>YOUR_TOKEN</password>
-        </server>
-    </servers>
-</settings>
-```
-
-Then add the repository and the dependency to your project:
-
-```xml
-<repositories>
-    <repository>
-        <id>github-ditto</id>
-        <url>https://maven.pkg.github.com/danielbartl/ditto</url>
-    </repository>
-</repositories>
-
 <dependency>
     <groupId>dev.jbaby.ditto</groupId>
-    <artifactId>comparator-core</artifactId>
-    <version>0.2.0</version>
+    <artifactId>ditto-core</artifactId>
+    <version>0.3.0</version>
 </dependency>
 ```
 
-Alternatively, build it yourself with `./mvnw install -DskipTests`, which installs `0.3.0-SNAPSHOT` into your local
-repository.
+Gradle: `implementation("dev.jbaby.ditto:ditto-core:0.3.0")`.
+
+The same versions are also on GitHub Packages (`https://maven.pkg.github.com/danielbartl/ditto`), which needs a
+GitHub token with the `read:packages` scope even for public packages. To try an unreleased change, build it yourself
+with `./mvnw install -DskipTests`, which installs the current `-SNAPSHOT` into your local repository.
 
 The host needs Spring Boot 4 with a configured MongoDB (`spring.mongodb.*`). The auto-configuration
 `ComparatorAutoConfiguration` registers a `CollectionComparator` that uses the host's `MongoDatabaseFactory`. Every
