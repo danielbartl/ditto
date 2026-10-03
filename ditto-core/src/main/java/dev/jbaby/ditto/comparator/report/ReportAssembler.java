@@ -44,10 +44,10 @@ public final class ReportAssembler {
                                      List<String> decisions, Preflight.Result preflight, ScanResult scan,
                                      Instant startedAt, Instant finishedAt) {
         Measured measured = switch (settings.mode()) {
-            case ComparisonMode.Full _ -> exact(scan, settings.tuning().topChangedPaths(), expected(settings));
-            case ComparisonMode.Sample _ -> estimated(scan, preflight, settings.tuning().topChangedPaths(),
+            case ComparisonMode.Full full -> exact(scan, settings.tuning().topChangedPaths(), expected(settings));
+            case ComparisonMode.Sample sample -> estimated(scan, preflight, settings.tuning().topChangedPaths(),
                     expected(settings));
-            case ComparisonMode.Auto _ -> throw new IllegalArgumentException("AUTO mode must be resolved first");
+            case ComparisonMode.Auto auto -> throw new IllegalArgumentException("AUTO mode must be resolved first");
         };
         StructureMetrics structure = StructureDiff.compare(scan.baselineProfile(), scan.candidateProfile(),
                 settings.thresholds().structure());

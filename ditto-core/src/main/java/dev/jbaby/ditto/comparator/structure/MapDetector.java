@@ -90,7 +90,7 @@ public final class MapDetector {
     private void walkObject(BsonDocument object, PathRules.State state, String path, Map<String, ObjectStats> objects,
                             Set<String> seen) {
         if (!path.isEmpty() && !state.collapsesChildren()) {
-            ObjectStats stats = objects.computeIfAbsent(path, _ -> new ObjectStats());
+            ObjectStats stats = objects.computeIfAbsent(path, key -> new ObjectStats());
             if (seen.add(path)) {
                 stats.documents++;
             }

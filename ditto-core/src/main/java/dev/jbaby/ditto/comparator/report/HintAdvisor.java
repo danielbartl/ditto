@@ -102,7 +102,7 @@ public final class HintAdvisor {
         for (String path : paths) {
             int dot = path.lastIndexOf('.');
             if (dot > 0) {
-                children.computeIfAbsent(path.substring(0, dot), _ -> new HashSet<>()).add(path);
+                children.computeIfAbsent(path.substring(0, dot), key -> new HashSet<>()).add(path);
             }
         }
         children.entrySet().stream()

@@ -49,7 +49,7 @@ public final class Mutator {
             }
             case ADD_FIELD -> set(document, spec.path(), new BsonString("added-" + random.nextInt(1000)));
             case DROP_FIELD -> remove(document, spec.path());
-            case SET_NULL -> replace(document, spec.path(), _ -> BsonNull.VALUE);
+            case SET_NULL -> replace(document, spec.path(), old -> BsonNull.VALUE);
             case MODIFY -> replace(document, spec.path(), Mutator::modified);
             case INT_TO_DOUBLE -> replace(document, spec.path(), value -> switch (value.getBsonType()) {
                 case INT32 -> new BsonDouble(value.asInt32().getValue());

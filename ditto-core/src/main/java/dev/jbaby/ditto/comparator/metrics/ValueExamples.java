@@ -80,7 +80,7 @@ public final class ValueExamples {
         Map<String, List<CanonicalValue>> leaves = new HashMap<>();
         flattener.leaves(document, rules.root(), Paths.ROOT, (path, value) -> {
             if (paths.contains(path)) {
-                leaves.computeIfAbsent(path, _ -> new ArrayList<>()).add(value);
+                leaves.computeIfAbsent(path, key -> new ArrayList<>()).add(value);
             }
         });
         return leaves;
@@ -128,7 +128,7 @@ public final class ValueExamples {
     /** Short, readable form of a canonical leaf value. */
     static String render(CanonicalValue value) {
         String text = switch (value) {
-            case CNull _ -> "null";
+            case CNull cnull -> "null";
             case CBoolean(boolean bool) -> Boolean.toString(bool);
             case CNumber(BigDecimal number) -> number.toPlainString();
             case CNonFinite(CNonFinite.Kind kind) -> switch (kind) {

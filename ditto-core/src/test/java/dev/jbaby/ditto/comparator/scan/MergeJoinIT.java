@@ -176,7 +176,7 @@ class MergeJoinIT {
     }
 
     private static ScanResult compare(ComparisonRequest request) {
-        return compare(request, _ -> {
+        return compare(request, progress -> {
         });
     }
 

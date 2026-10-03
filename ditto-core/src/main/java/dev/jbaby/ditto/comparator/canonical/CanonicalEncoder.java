@@ -45,7 +45,7 @@ public final class CanonicalEncoder {
 
     void encode(CanonicalValue value, ByteSink sink) {
         switch (value) {
-            case CNull _ -> sink.write(NULL);
+            case CNull cnull -> sink.write(NULL);
             case CBoolean(boolean bool) -> sink.write(bool ? TRUE : FALSE);
             case CNumber(BigDecimal number) -> {
                 sink.write(NUMBER);

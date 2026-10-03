@@ -73,7 +73,7 @@ public final class DocumentFactory {
 
     private BsonArray tags() {
         var tags = new BsonArray();
-        TAGS.stream().filter(_ -> random.nextInt(4) == 0).forEach(tag -> tags.add(new BsonString(tag)));
+        TAGS.stream().filter(candidate -> random.nextInt(4) == 0).forEach(tag -> tags.add(new BsonString(tag)));
         return tags;
     }
 

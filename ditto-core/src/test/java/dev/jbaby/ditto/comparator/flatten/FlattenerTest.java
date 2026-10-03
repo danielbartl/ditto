@@ -67,7 +67,7 @@ class FlattenerTest {
                 "{_id: 1, a: {b: 1, c: []}, tags: ['x', 'y'], attributes: {color: 'red'}, e: {}}"));
         List<String> leaves = new ArrayList<>();
 
-        new Flattener(rules, false).leaves(canonical, rules.root(), "", (path, _) -> leaves.add(path));
+        new Flattener(rules, false).leaves(canonical, rules.root(), "", (path, value) -> leaves.add(path));
 
         assertThat(leaves).containsExactly("a.b", "a.c", "attributes.*", "e", "tags[]", "tags[]");
     }

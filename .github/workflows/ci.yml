@@ -15,16 +15,21 @@ concurrency:
 
 jobs:
   build:
-    name: Build and test
+    name: Build and test (Java ${{ matrix.java }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # 21 is the minimum (the code compiles with release 21), 25 builds the releases
+        java: ['21', '25']
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: ${{ matrix.java }}
           cache: maven
 
       # unit tests (surefire) and integration tests against MongoDB via Testcontainers (failsafe)
@@ -35,7 +40,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: test-reports
+          name: test-reports-java${{ matrix.java }}
           path: |
             **/target/surefire-reports/
             **/target/failsafe-reports/

@@ -116,9 +116,9 @@ public final class ComparisonMetrics {
 
     private static String mode(ComparisonMode mode) {
         return switch (mode) {
-            case ComparisonMode.Full _ -> "FULL";
-            case ComparisonMode.Sample _ -> "SAMPLE";
-            case ComparisonMode.Auto _ -> "AUTO";
+            case ComparisonMode.Full full -> "FULL";
+            case ComparisonMode.Sample sample -> "SAMPLE";
+            case ComparisonMode.Auto auto -> "AUTO";
         };
     }
 }

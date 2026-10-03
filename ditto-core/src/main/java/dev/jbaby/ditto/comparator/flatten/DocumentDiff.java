@@ -147,14 +147,14 @@ public final class DocumentDiff {
         Map<String, Map<CanonicalValue, Integer>> result = new HashMap<>();
         for (CanonicalValue element : elements) {
             flattener.leaves(element, elementState, elementPath,
-                    (leafPath, value) -> result.computeIfAbsent(leafPath, _ -> new HashMap<>())
+                    (leafPath, value) -> result.computeIfAbsent(leafPath, key -> new HashMap<>())
                             .merge(value, 1, Integer::sum));
         }
         return result;
     }
 
     private void addLeafPaths(CanonicalValue value, PathRules.State state, String path, Set<String> out) {
-        flattener.leaves(value, state, path, (leafPath, _) -> out.add(leafPath));
+        flattener.leaves(value, state, path, (leafPath, leafValue) -> out.add(leafPath));
     }
 
     private static Set<String> union(Set<String> a, Set<String> b) {

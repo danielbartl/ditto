@@ -141,7 +141,7 @@ public final class PathRules {
             Node node = this;
             for (PathPattern.Segment segment : segments) {
                 node = switch (segment) {
-                    case PathPattern.Field(String name) -> node.fields.computeIfAbsent(name, _ -> new Node());
+                    case PathPattern.Field(String name) -> node.fields.computeIfAbsent(name, key -> new Node());
                     case PathPattern.AnyField() -> node.anyField != null ? node.anyField : (node.anyField = new Node());
                     case PathPattern.Element() -> node.element != null ? node.element : (node.element = new Node());
                 };

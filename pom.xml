@@ -60,7 +60,7 @@
     </modules>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Mockito attaches its agent at runtime; allow it without JDK warnings -->
         <argLine>-XX:+EnableDynamicAgentLoading</argLine>

@@ -178,13 +178,13 @@ public class CollectionComparator {
                         ? "from " + thresholdSource.historyRuns() + " previous runs" : thresholdSource.kind());
         ScanAccumulator accumulator = new ScanAccumulator(settings, hasher);
         ScanResult scan = switch (settings.mode()) {
-            case ComparisonMode.Full _ -> mergeJoin.compare(baseline, candidate, settings, accumulator,
+            case ComparisonMode.Full full -> mergeJoin.compare(baseline, candidate, settings, accumulator,
                     new ProgressReporter(label, settings.tuning().progressInterval(),
                             checked.baselineCount() + checked.candidateCount(), listener));
             case ComparisonMode.Sample sample -> sampler.compare(baseline, candidate, settings, sample.size(),
                     accumulator, new ProgressReporter(label, settings.tuning().progressInterval(),
                             2L * sample.size(), listener));
-            case ComparisonMode.Auto _ -> throw new IllegalStateException("AUTO mode was not resolved");
+            case ComparisonMode.Auto auto -> throw new IllegalStateException("AUTO mode was not resolved");
         };
         ComparisonReport report = assembler.assemble(settings, thresholdSource, decisions, checked, scan, startedAt,
                 Instant.now());
@@ -259,9 +259,9 @@ public class CollectionComparator {
 
     private static String describe(ComparisonMode mode) {
         return switch (mode) {
-            case ComparisonMode.Full _ -> "FULL";
+            case ComparisonMode.Full full -> "FULL";
             case ComparisonMode.Sample(int size) -> "SAMPLE (" + size + " keys per side)";
-            case ComparisonMode.Auto _ -> "AUTO";
+            case ComparisonMode.Auto auto -> "AUTO";
         };
     }
 }

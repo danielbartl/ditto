@@ -21,7 +21,7 @@ documents mean.
 | `ditto-core` | The library. Spring Boot auto-configuration: add the dependency, inject `CollectionComparator`. |
 | `ditto-cli`  | A runnable jar: compares two collections, prints the report as JSON, exits 0/1/2/3.            |
 
-Requirements: Java 25, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integration tests need Docker.
+Requirements: Java 21 or newer, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integration tests need Docker.
 
 **Home page:** https://danielbartl.github.io/ditto/
 
