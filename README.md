@@ -39,6 +39,7 @@ Requirements: Java 25, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integrat
 - [Running it as a JobRunr job after a batch run](#running-it-as-a-jobrunr-job-after-a-batch-run)
 - [Performance and operational notes](#performance-and-operational-notes)
 - [Limitations](#limitations)
+- [Compatibility and versioning](#compatibility-and-versioning)
 - [Building and testing](#building-and-testing)
 - [License](#license)
 
@@ -799,6 +800,25 @@ The collections are read with ordinary queries, not a snapshot. Compare after th
   slightly off after an unclean shutdown.
 - **Changing the encoding**: the canonical byte encoding is pinned by a unit test. Changing it changes all content
   hashes.
+
+---
+
+## Compatibility and versioning
+
+ditto follows [semantic versioning](https://semver.org). Before 1.0, a minor release (0.x → 0.y) may break the
+public API; every such change is listed in the [changelog](CHANGELOG.md).
+
+The public API is:
+
+- `CollectionComparator` (inject it; its constructor is internal) and everything in `dev.jbaby.ditto.comparator.api`;
+- the `comparator.*` configuration properties (`ComparatorProperties`) and the auto-configuration class names;
+- `ReportJson` and `ReportRepository`;
+- the report JSON format, the CLI options and exit codes, the Micrometer meter names and the `comparisons` Actuator
+  endpoint.
+
+All other packages (`canonical`, `flatten`, `history`, `key`, `metrics`, `observability`, `path`, `scan`,
+`structure`, `verdict`) and the remaining classes in `report` are internal, even where they are `public` Java types.
+They may change in any release.
 
 ---
 

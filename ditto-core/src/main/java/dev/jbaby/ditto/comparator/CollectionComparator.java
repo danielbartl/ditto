@@ -69,6 +69,9 @@ public class CollectionComparator {
     private final ApplicationEventPublisher events;
 
     /**
+     * Created by the auto-configuration; inject the bean instead of calling this. The constructor takes internal types
+     * and may change in any release.
+     *
      * @param repository       where reports are stored, {@code null} to not store them
      * @param thresholdAdvisor derives thresholds from history, {@code null} to always use the configured ones
      * @param events           receives a completed or failed event per comparison

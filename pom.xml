@@ -130,6 +130,18 @@
                         <configuration>
                             <doclint>all,-missing</doclint>
                             <quiet>true</quiet>
+                            <!-- the default footer says "All rights reserved" -->
+                            <bottom>Licensed under the MIT License.</bottom>
+                            <groups>
+                                <group>
+                                    <title>Public API</title>
+                                    <packages>dev.jbaby.ditto.comparator:dev.jbaby.ditto.comparator.api:dev.jbaby.ditto.comparator.autoconfigure:dev.jbaby.ditto.comparator.report</packages>
+                                </group>
+                                <group>
+                                    <title>Internal (may change in any release)</title>
+                                    <packages>dev.jbaby.ditto.comparator.*</packages>
+                                </group>
+                            </groups>
                         </configuration>
                         <executions>
                             <execution>
