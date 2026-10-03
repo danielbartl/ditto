@@ -6,9 +6,9 @@ package dev.jbaby.ditto.cli;
 final class Usage {
 
     static final String TEXT = """
-            Usage: java -jar comparator-cli.jar [compare] --collection=<collection> [options]
-                   java -jar comparator-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
-                   java -jar comparator-cli.jar generate [options]
+            Usage: java -jar ditto-cli.jar [compare] --collection=<collection> [options]
+                   java -jar ditto-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
+                   java -jar ditto-cli.jar generate [options]
 
             Connection
               --uri=<mongodb uri>           default mongodb://localhost:27017

@@ -55,8 +55,8 @@
     </distributionManagement>
 
     <modules>
-        <module>comparator-core</module>
-        <module>comparator-cli</module>
+        <module>ditto-core</module>
+        <module>ditto-cli</module>
     </modules>
 
     <properties>
@@ -75,7 +75,7 @@
         <dependencies>
             <dependency>
                 <groupId>dev.jbaby.ditto</groupId>
-                <artifactId>comparator-core</artifactId>
+                <artifactId>ditto-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
@@ -172,7 +172,7 @@
                             <autoPublish>${central.autoPublish}</autoPublish>
                             <waitUntil>${central.waitUntil}</waitUntil>
                             <excludeArtifacts>
-                                <artifact>comparator-cli</artifact>
+                                <artifact>ditto-cli</artifact>
                             </excludeArtifacts>
                         </configuration>
                     </plugin>

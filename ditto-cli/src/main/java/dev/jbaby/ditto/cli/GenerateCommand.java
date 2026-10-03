@@ -36,7 +36,7 @@ public class GenerateCommand {
                 + stats.baselineDocs() + " documents) and " + database.getName() + "." + settings.candidate() + " ("
                 + stats.candidateDocs() + " documents)");
         stats.applied().forEach((change, count) -> console.err().println("  " + change + ": " + count));
-        console.err().println("Compare with: java -jar comparator-cli.jar --db=" + database.getName()
+        console.err().println("Compare with: java -jar ditto-cli.jar --db=" + database.getName()
                 + " --baseline=" + settings.baseline() + " --candidate=" + settings.candidate()
                 + (settings.touchSync() ? " --ignore=meta.syncedAt" : "") + " --wildcard=attributes.* --ordered=history");
         return ExitCodes.OK;

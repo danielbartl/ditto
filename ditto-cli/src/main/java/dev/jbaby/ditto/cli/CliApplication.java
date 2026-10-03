@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
- * {@code java -jar comparator-cli.jar [compare|generate] --option=value ...}
+ * {@code java -jar ditto-cli.jar [compare|generate] --option=value ...}
  * <p>
  * Exit codes: 0 GREEN, 1 YELLOW, 2 RED, 3 error (including usage errors). {@code generate} exits with 0 or 3.
  */

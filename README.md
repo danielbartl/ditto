@@ -16,10 +16,10 @@ The typical case is a batch job that fully replicates data into MongoDB:
 The tool is fully generic. It works on raw BSON (`RawBsonDocument` / `BsonDocument`) and knows nothing about what the
 documents mean.
 
-| Module            | What it is                                                                                     |
-|-------------------|------------------------------------------------------------------------------------------------|
-| `comparator-core` | The library. Spring Boot auto-configuration: add the dependency, inject `CollectionComparator`. |
-| `comparator-cli`  | A runnable jar: compares two collections, prints the report as JSON, exits 0/1/2/3.            |
+| Module       | What it is                                                                                     |
+|--------------|------------------------------------------------------------------------------------------------|
+| `ditto-core` | The library. Spring Boot auto-configuration: add the dependency, inject `CollectionComparator`. |
+| `ditto-cli`  | A runnable jar: compares two collections, prints the report as JSON, exits 0/1/2/3.            |
 
 Requirements: Java 25, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integration tests need Docker.
 
@@ -46,19 +46,19 @@ Requirements: Java 25, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integrat
 
 ## Quick start
 
-Download `comparator-cli.jar` from the [latest release](https://github.com/danielbartl/ditto/releases/latest), or
+Download the CLI jar from the [latest release](https://github.com/danielbartl/ditto/releases/latest), or
 build it from source as shown below.
 
 ```bash
 docker compose up -d mongo                         # MongoDB 8 on localhost:27017
-./mvnw package -DskipTests                         # builds comparator-cli/target/comparator-cli.jar
+./mvnw package -DskipTests                         # builds ditto-cli/target/ditto-cli.jar
 
 # baseline "demo_backup" and a modified copy "demo" in database "ditto"
 SEED_ARGS="--docs=50000 --changes=modify:price:0.03,delete-docs:0.005,add-docs:0.005" \
   docker compose run --rm seed
 
 # compares demo_backup (baseline) with demo (candidate), no configuration
-java -jar comparator-cli/target/comparator-cli.jar --db=ditto --collection=demo > report.json
+java -jar ditto-cli/target/ditto-cli.jar --db=ditto --collection=demo > report.json
 echo $?    # 0 = GREEN, 1 = YELLOW, 2 = RED, 3 = error
 ```
 
@@ -75,12 +75,12 @@ Hints:
 Add the suggested option, and the run shows what really changed:
 
 ```bash
-java -jar comparator-cli/target/comparator-cli.jar --db=ditto --collection=demo --ignore=meta.syncedAt > report.json
+java -jar ditto-cli/target/ditto-cli.jar --db=ditto --collection=demo --ignore=meta.syncedAt > report.json
 # Verdict GREEN: keySimilarity 0.9901, unchangedRate 0.9711, 1 changed paths, 1529 ms
 ```
 
 You can also run the generator without Docker:
-`java -jar comparator-cli/target/comparator-cli.jar generate --db=ditto --docs=50000 --changes=...`
+`java -jar ditto-cli/target/ditto-cli.jar generate --db=ditto --docs=50000 --changes=...`
 See [generate](#generate).
 
 ---
@@ -225,9 +225,9 @@ How the three path options use this syntax:
 ## Running the CLI
 
 ```
-java -jar comparator-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
-java -jar comparator-cli.jar generate [options]
-java -jar comparator-cli.jar --help
+java -jar ditto-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
+java -jar ditto-cli.jar generate [options]
+java -jar ditto-cli.jar --help
 ```
 
 The report goes to **stdout** as JSON, and nothing else does. Logs, a one-line summary and the hints with
@@ -270,16 +270,16 @@ Examples:
 
 ```bash
 # collections in two databases, custom key, stricter key similarity
-java -jar comparator-cli.jar --uri="$MONGO_URI" \
+java -jar ditto-cli.jar --uri="$MONGO_URI" \
   --baseline-db=archive --baseline=products --candidate-db=shop --candidate=products \
   --key=sku --comparator.thresholds.key-similarity.green=0.995
 
 # quick estimate on a huge collection
-java -jar comparator-cli.jar --uri="$MONGO_URI" --db=shop \
+java -jar ditto-cli.jar --uri="$MONGO_URI" --db=shop \
   --baseline=products_backup --candidate=products --sample-size=20000 --ignore=meta.syncedAt
 
 # the verdict and which rules fired
-java -jar comparator-cli.jar ... | jq '{verdict, rules: [.rules[] | select(.level != "GREEN") | {rule, level, reason}]}'
+java -jar ditto-cli.jar ... | jq '{verdict, rules: [.rules[] | select(.level != "GREEN") | {rule, level, reason}]}'
 ```
 
 ### generate
@@ -496,7 +496,7 @@ stored reports. Expose it like any endpoint, with `management.endpoints.web.expo
 - `GET /actuator/comparisons` returns summaries of the 50 most recent reports.
 - `GET /actuator/comparisons/{id}` returns one full report.
 
-Micrometer and Actuator are optional dependencies of `comparator-core`. They are only used if the host application
+Micrometer and Actuator are optional dependencies of `ditto-core`. They are only used if the host application
 already has them.
 
 ---
@@ -821,7 +821,7 @@ The integration tests start `mongo:8.0` through Testcontainers. Highlights:
 - `SampleModeIT`: SAMPLE estimates vs. the FULL result.
 - `CliIT`: exit codes, stdout JSON, generate → compare.
 
-Package layout of `comparator-core` (`dev.jbaby.ditto.comparator`):
+Package layout of `ditto-core` (`dev.jbaby.ditto.comparator`):
 
 | Package          | Responsibility                                                                               |
 |------------------|----------------------------------------------------------------------------------------------|
@@ -844,8 +844,8 @@ Push a tag `vX.Y.Z`. The release workflow then:
 
 1. Takes the version from the tag. `master` stays on `-SNAPSHOT`.
 2. Runs the full build.
-3. Deploys the parent POM and `comparator-core` (with sources and javadoc) to GitHub Packages.
-4. Creates a GitHub Release with `comparator-cli.jar` attached.
+3. Deploys the parent POM and `ditto-core` (with sources and javadoc) to GitHub Packages.
+4. Creates a GitHub Release with `ditto-cli.jar` attached.
 
 Publishing to Maven Central is prepared, but switched off. It needs four things:
 

@@ -27,13 +27,13 @@ jobs:
       - name: Set version from tag
         run: ./mvnw -B -ntp versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false
 
-      - name: Build, test and deploy comparator-core to GitHub Packages
+      - name: Build, test and deploy ditto-core to GitHub Packages
         run: ./mvnw -B -ntp -Prelease -Dgpg.skip deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release with the CLI jar
-        run: gh release create "$GITHUB_REF_NAME" comparator-cli/target/comparator-cli.jar --generate-notes --title "$GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" ditto-cli/target/ditto-cli.jar --generate-notes --title "$GITHUB_REF_NAME"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -115,7 +115,7 @@ class CliIT {
     void helpPrintsUsage() {
         Result help = run("--help");
         assertThat(help.code()).isZero();
-        assertThat(help.out()).contains("Usage: java -jar comparator-cli.jar");
+        assertThat(help.out()).contains("Usage: java -jar ditto-cli.jar");
     }
 
     private static Result run(String... args) {

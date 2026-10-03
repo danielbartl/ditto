@@ -375,13 +375,13 @@ class ReplicationCheck {
               <a href="https://github.com/danielbartl/ditto/releases/latest">latest release</a>, or build it:</p>
             <div class="code"><pre>git clone https://github.com/danielbartl/ditto.git
 cd ditto &amp;&amp; ./mvnw package -DskipTests
-<span class="c"># → comparator-cli/target/comparator-cli.jar</span></pre></div>
+<span class="c"># → ditto-cli/target/ditto-cli.jar</span></pre></div>
           </li>
           <li>
             <p><strong>Compare two collections.</strong> The report goes to stdout as JSON; logs and a one-line summary
               go to stderr.</p>
             <div class="code"><pre><span class="c"># products_backup (baseline) vs. products (candidate)</span>
-java -jar comparator-cli.jar --uri="mongodb://user:pass@host:27017" --db=shop \
+java -jar ditto-cli.jar --uri="mongodb://user:pass@host:27017" --db=shop \
   --collection=products &gt; report.json</pre></div>
             <p>stderr shows the verdict, and hints with ready-made options for the next run:</p>
             <div class="code"><pre>Verdict RED: keySimilarity 0.9901, unchangedRate 0.0000, 2 changed paths, 1598 ms
@@ -413,9 +413,9 @@ Hints:
 SEED_ARGS="--docs=50000 --changes=modify:price:0.03,delete-docs:0.005,add-docs:0.005" \
   docker compose run --rm seed
 
-java -jar comparator-cli/target/comparator-cli.jar --db=ditto --collection=demo
+java -jar ditto-cli/target/ditto-cli.jar --db=ditto --collection=demo
 <span class="c"># → RED, with a hint to ignore meta.syncedAt; then:</span>
-java -jar comparator-cli/target/comparator-cli.jar --db=ditto --collection=demo --ignore=meta.syncedAt</pre></div>
+java -jar ditto-cli/target/ditto-cli.jar --db=ditto --collection=demo --ignore=meta.syncedAt</pre></div>
         <p>Available changes: <code>modify</code>, <code>drop-field</code>, <code>add-field</code>, <code>set-null</code>,
           <code>int-to-double</code>, <code>to-string</code>, <code>shuffle-arrays</code>, <code>delete-docs</code>,
           <code>add-docs</code>. See <a href="#generate">the generator reference</a>.</p>
@@ -464,7 +464,7 @@ switch (report.verdict()) {
         <div class="code"><pre>ComparisonRequest.builder("events_backup", "events").sample(20_000).build();
 
 <span class="c"># CLI</span>
-java -jar comparator-cli.jar ... --sample-size=20000</pre></div>
+java -jar ditto-cli.jar ... --sample-size=20000</pre></div>
         <p>By default (<code>verdict-basis: CONSERVATIVE</code>) each rule evaluates the <em>worse</em> end of the
           interval, so <span class="chip green">GREEN</span> means "GREEN with 95% confidence". A value right at a
           threshold may therefore come out <span class="chip yellow">YELLOW</span>. Use a larger sample, or
@@ -513,7 +513,7 @@ java -jar comparator-cli.jar ... --sample-size=20000</pre></div>
       <div class="body">
         <p>The CLI maps the verdict to the exit code and prints nothing but JSON on stdout, so it fits into shell
           scripts and CI pipelines:</p>
-        <div class="code"><span class="label">bash</span><pre>java -jar comparator-cli.jar --uri="$MONGO_URI" --db=shop \
+        <div class="code"><span class="label">bash</span><pre>java -jar ditto-cli.jar --uri="$MONGO_URI" --db=shop \
   --baseline=products_backup --candidate=products --ignore=meta.syncedAt \
   --out=report.json &gt; /dev/null
 case $? in
@@ -730,7 +730,7 @@ void onComparison(ComparisonCompletedEvent event) {
     </table></div>
 
     <h3 id="generate">Test-data generator</h3>
-    <p><code>java -jar comparator-cli.jar generate</code> writes a baseline and a modified copy of product-like
+    <p><code>java -jar ditto-cli.jar generate</code> writes a baseline and a modified copy of product-like
       documents. They include nested objects, arrays of objects, a dynamic-key map, an ordered event list,
       decimals, dates and nullable fields.</p>
     <div class="table"><table>
