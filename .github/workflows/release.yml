@@ -37,14 +37,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Disabled until the repository variable MAVEN_CENTRAL_ENABLED is 'true' and these secrets exist:
-  # MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD (Sonatype Central Portal user token),
-  # GPG_PRIVATE_KEY / GPG_PASSPHRASE.
-  # With the variable CENTRAL_AUTO_PUBLISH set to 'false', the release is uploaded and validated but waits for
-  # "Publish" in the Central Portal (recommended for the first release: published versions can never be removed).
+  # Needs the secrets MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD (Sonatype Central Portal user token) and
+  # GPG_PRIVATE_KEY / GPG_PASSPHRASE. The release is published right away; with the repository variable
+  # CENTRAL_AUTO_PUBLISH set to 'false', it is uploaded and validated but waits for "Publish" in the Central Portal.
   central:
     name: Maven Central
-    if: vars.MAVEN_CENTRAL_ENABLED == 'true'
     needs: github
     runs-on: ubuntu-latest
     timeout-minutes: 30

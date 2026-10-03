@@ -887,13 +887,12 @@ Rename the `[Unreleased]` section of the [changelog](CHANGELOG.md) to the new ve
 2. Runs the full build.
 3. Deploys the parent POM and `ditto-core` (with sources and javadoc) to GitHub Packages.
 4. Creates a GitHub Release with `ditto-cli.jar` attached.
+5. Signs the parent POM and `ditto-core` and publishes them to Maven Central.
 
-Publishing to Maven Central is prepared, but switched off. It needs four things:
-
-- a Sonatype Central Portal account with the verified namespace `dev.jbaby`;
-- a GPG key;
-- the repository secrets `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE`;
-- the repository variable `MAVEN_CENTRAL_ENABLED=true`.
+Publishing to Maven Central needs a Sonatype Central Portal account with the verified namespace `dev.jbaby`, a GPG
+key, and the repository secrets `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY` and
+`GPG_PASSPHRASE`. To check a release in the Central Portal before it goes live, set the repository variable
+`CENTRAL_AUTO_PUBLISH=false`; the upload then waits for "Publish" there.
 
 Locally the equivalent command is `./mvnw -Prelease,central deploy`.
 
