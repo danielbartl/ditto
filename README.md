@@ -434,6 +434,20 @@ db.comparison_reports.find({candidate: "shop.products"}, {verdict: 1, "keys.keyS
 
 If storing a report fails, the failure is logged and the report is still returned.
 
+On first use, ditto creates two indexes on the report collection (`ditto_history` and `ditto_recent`), so reading the
+history stays fast as reports accumulate. Reports are kept forever unless you set a **retention**:
+
+```yaml
+comparator:
+  persistence:
+    enabled: true
+    retention: 365d        # MongoDB deletes older reports through a TTL index on createdAt
+```
+
+Changing the retention updates the TTL index. Removing it drops the index, and the remaining reports are kept. Keep
+the retention longer than the history that [learned thresholds](#thresholds-learned-from-history) need. If the indexes
+can't be created, for example because the user lacks the privilege, ditto logs a warning and works without them.
+
 ### Thresholds learned from history
 
 Fixed thresholds fit some collections badly. A collection where 8% of documents change every day is permanently
@@ -556,6 +570,7 @@ These are rarely needed. The defaults fit most data.
 | **Persistence**                            |                      |                                                                                 |
 | `persistence.collection`                   | `comparison_reports` | Report collection                                                               |
 | `persistence.database`                     | default database     | Report database                                                                 |
+| `persistence.retention`                    | –                    | How long reports are kept, e.g. `365d` (TTL index); forever if not set          |
 | **Report and resources**                   |                      |                                                                                 |
 | `max-examples`                             | `20`                 | Example keys per category and per changed path                                  |
 | `max-value-examples`                       | `3`                  | Before/after value examples per changed path; `0` disables them                 |

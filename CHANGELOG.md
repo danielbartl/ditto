@@ -39,6 +39,9 @@ and its backup, and the report tells you what to configure next.
   declared as expected changes, maps, and a larger sample size when a SAMPLE verdict can't be confirmed. Each hint
   comes with the property and the CLI option to apply it. The comparator logs them and the CLI prints them. ditto
   never applies them on its own.
+- Indexes on the report collection for the history and recent-reports queries, created on first use, and an optional
+  `persistence.retention` (e.g. `365d`) after which MongoDB deletes stored reports through a TTL index. Without it,
+  reports are kept forever.
 - `schemaVersion` in every report (currently 1), so the report format can evolve without breaking stored reports
   and JSON consumers. Reports stored by earlier versions read as version 1.
 

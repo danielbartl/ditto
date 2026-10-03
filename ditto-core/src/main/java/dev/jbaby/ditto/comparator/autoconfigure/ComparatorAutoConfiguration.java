@@ -62,7 +62,7 @@ public class ComparatorAutoConfiguration {
                                                        ComparatorProperties properties, ReportJson reportJson) {
         var persistence = properties.getPersistence();
         return new ReportRepository(databaseFactory, persistence.getDatabase(), persistence.getCollection(),
-                reportJson);
+                persistence.getRetention(), reportJson);
     }
 
     @Bean

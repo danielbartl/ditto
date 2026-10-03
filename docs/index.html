@@ -655,6 +655,7 @@ void onComparison(ComparisonCompletedEvent event) {
         <div class="table"><table>
           <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
           <tr><td><code>persistence.collection</code> / <code>.database</code></td><td class="def">comparison_reports / default</td><td>Where reports are stored</td></tr>
+          <tr><td><code>persistence.retention</code></td><td class="def">forever</td><td>How long reports are kept, e.g. <code>365d</code> (TTL index)</td></tr>
           <tr><td><code>max-examples</code></td><td class="def">20</td><td>Example keys per category and per changed path</td></tr>
           <tr><td><code>max-value-examples</code></td><td class="def">3</td><td>Before/after values per changed path; <code>0</code> disables them</td></tr>
           <tr><td><code>top-changed-paths</code></td><td class="def">50</td><td>Changed paths listed in the report</td></tr>

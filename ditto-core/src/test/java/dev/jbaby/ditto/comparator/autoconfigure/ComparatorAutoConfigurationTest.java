@@ -39,6 +39,15 @@ class ComparatorAutoConfigurationTest {
     }
 
     @Test
+    void rejectsRetentionBelowOneSecond() {
+        runner.withPropertyValues("comparator.persistence.enabled=true", "comparator.persistence.retention=365d")
+                .run(context -> assertThat(context).hasSingleBean(ReportRepository.class));
+        runner.withPropertyValues("comparator.persistence.enabled=true", "comparator.persistence.retention=0s")
+                .run(context -> assertThat(context).getFailure().rootCause()
+                        .hasMessageContaining("retention must be at least one second"));
+    }
+
+    @Test
     void backsOffForUserBeans() {
         var custom = new VerdictEvaluator();
         runner.withBean(VerdictEvaluator.class, () -> custom)

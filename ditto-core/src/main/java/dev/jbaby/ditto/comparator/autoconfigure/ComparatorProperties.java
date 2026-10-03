@@ -193,6 +193,12 @@ public class ComparatorProperties {
         /** Database the reports are stored in; the default database if not set. */
         private @Nullable String database;
 
+        /**
+         * How long reports are kept, e.g. {@code 365d}. MongoDB deletes older reports through a TTL index. Not set:
+         * reports are kept forever.
+         */
+        private @Nullable Duration retention;
+
         public boolean isEnabled() {
             return enabled;
         }
@@ -215,6 +221,14 @@ public class ComparatorProperties {
 
         public void setDatabase(@Nullable String database) {
             this.database = database;
+        }
+
+        public @Nullable Duration getRetention() {
+            return retention;
+        }
+
+        public void setRetention(@Nullable Duration retention) {
+            this.retention = retention;
         }
     }
 
