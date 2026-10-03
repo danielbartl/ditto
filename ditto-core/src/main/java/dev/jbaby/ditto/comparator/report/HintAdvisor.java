@@ -69,7 +69,7 @@ public final class HintAdvisor {
                 hints.add(new Hint(Hint.Kind.IGNORE_TECHNICAL_FIELD, change.path(), change.path() + " changed in "
                         + percent + " of matched documents and holds dates: it looks like a technical timestamp"
                         + " written by every run. If so, ignore it.",
-                        "comparator.ignored-paths=" + change.path(), "--ignore=" + change.path()));
+                        "ditto.ignored-paths=" + change.path(), "--ignore=" + change.path()));
             } else if (rate >= EVERYWHERE && investigate++ < MAX_PER_KIND) {
                 hints.add(new Hint(Hint.Kind.INVESTIGATE, change.path(), change.path() + " changed in " + percent
                         + " of matched documents. A change in nearly every document usually means a mapping or format"
@@ -78,7 +78,7 @@ public final class HintAdvisor {
                 hints.add(new Hint(Hint.Kind.EXPECTED_CHANGE, change.path(), change.path() + " changed in " + percent
                         + " of matched documents. If this field is supposed to change between runs (prices, stock,"
                         + " counters), declare it as an expected change so it does not count against the verdict.",
-                        "comparator.expected-change-paths=" + change.path(), "--expected=" + change.path()));
+                        "ditto.expected-change-paths=" + change.path(), "--expected=" + change.path()));
             }
         }
     }
@@ -114,7 +114,7 @@ public final class HintAdvisor {
                 .limit(MAX_PER_KIND)
                 .forEach(parent -> hints.add(new Hint(Hint.Kind.WILDCARD, parent, parent + " has "
                         + children.get(parent).size() + " different child paths: it looks like a map with dynamic"
-                        + " keys. Treat it as one path.", "comparator.wildcard-paths=" + parent + ".*",
+                        + " keys. Treat it as one path.", "ditto.wildcard-paths=" + parent + ".*",
                         "--wildcard=" + parent + ".*")));
     }
 
@@ -138,7 +138,7 @@ public final class HintAdvisor {
             hints.add(new Hint(Hint.Kind.LARGER_SAMPLE, null, "The sample of " + size + " keys per side cannot confirm"
                     + " the estimated level of " + String.join(", ", unconfirmed) + ". A larger sample narrows the"
                     + " confidence intervals; a full scan removes them.",
-                    "comparator.sample.size=" + larger, "--sample-size=" + larger));
+                    "ditto.sample.size=" + larger, "--sample-size=" + larger));
         }
     }
 

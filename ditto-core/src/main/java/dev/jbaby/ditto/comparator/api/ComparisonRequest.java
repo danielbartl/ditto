@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * What to compare and how. Every {@code null} option falls back to the configured default
- * ({@code comparator.*} properties); the resolved values end up in {@link ComparisonSettings}.
+ * ({@code ditto.*} properties); the resolved values end up in {@link ComparisonSettings}.
  * <p>
  * Paths use the report syntax: {@code a.b} for nested fields, {@code items[].price} for fields of array elements and
  * {@code *} for exactly one arbitrary segment, e.g. {@code attributes.*}.

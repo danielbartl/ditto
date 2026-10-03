@@ -21,7 +21,7 @@ import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
  * Defaults for every {@link ComparisonRequest} option, plus technical settings. A request overrides an option by
  * setting it to a non-null value.
  */
-@ConfigurationProperties("comparator")
+@ConfigurationProperties("ditto")
 public class ComparatorProperties {
 
     /** Top-level field identifying a document in both collections. */

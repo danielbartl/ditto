@@ -13,6 +13,9 @@ and its backup, and the report tells you what to configure next.
 
 - **New artifact names.** `comparator-core` is now `dev.jbaby.ditto:ditto-core`, and the CLI jar is `ditto-cli.jar`
   (was `comparator-cli.jar`). Packages and class names are unchanged.
+- **Properties use the prefix `ditto`** (was `comparator`), e.g. `ditto.persistence.enabled` and, on the CLI,
+  `--ditto.thresholds.key-similarity.green=0.995`. Rename the `comparator:` block in your `application.yml`. Old
+  `comparator.*` properties are no longer read.
 - **AUTO is the default mode** (was FULL). It scans fully up to `full-scan-limit` (5,000,000 documents per side) and
   samples above that. Set `mode: full` for the old behaviour.
 - **The default sample size is 20,000 keys** per side (was 10,000).

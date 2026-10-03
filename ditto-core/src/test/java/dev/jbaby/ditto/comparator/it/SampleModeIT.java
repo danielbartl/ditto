@@ -32,8 +32,8 @@ import dev.jbaby.ditto.comparator.support.TestApplication;
  * the test flaky.
  */
 @SpringBootTest(classes = TestApplication.class, properties = {
-        "comparator.full-scan-limit=10000",
-        "comparator.sample.size=2000"})
+        "ditto.full-scan-limit=10000",
+        "ditto.sample.size=2000"})
 class SampleModeIT {
 
     private static final int DOCS = 20_000;

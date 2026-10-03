@@ -43,7 +43,7 @@ class ComparatorPropertiesTest {
 
     @Test
     void requestValuesOverrideDefaults() {
-        var properties = bind(Map.of("comparator.ignored-paths", "_class,meta.syncedAt"));
+        var properties = bind(Map.of("ditto.ignored-paths", "_class,meta.syncedAt"));
         var thresholds = Thresholds.DEFAULTS.withKeySimilarity(new Thresholds.AtLeast(0.999, 0.99));
         var request = ComparisonRequest.builder(CollectionRef.of("archive", "p_backup"), CollectionRef.of("p"))
                 .keyField("sku")
@@ -68,16 +68,16 @@ class ComparatorPropertiesTest {
     @Test
     void bindsRelaxedPropertyNames() {
         var properties = bind(Map.of(
-                "comparator.key-field", "sku",
-                "comparator.wildcard-paths[0]", "attributes.*",
-                "comparator.mode", "sample",
-                "comparator.sample.size", "2500",
-                "comparator.sample.verdict-basis", "point",
-                "comparator.progress-interval", "30s",
-                "comparator.mixed-key-types", "compare",
-                "comparator.thresholds.key-similarity.green", "0.995",
-                "comparator.thresholds.max-path-change-rate.yellow", "0.3",
-                "comparator.thresholds.structure.vanished-min-presence", "0.001"));
+                "ditto.key-field", "sku",
+                "ditto.wildcard-paths[0]", "attributes.*",
+                "ditto.mode", "sample",
+                "ditto.sample.size", "2500",
+                "ditto.sample.verdict-basis", "point",
+                "ditto.progress-interval", "30s",
+                "ditto.mixed-key-types", "compare",
+                "ditto.thresholds.key-similarity.green", "0.995",
+                "ditto.thresholds.max-path-change-rate.yellow", "0.3",
+                "ditto.thresholds.structure.vanished-min-presence", "0.001"));
 
         ComparisonSettings settings = properties.settingsFor(ComparisonRequest.of("a", "b"), "db");
 
@@ -94,8 +94,8 @@ class ComparatorPropertiesTest {
 
     @Test
     void alwaysIgnoredPathsCanBeCleared() {
-        var properties = bind(Map.of("comparator.always-ignored-paths", "",
-                "comparator.ignored-paths", "meta.syncedAt"));
+        var properties = bind(Map.of("ditto.always-ignored-paths", "",
+                "ditto.ignored-paths", "meta.syncedAt"));
 
         assertThat(properties.settingsFor(ComparisonRequest.of("a", "b"), "db").ignoredPaths())
                 .containsExactly("meta.syncedAt");
@@ -112,7 +112,7 @@ class ComparatorPropertiesTest {
 
     @Test
     void invalidThresholdPropertiesFailWhenResolved() {
-        var properties = bind(Map.of("comparator.thresholds.unchanged-rate.yellow", "0.99"));
+        var properties = bind(Map.of("ditto.thresholds.unchanged-rate.yellow", "0.99"));
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> properties.settingsFor(ComparisonRequest.of("a", "b"), "db"));
@@ -120,6 +120,6 @@ class ComparatorPropertiesTest {
 
     private static ComparatorProperties bind(Map<String, String> values) {
         return new Binder(new MapConfigurationPropertySource(values))
-                .bindOrCreate("comparator", ComparatorProperties.class);
+                .bindOrCreate("ditto", ComparatorProperties.class);
     }
 }

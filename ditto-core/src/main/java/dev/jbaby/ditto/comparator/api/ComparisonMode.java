@@ -33,8 +33,8 @@ public sealed interface ComparisonMode {
     }
 
     /**
-     * FULL if neither collection has more than {@code comparator.full-scan-limit} documents (default 5,000,000),
-     * otherwise SAMPLE with {@code comparator.sample.size} keys. The choice is recorded in the report
+     * FULL if neither collection has more than {@code ditto.full-scan-limit} documents (default 5,000,000),
+     * otherwise SAMPLE with {@code ditto.sample.size} keys. The choice is recorded in the report
      * ({@code run.decisions}), and the report's settings show the mode that ran.
      */
     record Auto() implements ComparisonMode {

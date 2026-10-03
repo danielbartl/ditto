@@ -347,7 +347,7 @@ class ComparisonScenariosIT {
                 org.assertj.core.groups.Tuple.tuple(Hint.Kind.INVESTIGATE, "name", null),
                 org.assertj.core.groups.Tuple.tuple(Hint.Kind.IGNORE_TECHNICAL_FIELD, "syncedAt", "--ignore=syncedAt"),
                 org.assertj.core.groups.Tuple.tuple(Hint.Kind.EXPECTED_CHANGE, "price", "--expected=price"));
-        assertThat(report.hints().get(1).property()).isEqualTo("comparator.ignored-paths=syncedAt");
+        assertThat(report.hints().get(1).property()).isEqualTo("ditto.ignored-paths=syncedAt");
 
         // following the configuration hints leaves only the real finding
         ComparisonReport configured = comparator.compare(ComparisonRequest.builder("hint_a", "hint_b")

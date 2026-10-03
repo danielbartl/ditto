@@ -264,7 +264,7 @@ ready-made options go to **stderr**, so `> report.json` and pipes into `jq` work
 | `--verdict-basis=conservative\|point` | SAMPLE mode only, see [SAMPLE mode](#sample-mode)                    |
 | `--persist`                     | Also store the report in MongoDB                                           |
 | `--out=<file>`                  | Also write the report to a file                                            |
-| `--comparator.<property>=...`   | Any [library property](#configuration-reference), e.g. `--comparator.thresholds.key-similarity.green=0.995` |
+| `--ditto.<property>=...`        | Any [library property](#configuration-reference), e.g. `--ditto.thresholds.key-similarity.green=0.995` |
 | `--spring.mongodb.<property>=...` | Any Spring Boot MongoDB property, e.g. credentials                       |
 
 Examples:
@@ -273,7 +273,7 @@ Examples:
 # collections in two databases, custom key, stricter key similarity
 java -jar ditto-cli.jar --uri="$MONGO_URI" \
   --baseline-db=archive --baseline=products --candidate-db=shop --candidate=products \
-  --key=sku --comparator.thresholds.key-similarity.green=0.995
+  --key=sku --ditto.thresholds.key-similarity.green=0.995
 
 # quick estimate on a huge collection
 java -jar ditto-cli.jar --uri="$MONGO_URI" --db=shop \
@@ -386,7 +386,7 @@ class ReplicationCheck {
 }
 ```
 
-Once the hints have told you what your data needs, add it as properties (`comparator.ignored-paths`, …) or per
+Once the hints have told you what your data needs, add it as properties (`ditto.ignored-paths`, …) or per
 request:
 
 ```java
@@ -398,14 +398,14 @@ comparator.compare(comparator.backupRequest("products")
 
 Notes on the API:
 
-- **`ComparisonRequest`**: every option you don't set falls back to the `comparator.*` properties. `report.run().settings()`
+- **`ComparisonRequest`**: every option you don't set falls back to the `ditto.*` properties. `report.run().settings()`
   shows the effective configuration.
 - **Other databases**: use `ComparisonRequest.builder(CollectionRef.of("archive", "products"), CollectionRef.of("products"))`
   to compare collections in other databases of the same cluster.
 - **Thresholds per request**: `.thresholds(Thresholds.DEFAULTS.withKeySimilarity(new Thresholds.AtLeast(0.995, 0.98)))`.
 - **Mode**: AUTO by default. Force a mode with `.fullScan()` or `.sample(20_000)`.
 - **Progress**: `comparator.compare(request, progress -> ...)` receives a `Progress` snapshot every
-  `comparator.progress-interval`, with documents read, rate and `fractionDone()`.
+  `ditto.progress-interval`, with documents read, rate and `fractionDone()`.
 - **Blocking and cancellable**: `compare` runs on the calling thread. It stops when that thread is interrupted and
   then throws `ComparisonException`. Concurrent comparisons are independent.
 - **Errors**:
@@ -418,7 +418,7 @@ Notes on the API:
 
 ### Persisting reports
 
-Set `comparator.persistence.enabled=true` and every report is stored in `comparator.persistence.collection` (default
+Set `ditto.persistence.enabled=true` and every report is stored in `ditto.persistence.collection` (default
 `comparison_reports`).
 
 Each stored document is the report JSON with these top-level fields added: `_id` (the report id), `createdAt` (a
@@ -438,7 +438,7 @@ On first use, ditto creates two indexes on the report collection (`ditto_history
 history stays fast as reports accumulate. Reports are kept forever unless you set a **retention**:
 
 ```yaml
-comparator:
+ditto:
   persistence:
     enabled: true
     retention: 365d        # MongoDB deletes older reports through a TTL index on createdAt
@@ -455,7 +455,7 @@ YELLOW under the default `unchangedRate` GREEN bound of 0.95. With stored report
 normal for each pair of collections:
 
 ```yaml
-comparator:
+ditto:
   persistence:
     enabled: true          # also switches on adaptive-thresholds; set adaptive-thresholds.enabled=false to opt out
 ```
@@ -518,7 +518,7 @@ already has them.
 
 ## Configuration reference
 
-All properties have the prefix `comparator`. Request values take precedence where the request has a matching option.
+All properties have the prefix `ditto`. Request values take precedence where the request has a matching option.
 You can start with none of them: see [conventions](#conventions-what-works-without-configuration). The report's
 hints tell you which ones your data needs.
 
@@ -748,8 +748,8 @@ Points to consider:
   - Copying the backup back with `$out` / `$merge`. This keeps the backup for analysis.
 - **Make sure the next scheduled sync can't overwrite the backup before verification and rollback are done.** Use a
   JobRunr mutex/label, or chain the jobs.
-- **Persist reports** (`comparator.persistence.enabled=true`). Put the report id in alerts, so people can open the
-  report with its example keys. With `comparator.adaptive-thresholds.enabled=true`, ditto tunes the thresholds to your
+- **Persist reports** (`ditto.persistence.enabled=true`). Put the report id in alerts, so people can open the
+  report with its example keys. With `ditto.adaptive-thresholds.enabled=true`, ditto tunes the thresholds to your
   normal churn by itself.
 - **Alerts** can also come from an `@EventListener` for `ComparisonCompletedEvent`, which works no matter who
   triggered the comparison.
@@ -827,7 +827,7 @@ public API; every such change is listed in the [changelog](CHANGELOG.md).
 The public API is:
 
 - `CollectionComparator` (inject it; its constructor is internal) and everything in `dev.jbaby.ditto.comparator.api`;
-- the `comparator.*` configuration properties (`ComparatorProperties`) and the auto-configuration class names;
+- the `ditto.*` configuration properties (`ComparatorProperties`) and the auto-configuration class names;
 - `ReportJson` and `ReportRepository`;
 - the report JSON format (versioned by its `schemaVersion`), the CLI options and exit codes, the Micrometer meter
   names and the `comparisons` Actuator endpoint.

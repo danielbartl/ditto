@@ -28,15 +28,15 @@ final class Usage {
                                             not counted against the verdict
               --redact=<path,...>           paths whose values are shown as *** in value examples
               --mode=auto|full|sample       default auto: full scan up to 5,000,000 documents per side, else
-                                            a sample (--comparator.full-scan-limit, --comparator.sample.size)
+                                            a sample (--ditto.full-scan-limit, --ditto.sample.size)
               --sample-size=<n>             sample size (implies --mode=sample)
               --null-equals-missing         treat null fields like missing fields
               --mixed-key-types=reject|compare
               --verdict-basis=conservative|point   which value of estimated rates the verdict uses
-              --persist                     store the report (comparator.persistence.*)
+              --persist                     store the report (ditto.persistence.*)
               --out=<file>                  also write the report to a file
-              --comparator.<property>=...   any library property, e.g.
-                                            --comparator.thresholds.key-similarity.green=0.995
+              --ditto.<property>=...        any library property, e.g.
+                                            --ditto.thresholds.key-similarity.green=0.995
 
             generate (writes a baseline collection and a modified copy)
               --baseline=<collection>       default demo_backup

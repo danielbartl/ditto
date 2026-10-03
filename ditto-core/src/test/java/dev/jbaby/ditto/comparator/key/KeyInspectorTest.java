@@ -35,7 +35,7 @@ class KeyInspectorTest {
         assertThatThrownBy(() -> inspector.check("_id", baseline, candidate, MixedKeyPolicy.REJECT))
                 .isInstanceOf(ComparisonException.class)
                 .hasMessageContaining("mixed types [STRING, OBJECT_ID]")
-                .hasMessageContaining("comparator.mixed-key-types=COMPARE");
+                .hasMessageContaining("ditto.mixed-key-types=COMPARE");
         assertThat(inspector.check("_id", baseline, candidate, MixedKeyPolicy.COMPARE))
                 .singleElement().asString().contains("mixed types");
     }

@@ -216,7 +216,7 @@ public class CollectionComparator {
             wildcards.add(map.pattern());
             decisions.add(String.format(Locale.ROOT, "Treated %s as a map with dynamic keys (%,d distinct field names,"
                     + " %.1f per object, in %,d sampled documents); configure wildcard-paths to make it explicit or"
-                    + " set comparator.map-detection.enabled=false", map.pattern(), map.distinctKeys(),
+                    + " set ditto.map-detection.enabled=false", map.pattern(), map.distinctKeys(),
                     map.averageKeys(), map.documents()));
         }
         return settings.withWildcardPaths(wildcards);
@@ -236,7 +236,7 @@ public class CollectionComparator {
             return ComparisonMode.full();
         }
         decisions.add(String.format(Locale.ROOT, "Mode AUTO chose SAMPLE of %,d keys per side: %,d documents exceed"
-                + " the full-scan limit %,d (comparator.full-scan-limit)", tuning.autoSampleSize(), largest,
+                + " the full-scan limit %,d (ditto.full-scan-limit)", tuning.autoSampleSize(), largest,
                 tuning.fullScanLimit()));
         return ComparisonMode.sample(tuning.autoSampleSize());
     }

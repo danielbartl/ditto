@@ -358,7 +358,7 @@ class ReplicationCheck {
           <li>
             <p><strong>Follow the hints.</strong> The first report tells you what your data needs, e.g. a sync
               timestamp to ignore. Add it once:</p>
-            <div class="code"><span class="label">application.yml</span><pre>comparator:
+            <div class="code"><span class="label">application.yml</span><pre>ditto:
   ignored-paths: [meta.syncedAt]
   expected-change-paths: [price, stock]</pre></div>
           </li>
@@ -533,7 +533,7 @@ esac</pre></div>
           stay in the report, flagged <code>"expected": true</code>, but don't count for
           <code>maxPathChangeRate</code>. Documents changed only there count as unchanged for the
           <code>unchangedRate</code> rule.</p>
-        <div class="code"><span class="label">application.yml</span><pre>comparator:
+        <div class="code"><span class="label">application.yml</span><pre>ditto:
   expected-change-paths: [price, stock]    <span class="c"># stock also covers stock.qty, stock.updatedAt …</span>
   redacted-paths: [customer]               <span class="c"># values shown as *** in reports</span>
   max-value-examples: 3                    <span class="c"># 0 keeps values out of reports</span></pre></div>
@@ -551,7 +551,7 @@ esac</pre></div>
         <p>Fixed thresholds fit some collections badly: one where 8% of documents change every day is permanently
           <span class="chip yellow">YELLOW</span>. Store every report, and let ditto derive the thresholds from the
           last runs of the same comparison:</p>
-        <div class="code"><span class="label">application.yml</span><pre>comparator:
+        <div class="code"><span class="label">application.yml</span><pre>ditto:
   persistence:
     enabled: true                     <span class="c"># stores reports in comparison_reports</span>
   adaptive-thresholds:
@@ -592,7 +592,7 @@ void onComparison(ComparisonCompletedEvent event) {
     <h2>Configuration</h2>
     <p class="lead">
       You can start with none of it. The essentials below are what real data typically needs, and the report's hints
-      tell you which ones. Set them as <code>comparator.*</code> properties, or per request; request options win.
+      tell you which ones. Set them as <code>ditto.*</code> properties, or per request; request options win.
     </p>
 
     <h3>Essentials</h3>
@@ -693,7 +693,7 @@ void onComparison(ComparisonCompletedEvent event) {
   "warnings":        [],
   "hints":           [ { "kind": "EXPECTED_CHANGE", "path": "price",
                          "message": "price changed in 8% of matched documents. If this field is supposed to change …",
-                         "property": "comparator.expected-change-paths=price", "cliOption": "--expected=price" } ]
+                         "property": "ditto.expected-change-paths=price", "cliOption": "--expected=price" } ]
 }</pre></div>
     <div class="table"><table>
       <tr><th>If you see…</th><th>It usually means…</th></tr>
@@ -713,7 +713,7 @@ void onComparison(ComparisonCompletedEvent event) {
 
   <section id="cli">
     <h2>CLI reference</h2>
-    <p class="lead">Short options map onto the request. Any <code>--comparator.*</code> or
+    <p class="lead">Short options map onto the request. Any <code>--ditto.*</code> or
       <code>--spring.mongodb.*</code> property also works.</p>
     <div class="table"><table>
       <tr><th>Option</th><th>Meaning</th></tr>

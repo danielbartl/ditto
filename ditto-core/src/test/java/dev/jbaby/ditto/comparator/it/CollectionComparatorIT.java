@@ -21,7 +21,7 @@ import dev.jbaby.ditto.comparator.report.ReportRepository;
 import dev.jbaby.ditto.comparator.support.Collections;
 import dev.jbaby.ditto.comparator.support.TestApplication;
 
-@SpringBootTest(classes = TestApplication.class, properties = "comparator.persistence.enabled=true")
+@SpringBootTest(classes = TestApplication.class, properties = "ditto.persistence.enabled=true")
 class CollectionComparatorIT {
 
     @DynamicPropertySource

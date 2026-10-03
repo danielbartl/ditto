@@ -57,7 +57,7 @@ public class ComparatorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "comparator.persistence", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = "ditto.persistence", name = "enabled", havingValue = "true")
     public ReportRepository comparatorReportRepository(MongoDatabaseFactory databaseFactory,
                                                        ComparatorProperties properties, ReportJson reportJson) {
         var persistence = properties.getPersistence();
@@ -68,13 +68,13 @@ public class ComparatorAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     // explicitly configured, or else implied by persistence
-    @ConditionalOnExpression("${comparator.adaptive-thresholds.enabled:${comparator.persistence.enabled:false}}")
+    @ConditionalOnExpression("${ditto.adaptive-thresholds.enabled:${ditto.persistence.enabled:false}}")
     public ThresholdAdvisor comparatorThresholdAdvisor(ObjectProvider<ReportRepository> repository,
                                                        ComparatorProperties properties) {
         ReportRepository reports = repository.getIfAvailable();
         if (reports == null) {
-            throw new IllegalStateException("comparator.adaptive-thresholds.enabled=true needs stored reports:"
-                    + " set comparator.persistence.enabled=true (or define a ReportRepository bean)");
+            throw new IllegalStateException("ditto.adaptive-thresholds.enabled=true needs stored reports:"
+                    + " set ditto.persistence.enabled=true (or define a ReportRepository bean)");
         }
         return new ThresholdAdvisor(ReportHistory.of(reports), properties.getAdaptiveThresholds().toSettings());
     }

@@ -34,15 +34,15 @@ class ComparatorAutoConfigurationTest {
 
     @Test
     void registersRepositoryWhenPersistenceIsEnabled() {
-        runner.withPropertyValues("comparator.persistence.enabled=true")
+        runner.withPropertyValues("ditto.persistence.enabled=true")
                 .run(context -> assertThat(context).hasSingleBean(ReportRepository.class));
     }
 
     @Test
     void rejectsRetentionBelowOneSecond() {
-        runner.withPropertyValues("comparator.persistence.enabled=true", "comparator.persistence.retention=365d")
+        runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.retention=365d")
                 .run(context -> assertThat(context).hasSingleBean(ReportRepository.class));
-        runner.withPropertyValues("comparator.persistence.enabled=true", "comparator.persistence.retention=0s")
+        runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.retention=0s")
                 .run(context -> assertThat(context).getFailure().rootCause()
                         .hasMessageContaining("retention must be at least one second"));
     }
@@ -63,28 +63,28 @@ class ComparatorAutoConfigurationTest {
             assertThat(context).hasSingleBean(ComparisonMetrics.class);
             assertThat(context).doesNotHaveBean(ComparisonsEndpoint.class); // needs persistence
         });
-        withAll.withPropertyValues("comparator.persistence.enabled=true")
+        withAll.withPropertyValues("ditto.persistence.enabled=true")
                 .run(context -> assertThat(context).doesNotHaveBean(ComparisonsEndpoint.class)); // not exposed
-        withAll.withPropertyValues("comparator.persistence.enabled=true",
+        withAll.withPropertyValues("ditto.persistence.enabled=true",
                         "management.endpoints.web.exposure.include=comparisons")
                 .run(context -> assertThat(context).hasSingleBean(ComparisonsEndpoint.class));
     }
 
     @Test
     void adaptiveThresholdsNeedPersistence() {
-        runner.withPropertyValues("comparator.adaptive-thresholds.enabled=true")
+        runner.withPropertyValues("ditto.adaptive-thresholds.enabled=true")
                 .run(context -> assertThat(context).getFailure().rootCause()
-                        .hasMessageContaining("set comparator.persistence.enabled=true"));
-        runner.withPropertyValues("comparator.adaptive-thresholds.enabled=true", "comparator.persistence.enabled=true")
+                        .hasMessageContaining("set ditto.persistence.enabled=true"));
+        runner.withPropertyValues("ditto.adaptive-thresholds.enabled=true", "ditto.persistence.enabled=true")
                 .run(context -> assertThat(context).hasSingleBean(ThresholdAdvisor.class));
     }
 
     @Test
     void persistenceImpliesAdaptiveThresholdsUnlessSwitchedOff() {
         runner.run(context -> assertThat(context).doesNotHaveBean(ThresholdAdvisor.class));
-        runner.withPropertyValues("comparator.persistence.enabled=true")
+        runner.withPropertyValues("ditto.persistence.enabled=true")
                 .run(context -> assertThat(context).hasSingleBean(ThresholdAdvisor.class));
-        runner.withPropertyValues("comparator.persistence.enabled=true", "comparator.adaptive-thresholds.enabled=false")
+        runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.adaptive-thresholds.enabled=false")
                 .run(context -> assertThat(context).doesNotHaveBean(ThresholdAdvisor.class));
     }
 

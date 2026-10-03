@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
  * @param kind      what kind of suggestion
  * @param path      the path concerned, if any
  * @param message   explanation
- * @param property  ready-to-use configuration, e.g. {@code comparator.ignored-paths=meta.syncedAt}; {@code null} if
+ * @param property  ready-to-use configuration, e.g. {@code ditto.ignored-paths=meta.syncedAt}; {@code null} if
  *                  there is nothing to configure
  * @param cliOption the same for the CLI, e.g. {@code --ignore=meta.syncedAt}
  */

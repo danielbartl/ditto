@@ -96,7 +96,7 @@ public final class KeyInspector {
                 + describe(baseline) + ", candidate " + describe(candidate) + ")";
         if (policy == MixedKeyPolicy.REJECT) {
             throw new ComparisonException(message
-                    + ". Set comparator.mixed-key-types=COMPARE to compare using MongoDB's cross-type order.");
+                    + ". Set ditto.mixed-key-types=COMPARE to compare using MongoDB's cross-type order.");
         }
         List<String> warnings = new ArrayList<>();
         warnings.add(message + "; compared using MongoDB's cross-type order");

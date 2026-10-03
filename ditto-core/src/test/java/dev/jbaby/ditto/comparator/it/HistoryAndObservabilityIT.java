@@ -39,9 +39,9 @@ import dev.jbaby.ditto.comparator.support.TestApplication;
  * Thresholds learned from history, events, Micrometer metrics and the Actuator endpoint, in a host-like context.
  */
 @SpringBootTest(classes = TestApplication.class, properties = {
-        "comparator.persistence.enabled=true",
-        "comparator.persistence.collection=history_it_reports",
-        "comparator.adaptive-thresholds.min-history=3",
+        "ditto.persistence.enabled=true",
+        "ditto.persistence.collection=history_it_reports",
+        "ditto.adaptive-thresholds.min-history=3",
         "management.endpoints.web.exposure.include=comparisons"})
 @Import(HistoryAndObservabilityIT.Listeners.class)
 class HistoryAndObservabilityIT {
