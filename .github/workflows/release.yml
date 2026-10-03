@@ -38,7 +38,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Disabled until the repository variable MAVEN_CENTRAL_ENABLED is 'true' and these secrets exist:
-  # CENTRAL_USERNAME / CENTRAL_TOKEN (Sonatype Central Portal user token), GPG_PRIVATE_KEY / GPG_PASSPHRASE.
+  # MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD (Sonatype Central Portal user token),
+  # GPG_PRIVATE_KEY / GPG_PASSPHRASE.
   # With the variable CENTRAL_AUTO_PUBLISH set to 'false', the release is uploaded and validated but waits for
   # "Publish" in the Central Portal (recommended for the first release: published versions can never be removed).
   central:
@@ -58,8 +59,8 @@ jobs:
           java-version: '25'
           cache: maven
           server-id: central
-          server-username: CENTRAL_USERNAME
-          server-password: CENTRAL_TOKEN
+          server-username: MAVEN_CENTRAL_USERNAME
+          server-password: MAVEN_CENTRAL_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
 
@@ -73,8 +74,8 @@ jobs:
           fi
           ./mvnw -B -ntp -Prelease,central -DskipTests $publish deploy
         env:
-          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
-          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           # maven-gpg-plugin 3.2+ reads the passphrase from this variable (and signs with loopback pinentry)
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

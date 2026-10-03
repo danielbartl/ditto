@@ -892,7 +892,7 @@ Publishing to Maven Central is prepared, but switched off. It needs four things:
 
 - a Sonatype Central Portal account with the verified namespace `dev.jbaby`;
 - a GPG key;
-- the repository secrets `CENTRAL_USERNAME`, `CENTRAL_TOKEN`, `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE`;
+- the repository secrets `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE`;
 - the repository variable `MAVEN_CENTRAL_ENABLED=true`.
 
 Locally the equivalent command is `./mvnw -Prelease,central deploy`.
