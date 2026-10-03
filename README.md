@@ -576,6 +576,7 @@ Below is an abbreviated real report (FULL mode, 20,000 generated documents, 3% p
 
 ```jsonc
 {
+  "schemaVersion": 1,                       // report format, see "Compatibility and versioning"
   "id": "647fc74d-d99a-4c98-95b8-c4f88264229f",
   "verdict": "GREEN",                       // worst level of all rules
   "rules": [                                // every rule, with level, value, threshold and reason
@@ -813,12 +814,16 @@ The public API is:
 - `CollectionComparator` (inject it; its constructor is internal) and everything in `dev.jbaby.ditto.comparator.api`;
 - the `comparator.*` configuration properties (`ComparatorProperties`) and the auto-configuration class names;
 - `ReportJson` and `ReportRepository`;
-- the report JSON format, the CLI options and exit codes, the Micrometer meter names and the `comparisons` Actuator
-  endpoint.
+- the report JSON format (versioned by its `schemaVersion`), the CLI options and exit codes, the Micrometer meter
+  names and the `comparisons` Actuator endpoint.
 
 All other packages (`canonical`, `flatten`, `history`, `key`, `metrics`, `observability`, `path`, `scan`,
 `structure`, `verdict`) and the remaining classes in `report` are internal, even where they are `public` Java types.
 They may change in any release.
+
+**Report format.** Every report carries a `schemaVersion` (currently 1). Adding fields does not raise it: readers
+should ignore fields they don't know, as `ReportJson` does. Renaming, removing or changing the meaning of a field
+raises it. Reports stored by older versions stay readable; missing fields get defaults.
 
 ---
 

@@ -82,7 +82,7 @@ class ThresholdAdvisorTest {
                 new RuleResult("unchangedRate", Level.GREEN, unchangedRate, "", "", List.of()),
                 new RuleResult("maxPathChangeRate", Level.GREEN, maxPathChangeRate, "", "", List.of()));
         var none = Rate.exact(0, 0);
-        return new ComparisonReport("id", Level.GREEN, rules,
+        return new ComparisonReport(ComparisonReport.SCHEMA_VERSION, "id", Level.GREEN, rules,
                 new ComparisonReport.KeyMetrics(0, 0, 0, none, none, none),
                 new ComparisonReport.ContentMetrics(0, 0, 0, none, none, none), List.of(),
                 new ComparisonReport.StructureMetrics(0, 0, 0, 0, List.of(), List.of(), List.of(), List.of(), false, 0),

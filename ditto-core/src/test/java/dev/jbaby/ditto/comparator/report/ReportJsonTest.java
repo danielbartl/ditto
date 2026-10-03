@@ -24,6 +24,7 @@ class ReportJsonTest {
 
         ComparisonReport report = json.read(stored);
 
+        assertThat(report.schemaVersion()).isEqualTo(1);
         assertThat(report.verdict()).isEqualTo(Level.GREEN);
         assertThat(report.keys().matched()).isEqualTo(19900);
         assertThat(report.content().unchangedOrExpectedRate()).isEqualTo(report.content().unchangedRate());
@@ -35,7 +36,8 @@ class ReportJsonTest {
         assertThat(report.run().thresholdSource()).isEqualTo(ThresholdSource.configured());
         assertThat(report.run().settings().expectedChangePaths()).isEmpty();
         assertThat(report.run().settings().tuning().maxValueExamples()).isZero();
-        // and it round-trips in the current format
+        // and it round-trips in the current format, which names its version first
+        assertThat(json.write(report)).startsWith("{\"schemaVersion\":" + ComparisonReport.SCHEMA_VERSION + ",");
         assertThat(json.read(json.write(report))).isEqualTo(report);
     }
 }

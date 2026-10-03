@@ -62,8 +62,8 @@ public final class ReportAssembler {
                 full ? scan.baselineDocsRead() : preflight.baselineCount(),
                 full ? scan.candidateDocsRead() : preflight.candidateCount(),
                 scan.baselineDocsRead(), scan.candidateDocsRead(), settings, thresholdSource, decisions);
-        return new ComparisonReport(UUID.randomUUID().toString(), verdict.overall(), verdict.rules(),
-                measured.keys(), measured.content(), measured.changedPaths(), structure,
+        return new ComparisonReport(ComparisonReport.SCHEMA_VERSION, UUID.randomUUID().toString(), verdict.overall(),
+                verdict.rules(), measured.keys(), measured.content(), measured.changedPaths(), structure,
                 new Examples(scan.changedExamples(), scan.addedExamples(), scan.removedExamples()), run,
                 warnings(preflight, scan, structure, settings), hints);
     }

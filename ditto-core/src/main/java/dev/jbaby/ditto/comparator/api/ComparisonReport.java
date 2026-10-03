@@ -10,6 +10,8 @@ import org.jspecify.annotations.Nullable;
  * All path-keyed data is held in lists (never maps), so the report can be stored in MongoDB despite dots in paths.
  * In SAMPLE mode counts are extrapolated to the whole collections and rates are {@link Rate.Estimate}s.
  *
+ * @param schemaVersion   version of the report format, {@link #SCHEMA_VERSION} for reports created by this version.
+ *                        Raised on every change that is not a pure addition of fields.
  * @param id              unique id of this comparison run
  * @param verdict         the worst level of all rules
  * @param rules           every evaluated rule with its level and reasoning
@@ -23,6 +25,7 @@ import org.jspecify.annotations.Nullable;
  * @param hints           suggestions what to configure next, e.g. a technical timestamp to ignore
  */
 public record ComparisonReport(
+        int schemaVersion,
         String id,
         Level verdict,
         List<RuleResult> rules,
@@ -35,7 +38,14 @@ public record ComparisonReport(
         List<String> warnings,
         List<Hint> hints) {
 
+    /** Report format written by this version. */
+    public static final int SCHEMA_VERSION = 1;
+
     public ComparisonReport {
+        // reports stored before the format was versioned are version 1
+        if (schemaVersion == 0) {
+            schemaVersion = 1;
+        }
         rules = List.copyOf(rules);
         topChangedPaths = List.copyOf(topChangedPaths);
         warnings = List.copyOf(warnings);
