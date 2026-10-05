@@ -364,11 +364,11 @@ Releases are published to **Maven Central**:
 <dependency>
     <groupId>dev.jbaby.ditto</groupId>
     <artifactId>ditto-core</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
-Gradle: `implementation("dev.jbaby.ditto:ditto-core:0.3.0")`.
+Gradle: `implementation("dev.jbaby.ditto:ditto-core:0.4.0")`.
 
 The same versions are also on GitHub Packages (`https://maven.pkg.github.com/danielbartl/ditto`), which needs a
 GitHub token with the `read:packages` scope even for public packages. To try an unreleased change, build it yourself
