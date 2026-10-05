@@ -64,7 +64,7 @@ public record CollectionHandle(String side, CollectionRef ref, MongoDatabase dat
         return documents;
     }
 
-    /** Up to {@code size} random documents by key, sorted by key and without duplicates ({@code $sample} may repeat). */
+    /** Up to {@code size} random documents by key, sorted by key, without the duplicates {@code $sample} may return. */
     public NavigableMap<BsonValue, RawBsonDocument> randomByKey(String keyField, int size) {
         NavigableMap<BsonValue, RawBsonDocument> sample = new TreeMap<>(BsonKeyOrder.INSTANCE);
         collection.aggregate(List.of(Aggregates.sample(size))).allowDiskUse(true)
