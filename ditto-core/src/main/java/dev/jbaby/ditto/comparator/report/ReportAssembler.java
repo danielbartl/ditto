@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
@@ -41,9 +42,10 @@ public final class ReportAssembler {
         this.verdictEvaluator = verdictEvaluator;
     }
 
-    public ComparisonReport assemble(ComparisonSettings settings, ThresholdSource thresholdSource,
-                                     List<String> decisions, Preflight.Result preflight, ScanResult scan,
-                                     Instant startedAt, Instant finishedAt) {
+    public ComparisonReport assemble(ComparisonSettings settings, Map<String, String> labels,
+                                     ThresholdSource thresholdSource, List<String> decisions,
+                                     Preflight.Result preflight, ScanResult scan, Instant startedAt,
+                                     Instant finishedAt) {
         boolean full = switch (settings.mode()) {
             case ComparisonMode.Full fullScan -> true;
             case ComparisonMode.Sample sample -> false;
@@ -73,7 +75,7 @@ public final class ReportAssembler {
         return new ComparisonReport(ComparisonReport.SCHEMA_VERSION, UUID.randomUUID().toString(), verdict.overall(),
                 verdict.rules(), measured.keys(), measured.content(), measured.changedPaths(), structure,
                 new Examples(scan.changedExamples(), scan.addedExamples(), scan.removedExamples()), run,
-                warnings(preflight, scan, structure, settings), hints);
+                warnings(preflight, scan, structure, settings), hints, labels);
     }
 
     private record Measured(KeyMetrics keys, ContentMetrics content, List<PathChange> changedPaths) {

@@ -4,7 +4,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.jspecify.annotations.Nullable;
 
@@ -31,6 +33,8 @@ import org.jspecify.annotations.Nullable;
  * @param mixedKeyPolicy      what to do if key values of different BSON types are found
  * @param verdictBasis        which value of estimated rates the verdict uses (SAMPLE mode)
  * @param thresholds          verdict thresholds
+ * @param labels              caller-defined strings stored with the report, e.g. {@code batchJobId=4711}, see
+ *                            {@link Labels}; added to the configured labels, replacing those with the same key
  */
 public record ComparisonRequest(
         CollectionRef baseline,
@@ -46,7 +50,8 @@ public record ComparisonRequest(
         @Nullable Boolean nullEqualsMissing,
         @Nullable MixedKeyPolicy mixedKeyPolicy,
         @Nullable VerdictBasis verdictBasis,
-        @Nullable Thresholds thresholds) {
+        @Nullable Thresholds thresholds,
+        @Nullable Map<String, String> labels) {
 
     public ComparisonRequest {
         requireNonNull(baseline, "baseline");
@@ -59,6 +64,7 @@ public record ComparisonRequest(
         wildcardPaths = wildcardPaths == null ? null : Set.copyOf(wildcardPaths);
         expectedChangePaths = expectedChangePaths == null ? null : Set.copyOf(expectedChangePaths);
         redactedPaths = redactedPaths == null ? null : Set.copyOf(redactedPaths);
+        labels = labels == null ? null : Labels.of(labels);
     }
 
     /** Request comparing two collections of the default database with all defaults. */
@@ -87,7 +93,8 @@ public record ComparisonRequest(
                 .nullEqualsMissing(nullEqualsMissing)
                 .mixedKeyPolicy(mixedKeyPolicy)
                 .verdictBasis(verdictBasis)
-                .thresholds(thresholds);
+                .thresholds(thresholds)
+                .labels(labels);
     }
 
     public static final class Builder {
@@ -106,6 +113,7 @@ public record ComparisonRequest(
         private @Nullable MixedKeyPolicy mixedKeyPolicy;
         private @Nullable VerdictBasis verdictBasis;
         private @Nullable Thresholds thresholds;
+        private @Nullable Map<String, String> labels;
 
         private Builder(CollectionRef baseline, CollectionRef candidate) {
             this.baseline = baseline;
@@ -205,10 +213,25 @@ public record ComparisonRequest(
             return this;
         }
 
+        /** Replaces the labels set so far; {@code null} to set none. */
+        public Builder labels(@Nullable Map<String, String> labels) {
+            this.labels = labels == null ? null : new TreeMap<>(labels);
+            return this;
+        }
+
+        /** Adds one label, e.g. {@code label("batchJobId", "4711")}. */
+        public Builder label(String key, String value) {
+            if (labels == null) {
+                labels = new TreeMap<>();
+            }
+            labels.put(key, value);
+            return this;
+        }
+
         public ComparisonRequest build() {
             return new ComparisonRequest(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths,
                     wildcardPaths, expectedChangePaths, redactedPaths, mode, matchedOnly, nullEqualsMissing,
-                    mixedKeyPolicy, verdictBasis, thresholds);
+                    mixedKeyPolicy, verdictBasis, thresholds, labels);
         }
     }
 }

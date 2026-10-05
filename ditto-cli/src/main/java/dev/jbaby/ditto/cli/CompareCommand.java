@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import dev.jbaby.ditto.comparator.api.CollectionRef;
 import dev.jbaby.ditto.comparator.api.ComparisonMode;
 import dev.jbaby.ditto.comparator.api.ComparisonReport;
 import dev.jbaby.ditto.comparator.api.ComparisonRequest;
+import dev.jbaby.ditto.comparator.api.Labels;
 import dev.jbaby.ditto.comparator.api.MixedKeyPolicy;
 import dev.jbaby.ditto.comparator.api.VerdictBasis;
 import dev.jbaby.ditto.comparator.autoconfigure.ComparatorProperties;
@@ -72,7 +74,21 @@ public class CompareCommand {
                 .nullEqualsMissing(options.bool("null-equals-missing"))
                 .mixedKeyPolicy(options.enumValue("mixed-key-types", MixedKeyPolicy.class))
                 .verdictBasis(options.enumValue("verdict-basis", VerdictBasis.class))
+                .labels(labels())
                 .build();
+    }
+
+    /** {@code --label=batchJobId=4711}, repeatable or comma-separated. */
+    private @Nullable Map<String, String> labels() {
+        String labels = options.string("label");
+        if (labels == null) {
+            return null;
+        }
+        try {
+            return Labels.parse(labels);
+        } catch (IllegalArgumentException e) {
+            throw new CliUsageException("Option --label: " + e.getMessage());
+        }
     }
 
     /** {@code --collection=x} for x_backup vs. x, or explicit {@code --baseline} and {@code --candidate}. */

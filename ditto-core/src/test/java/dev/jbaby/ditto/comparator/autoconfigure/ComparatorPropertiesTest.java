@@ -96,6 +96,17 @@ class ComparatorPropertiesTest {
     }
 
     @Test
+    void requestLabelsAreAddedToConfiguredOnes() {
+        var properties = bind(Map.of("ditto.labels.environment", "test", "ditto.labels.team", "data"));
+        var request = ComparisonRequest.builder("a", "b").label("environment", "staging").label("batchJobId", "1")
+                .build();
+
+        assertThat(properties.labelsFor(request)).containsExactly(Map.entry("batchJobId", "1"),
+                Map.entry("environment", "staging"), Map.entry("team", "data"));
+        assertThat(properties.labelsFor(ComparisonRequest.of("a", "b"))).containsOnlyKeys("environment", "team");
+    }
+
+    @Test
     void alwaysIgnoredPathsCanBeCleared() {
         var properties = bind(Map.of("ditto.always-ignored-paths", "",
                 "ditto.ignored-paths", "meta.syncedAt"));

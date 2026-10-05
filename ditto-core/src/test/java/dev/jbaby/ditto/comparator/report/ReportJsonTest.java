@@ -35,6 +35,8 @@ class ReportJsonTest {
         });
         assertThat(report.run().thresholdSource()).isEqualTo(ThresholdSource.configured());
         assertThat(report.run().settings().expectedChangePaths()).isEmpty();
+        assertThat(report.run().settings().matchedOnly()).isFalse();
+        assertThat(report.labels()).isEmpty();
         assertThat(report.run().settings().tuning().maxValueExamples()).isZero();
         // and it round-trips in the current format, which names its version first
         assertThat(json.write(report)).startsWith("{\"schemaVersion\":" + ComparisonReport.SCHEMA_VERSION + ",");

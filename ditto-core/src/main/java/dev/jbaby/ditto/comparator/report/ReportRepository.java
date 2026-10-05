@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -25,11 +26,13 @@ import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Sorts;
 
 import dev.jbaby.ditto.comparator.api.ComparisonReport;
+import dev.jbaby.ditto.comparator.api.Labels;
 
 /**
  * Stores reports in a MongoDB collection (default {@code comparison_reports}), e.g. to derive thresholds from
  * historical runs. A stored document is the report's JSON with {@code _id} = report id, plus top-level query fields
- * {@code createdAt} (date), {@code baseline} and {@code candidate} ({@code db.collection}).
+ * {@code createdAt} (date), {@code baseline} and {@code candidate} ({@code db.collection}). The report's labels are
+ * stored as the subdocument {@code labels}, e.g. {@code labels.batchJobId}.
  * <p>On first use it creates the indexes for its queries and, if a retention is set, a TTL index on {@code createdAt}
  * that lets MongoDB delete older reports. Without a retention, a TTL index left from an earlier configuration is
  * dropped, so reports are kept. If the indexes can't be created (e.g. missing privileges), a warning is logged and
@@ -43,6 +46,7 @@ public final class ReportRepository {
     static final String HISTORY_INDEX = "ditto_history";
     static final String RECENT_INDEX = "ditto_recent";
     static final String RETENTION_INDEX = "ditto_retention";
+    static final String LABELS_INDEX = "ditto_labels";
 
     private final MongoDatabaseFactory databaseFactory;
     private final @Nullable String database;
@@ -109,6 +113,21 @@ public final class ReportRepository {
     }
 
     /**
+     * Reports carrying all the given labels, e.g. {@code batchJobId=4711}, most recent first.
+     *
+     * @param labels labels a report must have, with these values; all reports if empty
+     * @param limit  maximum number of reports
+     */
+    public List<ComparisonReport> findByLabels(Map<String, String> labels, int limit) {
+        Bson filter = labels.isEmpty() ? Filters.empty() : Filters.and(Labels.of(labels).entrySet().stream()
+                .map(label -> Filters.eq("labels." + label.getKey(), label.getValue())).toList());
+        List<ComparisonReport> reports = new ArrayList<>();
+        collection().find(filter).sort(Sorts.descending("createdAt")).limit(limit)
+                .forEach(document -> reports.add(toReport(document)));
+        return reports;
+    }
+
+    /**
      * Previous comparisons of the same pair of collections, most recent first, for deriving thresholds.
      *
      * @param baseline     {@code db.collection} of the baseline
@@ -163,6 +182,7 @@ public final class ReportRepository {
                     Indexes.descending("createdAt")), new IndexOptions().name(HISTORY_INDEX));
             reports.createIndex(Indexes.compoundIndex(Indexes.ascending("candidate"), Indexes.descending("createdAt")),
                     new IndexOptions().name(RECENT_INDEX));
+            reports.createIndex(Indexes.ascending("labels.$**"), new IndexOptions().name(LABELS_INDEX));
             applyRetention(db, reports);
         } catch (MongoException e) {
             log.warn("Could not create the indexes of the report collection {}.{}: {}. Reports are still stored, but"

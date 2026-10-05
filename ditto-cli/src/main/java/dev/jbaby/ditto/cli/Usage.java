@@ -35,6 +35,8 @@ final class Usage {
               --null-equals-missing         treat null fields like missing fields
               --mixed-key-types=reject|compare
               --verdict-basis=conservative|point   which value of estimated rates the verdict uses
+              --label=<key>=<value>         label stored with the report, e.g. --label=batchJobId=4711;
+                                            repeatable
               --persist                     store the report (ditto.persistence.*)
               --out=<file>                  also write the report to a file
               --ditto.<property>=...        any library property, e.g.

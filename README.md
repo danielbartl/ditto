@@ -296,6 +296,7 @@ ready-made options go to **stderr**, so `> report.json` and pipes into `jq` work
 | `--null-equals-missing`         | Treat `null` fields like missing fields                                    |
 | `--mixed-key-types=reject\|compare` | See [mixed key types](#keys-and-sort-order)                            |
 | `--verdict-basis=conservative\|point` | SAMPLE mode only, see [SAMPLE mode](#sample-mode)                    |
+| `--label=<key>=<value>`         | A [label](#labels-finding-the-report-of-a-job) stored with the report, e.g. `--label=batchJobId=4711`. Repeatable |
 | `--persist`                     | Also store the report in MongoDB                                           |
 | `--out=<file>`                  | Also write the report to a file                                            |
 | `--ditto.<property>=...`        | Any [library property](#configuration-reference), e.g. `--ditto.thresholds.key-similarity.green=0.995` |
@@ -364,11 +365,11 @@ Releases are published to **Maven Central**:
 <dependency>
     <groupId>dev.jbaby.ditto</groupId>
     <artifactId>ditto-core</artifactId>
-    <version>0.4.0</version>
+    <version>0.4.1</version>
 </dependency>
 ```
 
-Gradle: `implementation("dev.jbaby.ditto:ditto-core:0.4.0")`.
+Gradle: `implementation("dev.jbaby.ditto:ditto-core:0.4.1")`.
 
 The same versions are also on GitHub Packages (`https://maven.pkg.github.com/danielbartl/ditto`), which needs a
 GitHub token with the `read:packages` scope even for public packages. To try an unreleased change, build it yourself
@@ -448,8 +449,8 @@ db.comparison_reports.find({candidate: "shop.products"}, {verdict: 1, "keys.keyS
 
 If storing a report fails, the failure is logged and the report is still returned.
 
-On first use, ditto creates two indexes on the report collection (`ditto_history` and `ditto_recent`), so reading the
-history stays fast as reports accumulate. Reports are kept forever unless you set a **retention**:
+On first use, ditto creates three indexes on the report collection (`ditto_history`, `ditto_recent` and
+`ditto_labels`), so reading the history stays fast as reports accumulate. Reports are kept forever unless you set a **retention**:
 
 ```yaml
 ditto:
@@ -461,6 +462,34 @@ ditto:
 Changing the retention updates the TTL index. Removing it drops the index, and the remaining reports are kept. Keep
 the retention longer than the history that [learned thresholds](#thresholds-learned-from-history) need. If the indexes
 can't be created, for example because the user lacks the privilege, ditto logs a warning and works without them.
+
+### Labels: finding the report of a job
+
+**Labels** are strings you attach to a comparison, e.g. the id of the batch job that triggered it. They are stored
+with the report, so you can find the report for a job later:
+
+```java
+ComparisonReport report = comparator.compare(comparator.backupRequest("products")
+        .label("batchJobId", jobId)
+        .build());
+
+// later, e.g. from the job's detail page
+List<ComparisonReport> reports = reportRepository.findByLabels(Map.of("batchJobId", jobId), 10);
+```
+
+```bash
+java -jar ditto-cli.jar --collection=products --label=batchJobId=4711 --label=trigger=nightly --persist
+```
+
+- Labels that belong on every report, like the environment, go in the configuration: `ditto.labels.environment=test`.
+  Request labels are added to these, and replace a configured label with the same key.
+- The report holds them as `labels`, sorted by key. In MongoDB they are a subdocument, so you can also query
+  `db.comparison_reports.find({"labels.batchJobId": "4711"})`. The `ditto_labels` index serves such queries.
+- Keys may contain letters, digits, `_` and `-` (at most 64 characters), because they become field names. Values are
+  any string up to 512 characters. A report can have up to 32 labels.
+- `ComparisonFailedEvent` carries the labels too, so a listener knows which job a failed comparison belonged to.
+- Labels don't affect the comparison, the learned thresholds or the metrics. A job id would create a new time series
+  per run, so labels are deliberately not Micrometer tags.
 
 ### Thresholds learned from history
 
@@ -523,6 +552,8 @@ the form `db.collection`.
 stored reports. Expose it like any endpoint, with `management.endpoints.web.exposure.include=comparisons`.
 
 - `GET /actuator/comparisons` returns summaries of the 50 most recent reports.
+- `GET /actuator/comparisons?label=batchJobId:4711` returns only reports with that label. Separate several labels
+  with commas: `label=batchJobId:4711,environment:test`.
 - `GET /actuator/comparisons/{id}` returns one full report.
 
 Micrometer and Actuator are optional dependencies of `ditto-core`. They are only used if the host application
@@ -586,6 +617,7 @@ These are rarely needed. The defaults fit most data.
 | `persistence.collection`                   | `comparison_reports` | Report collection                                                               |
 | `persistence.database`                     | default database     | Report database                                                                 |
 | `persistence.retention`                    | –                    | How long reports are kept, e.g. `365d` (TTL index); forever if not set          |
+| `labels.<key>`                             | –                    | [Labels](#labels-finding-the-report-of-a-job) stored with every report, e.g. `labels.environment=test` |
 | **Report and resources**                   |                      |                                                                                 |
 | `max-examples`                             | `20`                 | Example keys per category and per changed path                                  |
 | `max-value-examples`                       | `3`                  | Before/after value examples per changed path; `0` disables them                 |
@@ -764,7 +796,8 @@ Points to consider:
 - **Make sure the next scheduled sync can't overwrite the backup before verification and rollback are done.** Use a
   JobRunr mutex/label, or chain the jobs.
 - **Persist reports** (`ditto.persistence.enabled=true`). Put the report id in alerts, so people can open the
-  report with its example keys. With `ditto.adaptive-thresholds.enabled=true`, ditto tunes the thresholds to your
+  report with its example keys. Label the comparison with the job id, `.label("jobId", jobContext.getJobId()
+  .toString())`, so the report can be found from the job. With `ditto.adaptive-thresholds.enabled=true`, ditto tunes the thresholds to your
   normal churn by itself.
 - **Alerts** can also come from an `@EventListener` for `ComparisonCompletedEvent`, which works no matter who
   triggered the comparison.

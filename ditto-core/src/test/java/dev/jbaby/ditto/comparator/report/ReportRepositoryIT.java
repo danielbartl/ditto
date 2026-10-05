@@ -36,7 +36,8 @@ class ReportRepositoryIT {
     void createsQueryIndexesOnFirstUse() {
         repository(null).findRecent(null, 1);
 
-        assertThat(indexNames()).contains(ReportRepository.HISTORY_INDEX, ReportRepository.RECENT_INDEX)
+        assertThat(indexNames()).contains(ReportRepository.HISTORY_INDEX, ReportRepository.RECENT_INDEX,
+                        ReportRepository.LABELS_INDEX)
                 .doesNotContain(ReportRepository.RETENTION_INDEX);
         assertThat(index(ReportRepository.HISTORY_INDEX).get("key", Document.class))
                 .isEqualTo(Document.parse("{baseline: 1, candidate: 1, createdAt: -1}"));
@@ -46,13 +47,17 @@ class ReportRepositoryIT {
     void historyAndRecentQueriesUseTheIndexes() {
         repository(null).findRecent(null, 1);
 
-        // the queries of findHistory and findRecent
+        // the queries of findHistory, findRecent and findByLabels
         var history = reports().find(Filters.and(Filters.eq("baseline", "db.a_backup"), Filters.eq("candidate", "db.a"),
                 Filters.ne("verdict", "RED"))).sort(Sorts.descending("createdAt")).limit(20).explain();
         var recent = reports().find(Filters.eq("candidate", "db.a")).sort(Sorts.descending("createdAt")).limit(50)
                 .explain();
 
+        var labels = reports().find(Filters.eq("labels.batchJobId", "4711")).sort(Sorts.descending("createdAt"))
+                .limit(50).explain();
+
         assertThat(history.toJson()).contains(ReportRepository.HISTORY_INDEX).doesNotContain("COLLSCAN");
+        assertThat(labels.toJson()).contains(ReportRepository.LABELS_INDEX).doesNotContain("COLLSCAN");
         assertThat(recent.toJson()).contains(ReportRepository.RECENT_INDEX).doesNotContain("COLLSCAN");
     }
 

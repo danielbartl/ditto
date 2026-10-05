@@ -2,9 +2,12 @@ package dev.jbaby.ditto.comparator.autoconfigure;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedMap;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -12,6 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import dev.jbaby.ditto.comparator.api.ComparisonMode;
 import dev.jbaby.ditto.comparator.api.ComparisonRequest;
 import dev.jbaby.ditto.comparator.api.ComparisonSettings;
+import dev.jbaby.ditto.comparator.api.Labels;
 import dev.jbaby.ditto.comparator.api.MixedKeyPolicy;
 import dev.jbaby.ditto.comparator.api.Thresholds;
 import dev.jbaby.ditto.comparator.api.VerdictBasis;
@@ -72,6 +76,12 @@ public class ComparatorProperties {
     /** AUTO mode scans fully if neither collection has more documents than this; otherwise it samples. */
     private long fullScanLimit = 5_000_000;
 
+    /**
+     * Labels stored with every report, e.g. {@code environment: test}; a request's labels are added, replacing those
+     * with the same key.
+     */
+    private Map<String, String> labels = new LinkedHashMap<>();
+
     /** Cursor batch size. */
     private int batchSize = 1000;
 
@@ -127,6 +137,15 @@ public class ComparatorProperties {
                 new ComparisonSettings.Tuning(batchSize, noCursorTimeout, maxExamples, maxValueExamples,
                         maxTrackedPaths, topChangedPaths, progressInterval, sample.lookupBatchSize, fullScanLimit,
                         sample.size));
+    }
+
+    /** The configured labels plus the request's, which win for the same key. */
+    public SortedMap<String, String> labelsFor(ComparisonRequest request) {
+        Map<String, String> merged = new LinkedHashMap<>(labels);
+        if (request.labels() != null) {
+            merged.putAll(request.labels());
+        }
+        return Labels.of(merged);
     }
 
     private ComparisonMode defaultMode() {
@@ -587,6 +606,14 @@ public class ComparatorProperties {
 
     public void setMatchedOnly(boolean matchedOnly) {
         this.matchedOnly = matchedOnly;
+    }
+
+    public Map<String, String> getLabels() {
+        return labels;
+    }
+
+    public void setLabels(Map<String, String> labels) {
+        this.labels = labels;
     }
 
     public long getFullScanLimit() {

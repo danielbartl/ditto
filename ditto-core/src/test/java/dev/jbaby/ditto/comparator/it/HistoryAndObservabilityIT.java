@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.IntStream;
 
@@ -11,6 +12,7 @@ import org.bson.BsonDocument;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.endpoint.InvalidEndpointRequestException;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -32,6 +34,7 @@ import dev.jbaby.ditto.comparator.api.Level;
 import dev.jbaby.ditto.comparator.api.ThresholdSource;
 import dev.jbaby.ditto.comparator.api.Thresholds;
 import dev.jbaby.ditto.comparator.observability.ComparisonsEndpoint;
+import dev.jbaby.ditto.comparator.report.ReportRepository;
 import dev.jbaby.ditto.comparator.support.Collections;
 import dev.jbaby.ditto.comparator.support.TestApplication;
 
@@ -42,6 +45,7 @@ import dev.jbaby.ditto.comparator.support.TestApplication;
         "ditto.persistence.enabled=true",
         "ditto.persistence.collection=history_it_reports",
         "ditto.adaptive-thresholds.min-history=3",
+        "ditto.labels.environment=it",
         "management.endpoints.web.exposure.include=comparisons"})
 @Import(HistoryAndObservabilityIT.Listeners.class)
 class HistoryAndObservabilityIT {
@@ -83,6 +87,9 @@ class HistoryAndObservabilityIT {
 
     @Autowired
     ComparisonsEndpoint endpoint;
+
+    @Autowired
+    ReportRepository repository;
 
     @BeforeEach
     void clean() {
@@ -131,7 +138,10 @@ class HistoryAndObservabilityIT {
         assertThat(listeners.events).hasSize(2);
         assertThat(listeners.events.get(0)).isEqualTo(new ComparisonCompletedEvent(report));
         assertThat(listeners.events.get(1)).isInstanceOfSatisfying(ComparisonFailedEvent.class,
-                failed -> assertThat(failed.exception()).isInstanceOf(ComparisonException.class));
+                failed -> {
+                    assertThat(failed.exception()).isInstanceOf(ComparisonException.class);
+                    assertThat(failed.labels()).isEqualTo(Map.of("environment", "it"));
+                });
 
         String candidate = TestApplication.DATABASE + ".hist_cand";
         assertThat(meters.get("ditto.comparison").tag("candidate", candidate).tag("verdict", "YELLOW").timer()
@@ -142,13 +152,39 @@ class HistoryAndObservabilityIT {
         assertThat(meters.get("ditto.comparison.errors").tag("exception", "ComparisonException").counter().count())
                 .isEqualTo(1);
 
-        assertThat(endpoint.recent()).first().satisfies(summary -> {
+        assertThat(endpoint.recent(null)).first().satisfies(summary -> {
             assertThat(summary.id()).isEqualTo(report.id());
             assertThat(summary.verdict()).isEqualTo(Level.YELLOW);
             assertThat(summary.candidate()).isEqualTo(candidate);
         });
         assertThat(endpoint.report(report.id())).isEqualTo(report);
         assertThat(endpoint.report("unknown")).isNull();
+    }
+
+    @Test
+    void findsReportsByLabel() {
+        createChurn(0, 10);
+        ComparisonReport first = comparator.compare(ComparisonRequest.builder("hist_base", "hist_cand")
+                .label("batchJobId", "4711").build());
+        ComparisonReport second = comparator.compare(ComparisonRequest.builder("hist_base", "hist_cand")
+                .label("batchJobId", "4712").label("environment", "staging").build());
+        compare();
+
+        // configured labels are added; request labels win for the same key
+        assertThat(first.labels()).containsExactly(Map.entry("batchJobId", "4711"), Map.entry("environment", "it"));
+        assertThat(second.labels()).containsEntry("environment", "staging");
+
+        assertThat(repository.findByLabels(Map.of("batchJobId", "4711"), 10)).containsExactly(first);
+        assertThat(repository.findByLabels(Map.of("environment", "it"), 10)).hasSize(2)
+                .doesNotContain(second);
+        assertThat(repository.findByLabels(Map.of("batchJobId", "4712", "environment", "it"), 10)).isEmpty();
+        assertThat(endpoint.recent("batchJobId:4712")).singleElement().satisfies(summary -> {
+            assertThat(summary.id()).isEqualTo(second.id());
+            assertThat(summary.labels()).containsEntry("batchJobId", "4712");
+        });
+        assertThat(endpoint.recent("batchJobId=4712,environment:staging")).hasSize(1);
+        assertThatThrownBy(() -> endpoint.recent("no separator"))
+                .isInstanceOf(InvalidEndpointRequestException.class);
     }
 
     private ComparisonReport compare() {

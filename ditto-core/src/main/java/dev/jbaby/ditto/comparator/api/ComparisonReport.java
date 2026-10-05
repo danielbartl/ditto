@@ -2,12 +2,14 @@ package dev.jbaby.ditto.comparator.api;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 
 /**
  * Result of one comparison: the overall verdict, the rules that produced it and the metrics behind them.
- * All path-keyed data is held in lists (never maps), so the report can be stored in MongoDB despite dots in paths.
+ * All path-keyed data is held in lists (never maps), so the report can be stored in MongoDB despite dots in paths;
+ * the only map, {@code labels}, has keys without dots.
  * In SAMPLE mode counts are extrapolated to the whole collections and rates are {@link Rate.Estimate}s.
  *
  * @param schemaVersion   version of the report format, {@link #SCHEMA_VERSION} for reports created by this version.
@@ -23,6 +25,7 @@ import org.jspecify.annotations.Nullable;
  * @param run             timing, document counts and the effective settings
  * @param warnings        conditions that limit the meaning of the report, e.g. a path cap was hit
  * @param hints           suggestions what to configure next, e.g. a technical timestamp to ignore
+ * @param labels          caller-defined strings, e.g. {@code batchJobId=4711}, sorted by key; see {@link Labels}
  */
 public record ComparisonReport(
         int schemaVersion,
@@ -36,7 +39,8 @@ public record ComparisonReport(
         Examples examples,
         RunMetadata run,
         List<String> warnings,
-        List<Hint> hints) {
+        List<Hint> hints,
+        Map<String, String> labels) {
 
     /** Report format written by this version. */
     public static final int SCHEMA_VERSION = 1;
@@ -51,6 +55,8 @@ public record ComparisonReport(
         warnings = List.copyOf(warnings);
         // reports stored before hints existed
         hints = hints == null ? List.of() : List.copyOf(hints);
+        // reports stored before labels existed
+        labels = labels == null ? Map.of() : Labels.of(labels);
     }
 
     /**

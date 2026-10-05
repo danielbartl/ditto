@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.bson.BsonDocument;
 import org.junit.jupiter.api.BeforeAll;
@@ -99,6 +100,22 @@ class CliIT {
         var report = new ReportJson().read(matchedOnly.out());
         assertThat(report.run().settings().matchedOnly()).isTrue();
         assertThat(report.keys().removed()).isEqualTo(2000 - report.keys().matched());
+    }
+
+    @Test
+    void labelsAreStoredWithTheReport() {
+        run("generate", "--docs=200", "--baseline=label_base", "--candidate=label_cand");
+
+        Result labelled = run("--baseline=label_base", "--candidate=label_cand", "--ignore=meta.syncedAt",
+                "--label=batchJobId=4711", "--label=env:test", "--ditto.labels.team=data");
+        assertThat(labelled.code()).isEqualTo(ExitCodes.GREEN);
+        assertThat(new ReportJson().read(labelled.out()).labels())
+                .containsExactly(Map.entry("batchJobId", "4711"), Map.entry("env", "test"),
+                        Map.entry("team", "data"));
+
+        Result invalid = run("--baseline=label_base", "--candidate=label_cand", "--label=job.id=1");
+        assertThat(invalid.code()).isEqualTo(ExitCodes.ERROR);
+        assertThat(invalid.err()).contains("Option --label: Invalid label key 'job.id'");
     }
 
     @Test

@@ -6,6 +6,22 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-05
+
+### Added
+
+- **Labels**: caller-defined strings stored with a report, e.g. the id of the batch job that ran the comparison, so
+  its report can be found later. Set them per request with `label("batchJobId", "4711")` / `labels(map)`, for every
+  report with `ditto.labels.<key>`, or on the CLI with `--label=batchJobId=4711`. Reports have a new top-level
+  `labels` field; `ReportRepository.findByLabels(...)` and `GET /actuator/comparisons?label=batchJobId:4711` find
+  them, served by a new `ditto_labels` index. `ComparisonFailedEvent` carries the labels as well.
+
+### Changed
+
+- `ComparisonRequest`, `ComparisonReport` and `ComparisonFailedEvent` have a new last component `labels`, and the
+  endpoint's `Summary` lists them. Code that calls these constructors directly must pass it; the builder and stored
+  reports are unaffected (older reports read with no labels).
+
 ## [0.4.0] - 2026-10-05
 
 ### Added
@@ -111,7 +127,8 @@ First release.
   optional persistence of reports in MongoDB.
 - CLI with exit codes 0/1/2/3 (GREEN/YELLOW/RED/error), and a test-data generator.
 
-[Unreleased]: https://github.com/danielbartl/ditto/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/danielbartl/ditto/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/danielbartl/ditto/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/danielbartl/ditto/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/danielbartl/ditto/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/danielbartl/ditto/compare/v0.1.0...v0.2.0

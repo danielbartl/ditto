@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.bson.BsonDocument;
 import org.jspecify.annotations.Nullable;
@@ -126,13 +127,14 @@ public class CollectionComparator {
     public ComparisonReport compare(ComparisonRequest request, ProgressListener listener) {
         ComparisonSettings settings = properties.settingsFor(request,
                 databaseFactory.getMongoDatabase().getName());
+        Map<String, String> labels = properties.labelsFor(request);
         try {
-            ComparisonReport report = run(settings, request.thresholds() != null, listener);
+            ComparisonReport report = run(settings, labels, request.thresholds() != null, listener);
             events.publishEvent(new ComparisonCompletedEvent(report));
             return report;
         } catch (RuntimeException e) {
             RuntimeException thrown = translate(e, settings);
-            events.publishEvent(new ComparisonFailedEvent(settings, thrown));
+            events.publishEvent(new ComparisonFailedEvent(settings, thrown, labels));
             throw thrown;
         }
     }
@@ -152,8 +154,8 @@ public class CollectionComparator {
         };
     }
 
-    private ComparisonReport run(ComparisonSettings requested, boolean thresholdsFromRequest,
-                                 ProgressListener listener) {
+    private ComparisonReport run(ComparisonSettings requested, Map<String, String> labels,
+                                 boolean thresholdsFromRequest, ProgressListener listener) {
         ComparisonSettings settings = requested;
         ThresholdSource thresholdSource;
         if (thresholdsFromRequest) {
@@ -177,9 +179,10 @@ public class CollectionComparator {
         checked.warnings().forEach(warning -> log.warn("{}: {}", label, warning));
         settings = settings.withMode(resolveMode(settings, checked, decisions));
         settings = detectMaps(settings, baseline, candidate, decisions);
-        log.info("Comparing {}, mode {}, thresholds {}", label, describe(settings.mode()),
+        log.info("Comparing {}, mode {}, thresholds {}{}", label, describe(settings.mode()),
                 thresholdSource.kind() == ThresholdSource.Kind.HISTORY
-                        ? "from " + thresholdSource.historyRuns() + " previous runs" : thresholdSource.kind());
+                        ? "from " + thresholdSource.historyRuns() + " previous runs" : thresholdSource.kind(),
+                labels.isEmpty() ? "" : ", labels " + labels);
         ScanAccumulator accumulator = new ScanAccumulator(settings, hasher);
         ScanResult scan = settings.matchedOnly()
                 ? compareMatchedOnly(baseline, candidate, settings, checked, accumulator, label, listener, decisions)
@@ -192,8 +195,8 @@ public class CollectionComparator {
                                     2L * sample.size(), listener));
                     case ComparisonMode.Auto auto -> throw new IllegalStateException("AUTO mode was not resolved");
                 };
-        ComparisonReport report = assembler.assemble(settings, thresholdSource, decisions, checked, scan, startedAt,
-                Instant.now());
+        ComparisonReport report = assembler.assemble(settings, labels, thresholdSource, decisions, checked, scan,
+                startedAt, Instant.now());
         log.info("{}: verdict {} (keySimilarity {}, unchangedRate {}, {} ms)", label, report.verdict(),
                 report.keys().keySimilarity().value(), report.content().unchangedRate().value(),
                 report.run().durationMillis());

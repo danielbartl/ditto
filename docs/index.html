@@ -312,9 +312,9 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
             <div class="code"><span class="label">pom.xml</span><pre>&lt;dependency&gt;
   &lt;groupId&gt;dev.jbaby.ditto&lt;/groupId&gt;
   &lt;artifactId&gt;ditto-core&lt;/artifactId&gt;
-  &lt;version&gt;0.4.0&lt;/version&gt;
+  &lt;version&gt;0.4.1&lt;/version&gt;
 &lt;/dependency&gt;</pre></div>
-            <p>Gradle: <code>implementation("dev.jbaby.ditto:ditto-core:0.4.0")</code>.</p>
+            <p>Gradle: <code>implementation("dev.jbaby.ditto:ditto-core:0.4.1")</code>.</p>
           </li>
           <li>
             <p><strong>Inject <code>CollectionComparator</code> and compare.</strong> No configuration needed:</p>
@@ -429,6 +429,9 @@ switch (report.verdict()) {
             <code>DataAccessException</code> for database errors.</li>
           <li>Run it from any scheduler (JobRunr, Spring Batch, <code>@Scheduled</code>, Quartz). It's blocking, and
             stops when its thread is interrupted. The <code>ProgressListener</code> can drive a dashboard progress bar.</li>
+          <li>Label the comparison with the job's id, <code>.label("batchJobId", jobId)</code>, and the stored report
+            can be found from the job later: <code>reportRepository.findByLabels(Map.of("batchJobId", jobId), 10)</code>
+            or <code>GET /actuator/comparisons?label=batchJobId:4711</code>.</li>
           <li>Don't let the next sync overwrite the backup before verification and rollback are done.</li>
         </ul>
       </div>
@@ -656,6 +659,7 @@ void onComparison(ComparisonCompletedEvent event) {
           <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
           <tr><td><code>persistence.collection</code> / <code>.database</code></td><td class="def">comparison_reports / default</td><td>Where reports are stored</td></tr>
           <tr><td><code>persistence.retention</code></td><td class="def">forever</td><td>How long reports are kept, e.g. <code>365d</code> (TTL index)</td></tr>
+          <tr><td><code>labels.&lt;key&gt;</code></td><td class="def">–</td><td>Labels stored with every report, e.g. <code>labels.environment=test</code></td></tr>
           <tr><td><code>max-examples</code></td><td class="def">20</td><td>Example keys per category and per changed path</td></tr>
           <tr><td><code>max-value-examples</code></td><td class="def">3</td><td>Before/after values per changed path; <code>0</code> disables them</td></tr>
           <tr><td><code>top-changed-paths</code></td><td class="def">50</td><td>Changed paths listed in the report</td></tr>
@@ -726,6 +730,7 @@ void onComparison(ComparisonCompletedEvent event) {
       <tr><td><code>--mode=auto|full|sample</code>, <code>--sample-size=n</code></td><td>Comparison mode (default auto)</td></tr>
       <tr><td><code>--matched-only</code></td><td>Compare only documents whose key exists on both sides</td></tr>
       <tr><td><code>--null-equals-missing</code>, <code>--mixed-key-types</code>, <code>--verdict-basis</code></td><td>As in the configuration table</td></tr>
+      <tr><td><code>--label=key=value</code></td><td>Label stored with the report, e.g. a batch job id; repeatable</td></tr>
       <tr><td><code>--persist</code></td><td>Store the report in MongoDB</td></tr>
       <tr><td><code>--out=file</code></td><td>Also write the report to a file</td></tr>
       <tr><td><code>--help</code></td><td>Full usage</td></tr>
