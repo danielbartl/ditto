@@ -23,6 +23,8 @@ public record Hint(Kind kind, @Nullable String path, String message, @Nullable S
         EXPECTED_CHANGE,
         /** An object with very many distinct paths: treat it as a map. */
         WILDCARD,
+        /** One side holds only a part of the other's keys, e.g. a test environment: compare matched documents only. */
+        MATCHED_ONLY,
         /** The sample is too small to confirm a better verdict. */
         LARGER_SAMPLE,
         /** Something worth a look, nothing to configure. */

@@ -30,6 +30,8 @@ final class Usage {
               --mode=auto|full|sample       default auto: full scan up to 5,000,000 documents per side, else
                                             a sample (--ditto.full-scan-limit, --ditto.sample.size)
               --sample-size=<n>             sample size (implies --mode=sample)
+              --matched-only                compare only documents whose key exists on both sides, e.g. when
+                                            one side holds just a part of the data (test environment)
               --null-equals-missing         treat null fields like missing fields
               --mixed-key-types=reject|compare
               --verdict-basis=conservative|point   which value of estimated rates the verdict uses

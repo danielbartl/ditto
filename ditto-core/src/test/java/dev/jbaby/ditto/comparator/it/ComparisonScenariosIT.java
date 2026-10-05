@@ -31,6 +31,7 @@ import dev.jbaby.ditto.comparator.api.Hint;
 import dev.jbaby.ditto.comparator.api.KeyRef;
 import dev.jbaby.ditto.comparator.api.Level;
 import dev.jbaby.ditto.comparator.api.MixedKeyPolicy;
+import dev.jbaby.ditto.comparator.api.Rate;
 import dev.jbaby.ditto.comparator.support.Collections;
 import dev.jbaby.ditto.comparator.support.TestApplication;
 
@@ -214,6 +215,113 @@ class ComparisonScenariosIT {
                     ? "{_id: " + i + ", note: null}" : "{_id: " + i + ", note: 'x'}"));
             Collections.create(DB, "null_b", documents(100, i -> i % 2 == 0
                     ? "{_id: " + i + "}" : "{_id: " + i + ", note: 'x'}"));
+        }
+    }
+
+    /** A test environment holds only a part of the data: compare just the documents present on both sides. */
+    @Nested
+    class MatchedOnly {
+
+        @Test
+        void comparesOnlySharedDocumentsReadingTheSmallerSide() {
+            createSubset();
+
+            ComparisonReport plain = compare("full_set", "sub_set");
+            assertThat(plain.verdict()).isEqualTo(Level.RED);
+            assertThat(plain.structure().missingPaths()).extracting(PathPresence::path).containsExactly("archived");
+            assertThat(plain.hints()).anySatisfy(hint -> {
+                assertThat(hint.kind()).isEqualTo(Hint.Kind.MATCHED_ONLY);
+                assertThat(hint.cliOption()).isEqualTo("--matched-only");
+            });
+
+            ComparisonReport report = comparator.compare(ComparisonRequest.builder("full_set", "sub_set")
+                    .matchedOnly().build());
+
+            assertThat(report.verdict()).isEqualTo(Level.GREEN);
+            assertThat(report.keys().matched()).isEqualTo(100);
+            assertThat(report.keys().removed()).isEqualTo(900);
+            assertThat(report.keys().added()).isEqualTo(3);
+            assertThat(report.keys().keySimilarity().value()).isEqualTo(100.0 / 1003);
+            RuleResult keySimilarity = rule(report, "keySimilarity");
+            assertThat(keySimilarity.level()).isEqualTo(Level.GREEN);
+            assertThat(keySimilarity.observed()).isNull();
+            assertThat(report.content().changed()).isEqualTo(2);
+            assertThat(report.topChangedPaths()).extracting(PathChange::path).containsExactly("price");
+            assertThat(report.topChangedPaths().getFirst().changeRate().value()).isEqualTo(0.02);
+            // only matched documents are profiled: neither archived nor extra shows up
+            assertThat(report.structure().missingPaths()).isEmpty();
+            assertThat(report.structure().newPaths()).isEmpty();
+            assertThat(report.examples().added()).extracting(KeyRef::value).containsExactly("2000", "2001", "2002");
+            assertThat(report.examples().removed()).isEmpty();
+            // the candidate is smaller, so only it is read; the baseline is looked up
+            assertThat(report.run().baselineCount()).isEqualTo(1000);
+            assertThat(report.run().candidateCount()).isEqualTo(103);
+            assertThat(report.run().baselineDocsRead()).isEqualTo(100);
+            assertThat(report.run().candidateDocsRead()).isEqualTo(103);
+            assertThat(report.run().settings().matchedOnly()).isTrue();
+            assertThat(report.run().decisions()).contains(
+                    "Mode AUTO chose FULL: matched-only reads the smaller side, 103 documents, full-scan limit"
+                            + " 5,000,000",
+                    "Matched-only: compared only documents whose key exists on both sides, by reading all of the"
+                            + " candidate (103 documents) and looking up its keys in the baseline; documents on one"
+                            + " side only are counted but not compared, and keySimilarity is not judged");
+            assertThat(report.hints()).noneMatch(hint -> hint.kind() == Hint.Kind.MATCHED_ONLY);
+        }
+
+        @Test
+        void readsTheBaselineWhenItIsSmaller() {
+            createSubset();
+
+            ComparisonReport report = comparator.compare(ComparisonRequest.builder("sub_set", "full_set")
+                    .matchedOnly().build());
+
+            assertThat(report.verdict()).isEqualTo(Level.GREEN);
+            assertThat(report.keys().matched()).isEqualTo(100);
+            assertThat(report.keys().removed()).isEqualTo(3);
+            assertThat(report.keys().added()).isEqualTo(900);
+            assertThat(report.examples().removed()).extracting(KeyRef::value).containsExactly("2000", "2001", "2002");
+            assertThat(report.run().baselineDocsRead()).isEqualTo(103);
+            assertThat(report.run().candidateDocsRead()).isEqualTo(100);
+        }
+
+        @Test
+        void sampleOfTheSmallerSide() {
+            createSubset();
+
+            ComparisonReport report = comparator.compare(ComparisonRequest.builder("full_set", "sub_set")
+                    .matchedOnly().sample(50).build());
+
+            assertThat(report.run().candidateDocsRead()).isEqualTo(50);
+            assertThat(report.keys().keySimilarity()).isInstanceOf(Rate.Estimate.class);
+            assertThat(report.keys().matched()).isBetween(80L, 103L);
+            assertThat(report.content().unchangedRate()).isInstanceOf(Rate.Estimate.class);
+            assertThat(rule(report, "keySimilarity").level()).isEqualTo(Level.GREEN);
+            assertThat(report.structure().missingPaths()).isEmpty();
+            assertThat(report.run().decisions()).anyMatch(decision -> decision.startsWith(
+                    "Matched-only: compared only documents whose key exists on both sides, by reading a sample of 50"
+                            + " keys of the candidate (103 documents)"));
+        }
+
+        @Test
+        void noSharedKeyIsRed() {
+            Collections.create(DB, "disjoint_a", documents(10, i -> "{_id: " + i + "}"));
+            Collections.create(DB, "disjoint_b", documents(10, i -> "{_id: " + (i + 100) + "}"));
+
+            ComparisonReport report = comparator.compare(ComparisonRequest.builder("disjoint_a", "disjoint_b")
+                    .matchedOnly().build());
+
+            assertThat(report.verdict()).isEqualTo(Level.RED);
+            assertThat(rule(report, "keySimilarity").reason()).startsWith("No key exists on both sides");
+        }
+
+        /** 1000 documents, 900 of them archived; the subset holds 100 unarchived ones (2 repriced) plus 3 new. */
+        private void createSubset() {
+            Collections.create(DB, "full_set", documents(1000, i -> "{_id: " + i + ", name: 'n" + i + "', price: " + i
+                    + (i >= 100 ? ", archived: true" : "") + "}"));
+            List<BsonDocument> subset = new ArrayList<>(documents(100, i -> "{_id: " + i + ", name: 'n" + i
+                    + "', price: " + (i < 2 ? i + 1 : i) + "}"));
+            subset.addAll(documents(3, i -> "{_id: " + (2000 + i) + ", name: 'new', price: 1, extra: true}"));
+            Collections.create(DB, "sub_set", subset);
         }
     }
 

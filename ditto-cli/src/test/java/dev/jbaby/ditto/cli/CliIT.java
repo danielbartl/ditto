@@ -85,6 +85,23 @@ class CliIT {
     }
 
     @Test
+    void matchedOnlyComparesASubset() {
+        run("generate", "--docs=2000", "--seed=3", "--baseline=sub_base", "--candidate=sub_part",
+                "--changes=delete-docs:0.9");
+
+        Result plain = run("--baseline=sub_base", "--candidate=sub_part", "--ignore=meta.syncedAt");
+        assertThat(plain.code()).isEqualTo(ExitCodes.RED);
+        assertThat(plain.err()).contains("--matched-only");
+
+        Result matchedOnly = run("--baseline=sub_base", "--candidate=sub_part", "--ignore=meta.syncedAt",
+                "--matched-only");
+        assertThat(matchedOnly.code()).isEqualTo(ExitCodes.GREEN);
+        var report = new ReportJson().read(matchedOnly.out());
+        assertThat(report.run().settings().matchedOnly()).isTrue();
+        assertThat(report.keys().removed()).isEqualTo(2000 - report.keys().matched());
+    }
+
+    @Test
     void errorsExitWithThree() {
         assertThat(run().err()).contains("Missing collections: --collection=<name>");
         assertThat(run("--collection=x", "--baseline=y").err()).contains("either --collection or --baseline");

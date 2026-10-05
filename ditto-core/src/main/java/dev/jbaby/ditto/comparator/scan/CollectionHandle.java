@@ -2,6 +2,9 @@ package dev.jbaby.ditto.comparator.scan;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
 import org.bson.BsonDocument;
 import org.bson.BsonValue;
@@ -12,11 +15,14 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Sorts;
 
 import dev.jbaby.ditto.comparator.api.CollectionRef;
 import dev.jbaby.ditto.comparator.api.ComparisonException;
 import dev.jbaby.ditto.comparator.api.KeyRef;
+import dev.jbaby.ditto.comparator.key.BsonKeyOrder;
 import dev.jbaby.ditto.comparator.key.KeyInspector;
 
 /**
@@ -56,6 +62,36 @@ public record CollectionHandle(String side, CollectionRef ref, MongoDatabase dat
         collection.aggregate(List.of(Aggregates.sample(size))).allowDiskUse(true)
                 .forEach(document -> documents.add(document.decode(new BsonDocumentCodec())));
         return documents;
+    }
+
+    /** Up to {@code size} random documents by key, sorted by key and without duplicates ({@code $sample} may repeat). */
+    public NavigableMap<BsonValue, RawBsonDocument> randomByKey(String keyField, int size) {
+        NavigableMap<BsonValue, RawBsonDocument> sample = new TreeMap<>(BsonKeyOrder.INSTANCE);
+        collection.aggregate(List.of(Aggregates.sample(size))).allowDiskUse(true)
+                .forEach(document -> sample.put(keyOf(document, keyField), document));
+        return sample;
+    }
+
+    /**
+     * Documents with the given keys ({@code $in}), by key.
+     *
+     * @param keysOnly fetch only the key field
+     * @throws ComparisonException if a key occurs twice
+     */
+    public Map<BsonValue, RawBsonDocument> findByKeys(String keyField, List<BsonValue> keys, boolean keysOnly) {
+        Map<BsonValue, RawBsonDocument> found = new TreeMap<>(BsonKeyOrder.INSTANCE);
+        var find = collection.find(Filters.in(keyField, keys)).collation(KeyInspector.SIMPLE);
+        if (keysOnly) {
+            find = find.projection(Projections.include(keyField));
+        }
+        find.forEach(document -> {
+            BsonValue key = keyOf(document, keyField);
+            if (found.put(key, document) != null) {
+                throw new ComparisonException("Duplicate key " + KeyRef.of(key).value() + " in " + this
+                        + ": the key field must be unique");
+            }
+        });
+        return found;
     }
 
     /** The key of a document read from this side. */

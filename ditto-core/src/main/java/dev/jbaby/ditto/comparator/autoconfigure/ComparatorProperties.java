@@ -63,6 +63,12 @@ public class ComparatorProperties {
     /** Default comparison mode: AUTO picks FULL or SAMPLE by collection size, see full-scan-limit. */
     private Mode mode = Mode.AUTO;
 
+    /**
+     * Compare only documents whose key exists on both sides, e.g. when one side holds just a subset (a test
+     * environment). keySimilarity is then reported but not judged.
+     */
+    private boolean matchedOnly = false;
+
     /** AUTO mode scans fully if neither collection has more documents than this; otherwise it samples. */
     private long fullScanLimit = 5_000_000;
 
@@ -113,6 +119,7 @@ public class ComparatorProperties {
                 orDefault(request.expectedChangePaths(), expectedChangePaths),
                 orDefault(request.redactedPaths(), redactedPaths),
                 Objects.requireNonNullElseGet(request.mode(), this::defaultMode),
+                Objects.requireNonNullElse(request.matchedOnly(), matchedOnly),
                 Objects.requireNonNullElse(request.nullEqualsMissing(), nullEqualsMissing),
                 Objects.requireNonNullElse(request.mixedKeyPolicy(), mixedKeyTypes),
                 Objects.requireNonNullElse(request.verdictBasis(), sample.verdictBasis),
@@ -572,6 +579,14 @@ public class ComparatorProperties {
 
     public void setMixedKeyTypes(MixedKeyPolicy mixedKeyTypes) {
         this.mixedKeyTypes = mixedKeyTypes;
+    }
+
+    public boolean isMatchedOnly() {
+        return matchedOnly;
+    }
+
+    public void setMatchedOnly(boolean matchedOnly) {
+        this.matchedOnly = matchedOnly;
     }
 
     public long getFullScanLimit() {

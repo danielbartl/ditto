@@ -31,6 +31,7 @@ class ComparatorPropertiesTest {
         assertThat(settings.keyField()).isEqualTo("_id");
         assertThat(settings.ignoredPaths()).containsExactly("_class");
         assertThat(settings.mode()).isEqualTo(ComparisonMode.auto());
+        assertThat(settings.matchedOnly()).isFalse();
         assertThat(settings.nullEqualsMissing()).isFalse();
         assertThat(settings.mixedKeyPolicy()).isEqualTo(MixedKeyPolicy.REJECT);
         assertThat(settings.verdictBasis()).isEqualTo(VerdictBasis.CONSERVATIVE);
@@ -49,6 +50,7 @@ class ComparatorPropertiesTest {
                 .keyField("sku")
                 .ignoredPaths("syncedAt")
                 .sample(100)
+                .matchedOnly()
                 .nullEqualsMissing(true)
                 .thresholds(thresholds)
                 .build();
@@ -61,6 +63,7 @@ class ComparatorPropertiesTest {
         // the request replaces configured ignored paths; always-ignored paths stay
         assertThat(settings.ignoredPaths()).containsExactly("_class", "syncedAt");
         assertThat(settings.mode()).isEqualTo(ComparisonMode.sample(100));
+        assertThat(settings.matchedOnly()).isTrue();
         assertThat(settings.nullEqualsMissing()).isTrue();
         assertThat(settings.thresholds()).isEqualTo(thresholds);
     }

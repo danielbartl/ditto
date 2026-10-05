@@ -453,6 +453,26 @@ java -jar ditto-cli.jar ... --sample-size=20000</pre></div>
     </details>
 
     <details class="scenario">
+      <summary><strong>Check a test environment that holds only part of the data</strong><span>matched-only</span></summary>
+      <div class="body">
+        <p>On a test environment one side often has just a few hundred documents, while the other is a full copy. A
+          normal comparison is <span class="chip red">RED</span> then, because most keys are missing. Matched-only
+          compares just the documents whose key exists on both sides:</p>
+        <div class="code"><pre>comparator.compare(comparator.backupRequest("products").matchedOnly().build());
+
+<span class="c"># CLI</span>
+java -jar ditto-cli.jar --collection=products --matched-only</pre></div>
+        <ul>
+          <li>ditto reads the smaller collection and looks up its keys in the other, so a small test collection is
+            quick to check against a large one.</li>
+          <li>Content, changed paths and structure cover the matched documents only. The key counts are still
+            reported, but key similarity isn't judged, unless no key matches at all.</li>
+          <li>A normal comparison that looks like this situation suggests the option in its hints.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="scenario">
       <summary><strong>Validate a migration or a new pipeline</strong><span>old vs. new database, custom key</span></summary>
       <div class="body">
         <p>Compare the output of a rewritten pipeline with the old one, or a migrated database with its source. The
@@ -606,6 +626,7 @@ void onComparison(ComparisonCompletedEvent event) {
           <tr><td><code>redacted-paths</code></td><td class="def">–</td><td>Values shown as <code>***</code> in value examples</td></tr>
           <tr><td><code>always-ignored-paths</code></td><td class="def">_class</td><td>Ignored in every comparison, on top of <code>ignored-paths</code></td></tr>
           <tr><td><code>null-equals-missing</code></td><td class="def">false</td><td>Treat <code>field: null</code> like an absent field</td></tr>
+          <tr><td><code>matched-only</code></td><td class="def">false</td><td>Compare only documents whose key exists on both sides, e.g. on a test environment</td></tr>
           <tr><td><code>mixed-key-types</code></td><td class="def">REJECT</td><td><code>COMPARE</code> accepts keys of different BSON types</td></tr>
           <tr><td><code>backup-suffix</code></td><td class="def">_backup</td><td>Baseline name for <code>compareWithBackup</code> / <code>--collection</code></td></tr>
         </table></div>
@@ -703,6 +724,7 @@ void onComparison(ComparisonCompletedEvent event) {
       <tr><td><code>--key</code></td><td>Key field</td></tr>
       <tr><td><code>--ignore</code>, <code>--ordered</code>, <code>--wildcard</code>, <code>--expected</code>, <code>--redact</code></td><td>Comma-separated path lists</td></tr>
       <tr><td><code>--mode=auto|full|sample</code>, <code>--sample-size=n</code></td><td>Comparison mode (default auto)</td></tr>
+      <tr><td><code>--matched-only</code></td><td>Compare only documents whose key exists on both sides</td></tr>
       <tr><td><code>--null-equals-missing</code>, <code>--mixed-key-types</code>, <code>--verdict-basis</code></td><td>As in the configuration table</td></tr>
       <tr><td><code>--persist</code></td><td>Store the report in MongoDB</td></tr>
       <tr><td><code>--out=file</code></td><td>Also write the report to a file</td></tr>

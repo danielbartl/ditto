@@ -26,7 +26,8 @@ import dev.jbaby.ditto.comparator.structure.StructureProfiler;
  * <ul>
  * <li>matched pairs: content hash comparison; for changed pairs the changed paths, whether they are all expected,
  * and before/after values</li>
- * <li>every document read: structure profile of its side</li>
+ * <li>every document read: structure profile of its side; only matched documents in a matched-only comparison, so
+ * both profiles describe the same documents</li>
  * <li>example keys per category and per changed path</li>
  * </ul>
  * Not thread-safe; one instance per comparison run.
@@ -46,6 +47,7 @@ public final class ScanAccumulator {
     private final ExampleCollector changedExamples;
     private final ExampleCollector addedExamples;
     private final ExampleCollector removedExamples;
+    private final boolean profileUnmatched;
 
     private long matched;
     private long unchanged;
@@ -72,6 +74,7 @@ public final class ScanAccumulator {
         this.changedExamples = new ExampleCollector(tuning.maxExamples());
         this.addedExamples = new ExampleCollector(tuning.maxExamples());
         this.removedExamples = new ExampleCollector(tuning.maxExamples());
+        this.profileUnmatched = !settings.matchedOnly();
     }
 
     public void matched(BsonValue key, RawBsonDocument baselineRaw, RawBsonDocument candidateRaw) {
@@ -106,13 +109,17 @@ public final class ScanAccumulator {
     public void removed(BsonValue key, RawBsonDocument baseline) {
         removed++;
         removedExamples.offer(key);
-        baselineProfiler.profile(baseline.decode(CODEC));
+        if (profileUnmatched) {
+            baselineProfiler.profile(baseline.decode(CODEC));
+        }
     }
 
     public void added(BsonValue key, RawBsonDocument candidate) {
         added++;
         addedExamples.offer(key);
-        candidateProfiler.profile(candidate.decode(CODEC));
+        if (profileUnmatched) {
+            candidateProfiler.profile(candidate.decode(CODEC));
+        }
     }
 
     /**

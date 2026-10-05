@@ -128,6 +128,38 @@ Documents are matched by a **key field** (default `_id`). Each key falls into on
 
 **keySimilarity** = matched / (matched + added + removed).
 
+### Comparing only shared documents
+
+On a test environment, one side often holds just a part of the data: a few hundred products in the candidate, a
+full copy in the baseline, or the other way round. A normal comparison is RED then, because most keys are missing,
+and the documents that are only on one side distort the structure check as well. ditto spots this situation and
+suggests the option in a hint.
+
+**Matched-only** compares just the documents whose key exists on both sides:
+
+```java
+comparator.compare(comparator.backupRequest("products").matchedOnly().build());
+```
+
+```bash
+java -jar ditto-cli.jar --collection=products --matched-only
+```
+
+What changes with matched-only:
+
+- ditto reads the **smaller** collection, fully or as a sample, and looks up its keys in the other one in batches.
+  The cost depends on the smaller side only, so a small test collection is quick to check against a large one. AUTO
+  mode decides between FULL and SAMPLE by the size of the smaller side.
+- Content, changed paths and structure are measured on the matched documents only. Fields that only occur in the
+  unmatched documents don't show up as vanished or new paths.
+- `keys` still reports how many documents are only on one side, but the **keySimilarity** rule doesn't judge it. The
+  only exception: if not a single key exists on both sides, the rule is RED, because nothing was compared.
+- The documents that the smaller side has on its own are listed in `examples`. Those of the larger side are never
+  read, so their number comes from the collection metadata.
+- Learned thresholds don't learn key similarity from matched-only runs.
+
+Don't use it for production checks: there, missing documents are exactly what keySimilarity is meant to catch.
+
 ### 2. Content
 
 Matched documents are compared in a **canonical form**. Their content is equal when the SHA-256 of a deterministic
@@ -260,6 +292,7 @@ ready-made options go to **stderr**, so `> report.json` and pipes into `jq` work
 | `--redact=<path,...>`           | Paths whose values are shown as `***` in value examples                    |
 | `--mode=auto\|full\|sample`      | Default `auto`: FULL up to 5,000,000 documents per side, else SAMPLE       |
 | `--sample-size=<n>`             | Sample size. Implies `--mode=sample`                                       |
+| `--matched-only`                | Compare only documents whose key exists on both sides, see [matched-only](#comparing-only-shared-documents) |
 | `--null-equals-missing`         | Treat `null` fields like missing fields                                    |
 | `--mixed-key-types=reject\|compare` | See [mixed key types](#keys-and-sort-order)                            |
 | `--verdict-basis=conservative\|point` | SAMPLE mode only, see [SAMPLE mode](#sample-mode)                    |
@@ -528,6 +561,7 @@ These are rarely needed. The defaults fit most data.
 | `redacted-paths`                           | –                    | Paths whose values are shown as `***` in value examples                         |
 | `always-ignored-paths`                     | `_class`             | Ignored in every comparison, in addition to `ignored-paths`                     |
 | `null-equals-missing`                      | `false`              | Treat `null` fields as missing                                                  |
+| `matched-only`                             | `false`              | Compare only documents whose key exists on both sides, see [matched-only](#comparing-only-shared-documents) |
 | `mixed-key-types`                          | `REJECT`             | `REJECT` or `COMPARE`, see [keys](#keys-and-sort-order)                         |
 | `backup-suffix`                            | `_backup`            | Baseline name used by `compareWithBackup` / `--collection`                      |
 | **Mode**                                   |                      |                                                                                 |

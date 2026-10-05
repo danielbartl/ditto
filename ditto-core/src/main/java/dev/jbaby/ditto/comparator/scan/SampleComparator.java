@@ -4,20 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.TreeMap;
 
 import org.bson.BsonValue;
 import org.bson.RawBsonDocument;
 
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Projections;
-
-import dev.jbaby.ditto.comparator.api.ComparisonException;
 import dev.jbaby.ditto.comparator.api.ComparisonSettings;
-import dev.jbaby.ditto.comparator.api.KeyRef;
-import dev.jbaby.ditto.comparator.key.BsonKeyOrder;
-import dev.jbaby.ditto.comparator.key.KeyInspector;
 import dev.jbaby.ditto.comparator.metrics.ScanAccumulator;
 import dev.jbaby.ditto.comparator.metrics.ScanResult;
 
@@ -38,9 +29,9 @@ public final class SampleComparator {
         String keyField = settings.keyField();
         int batchSize = settings.tuning().sampleLookupBatchSize();
 
-        NavigableMap<BsonValue, RawBsonDocument> baselineSample = sample(baseline, keyField, sampleSize);
+        NavigableMap<BsonValue, RawBsonDocument> baselineSample = baseline.randomByKey(keyField, sampleSize);
         for (List<Map.Entry<BsonValue, RawBsonDocument>> batch : batches(baselineSample, batchSize)) {
-            Map<BsonValue, RawBsonDocument> counterparts = lookup(candidate, keyField, keys(batch), false);
+            Map<BsonValue, RawBsonDocument> counterparts = candidate.findByKeys(keyField, keys(batch), false);
             for (Map.Entry<BsonValue, RawBsonDocument> entry : batch) {
                 RawBsonDocument match = counterparts.get(entry.getKey());
                 progress.baselineRead();
@@ -53,9 +44,9 @@ public final class SampleComparator {
             }
         }
 
-        NavigableMap<BsonValue, RawBsonDocument> candidateSample = sample(candidate, keyField, sampleSize);
+        NavigableMap<BsonValue, RawBsonDocument> candidateSample = candidate.randomByKey(keyField, sampleSize);
         for (List<Map.Entry<BsonValue, RawBsonDocument>> batch : batches(candidateSample, batchSize)) {
-            Map<BsonValue, RawBsonDocument> existing = lookup(baseline, keyField, keys(batch), true);
+            Map<BsonValue, RawBsonDocument> existing = baseline.findByKeys(keyField, keys(batch), true);
             for (Map.Entry<BsonValue, RawBsonDocument> entry : batch) {
                 progress.candidateRead();
                 if (!existing.containsKey(entry.getKey())) {
@@ -65,37 +56,6 @@ public final class SampleComparator {
         }
         progress.finish();
         return accumulator.result(progress.baselineDocs(), progress.candidateDocs(), candidateSample.size());
-    }
-
-    /** Random documents by key, sorted by key and without duplicates ({@code $sample} may repeat documents). */
-    private static NavigableMap<BsonValue, RawBsonDocument> sample(CollectionHandle handle, String keyField,
-                                                                   int size) {
-        NavigableMap<BsonValue, RawBsonDocument> sample = new TreeMap<>(BsonKeyOrder.INSTANCE);
-        handle.collection().aggregate(List.of(Aggregates.sample(size))).allowDiskUse(true)
-                .forEach(document -> sample.put(handle.keyOf(document, keyField), document));
-        return sample;
-    }
-
-    /**
-     * Documents of {@code handle} with the given keys, by key.
-     *
-     * @param keysOnly fetch only the key field
-     */
-    private static Map<BsonValue, RawBsonDocument> lookup(CollectionHandle handle, String keyField,
-                                                          List<BsonValue> keys, boolean keysOnly) {
-        Map<BsonValue, RawBsonDocument> found = new TreeMap<>(BsonKeyOrder.INSTANCE);
-        var find = handle.collection().find(Filters.in(keyField, keys)).collation(KeyInspector.SIMPLE);
-        if (keysOnly) {
-            find = find.projection(Projections.include(keyField));
-        }
-        find.forEach(document -> {
-            BsonValue key = handle.keyOf(document, keyField);
-            if (found.put(key, document) != null) {
-                throw new ComparisonException("Duplicate key " + KeyRef.of(key).value() + " in " + handle
-                        + ": the key field must be unique");
-            }
-        });
-        return found;
     }
 
     private static List<List<Map.Entry<BsonValue, RawBsonDocument>>> batches(

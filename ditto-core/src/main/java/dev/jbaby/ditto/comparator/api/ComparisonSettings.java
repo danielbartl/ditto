@@ -19,6 +19,7 @@ public record ComparisonSettings(
         List<String> expectedChangePaths,
         List<String> redactedPaths,
         ComparisonMode mode,
+        boolean matchedOnly,
         boolean nullEqualsMissing,
         MixedKeyPolicy mixedKeyPolicy,
         VerdictBasis verdictBasis,
@@ -50,20 +51,20 @@ public record ComparisonSettings(
 
     public ComparisonSettings withMode(ComparisonMode mode) {
         return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
-                expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy, verdictBasis, thresholds,
-                tuning);
+                expectedChangePaths, redactedPaths, mode, matchedOnly, nullEqualsMissing, mixedKeyPolicy, verdictBasis,
+                thresholds, tuning);
     }
 
     public ComparisonSettings withWildcardPaths(List<String> wildcardPaths) {
         return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
-                expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy, verdictBasis, thresholds,
-                tuning);
+                expectedChangePaths, redactedPaths, mode, matchedOnly, nullEqualsMissing, mixedKeyPolicy, verdictBasis,
+                thresholds, tuning);
     }
 
     public ComparisonSettings withThresholds(Thresholds thresholds) {
         return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
-                expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy, verdictBasis, thresholds,
-                tuning);
+                expectedChangePaths, redactedPaths, mode, matchedOnly, nullEqualsMissing, mixedKeyPolicy, verdictBasis,
+                thresholds, tuning);
     }
 
     private static List<String> sorted(List<String> paths) {

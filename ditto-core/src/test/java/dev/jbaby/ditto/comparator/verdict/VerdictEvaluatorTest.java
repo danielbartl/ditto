@@ -115,7 +115,7 @@ class VerdictEvaluatorTest {
 
         var tolerant = Thresholds.DEFAULTS.withStructure(new Thresholds.StructureThresholds(0.01, 0.05, 0.01));
         var onlyRare = evaluator.evaluate(new RuleInput(keys(1000, 0, 0), content(1000, 0), List.of(),
-                structure(List.of(), List.of(rare), List.of()), tolerant, VerdictBasis.POINT));
+                structure(List.of(), List.of(rare), List.of()), tolerant, VerdictBasis.POINT, false));
         assertThat(onlyRare.overall()).isEqualTo(Level.YELLOW);
         assertThat(rule(onlyRare, "structure.vanishedPaths").reason()).contains("1 of them rare");
     }
@@ -128,9 +128,9 @@ class VerdictEvaluatorTest {
                 new Rate.Estimate(0.0, 0.0, 0.004, 1000), new Rate.Estimate(1.0, 0.996, 1.0, 1000));
 
         var point = evaluator.evaluate(new RuleInput(estimatedKeys, estimatedContent, List.of(), structure(),
-                Thresholds.DEFAULTS, VerdictBasis.POINT));
+                Thresholds.DEFAULTS, VerdictBasis.POINT, false));
         var conservative = evaluator.evaluate(new RuleInput(estimatedKeys, estimatedContent, List.of(), structure(),
-                Thresholds.DEFAULTS, VerdictBasis.CONSERVATIVE));
+                Thresholds.DEFAULTS, VerdictBasis.CONSERVATIVE, false));
 
         assertThat(point.overall()).isEqualTo(Level.GREEN);
         assertThat(conservative.overall()).isEqualTo(Level.YELLOW);
@@ -138,9 +138,26 @@ class VerdictEvaluatorTest {
         assertThat(rule(conservative, "keySimilarity").reason()).contains("evaluated at lower bound");
     }
 
+    @Test
+    void matchedOnlyDoesNotJudgeKeySimilarityUnlessNothingMatched() {
+        var subset = evaluator.evaluate(new RuleInput(keys(100, 0, 9900), content(100, 0), List.of(), structure(),
+                Thresholds.DEFAULTS, VerdictBasis.CONSERVATIVE, true));
+        assertThat(subset.overall()).isEqualTo(Level.GREEN);
+        assertThat(rule(subset, "keySimilarity").observed()).isNull();
+        assertThat(rule(subset, "keySimilarity").reason()).isEqualTo("Not judged: matched-only comparison of the 100"
+                + " documents whose key exists on both sides (9900 only in the baseline, 0 only in the candidate not"
+                + " compared)");
+
+        var disjoint = evaluator.evaluate(new RuleInput(keys(0, 50, 9900), content(0, 0), List.of(), structure(),
+                Thresholds.DEFAULTS, VerdictBasis.CONSERVATIVE, true));
+        assertThat(disjoint.overall()).isEqualTo(Level.RED);
+        assertThat(rule(disjoint, "keySimilarity").reason()).startsWith("No key exists on both sides");
+    }
+
     private static RuleInput input(KeyMetrics keys, ContentMetrics content, List<PathChange> changes,
                                    StructureMetrics structure) {
-        return new RuleInput(keys, content, changes, structure, Thresholds.DEFAULTS, VerdictBasis.CONSERVATIVE);
+        return new RuleInput(keys, content, changes, structure, Thresholds.DEFAULTS, VerdictBasis.CONSERVATIVE,
+                false);
     }
 
     private static KeyMetrics keys(long matched, long added, long removed) {

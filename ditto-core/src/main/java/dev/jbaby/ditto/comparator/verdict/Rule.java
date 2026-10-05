@@ -6,6 +6,7 @@ import java.util.Locale;
 
 import org.jspecify.annotations.Nullable;
 
+import dev.jbaby.ditto.comparator.api.ComparisonReport.KeyMetrics;
 import dev.jbaby.ditto.comparator.api.ComparisonReport.PathChange;
 import dev.jbaby.ditto.comparator.api.ComparisonReport.PathPresence;
 import dev.jbaby.ditto.comparator.api.ComparisonReport.RuleResult;
@@ -33,7 +34,11 @@ public sealed interface Rule {
                 new TypeShifts(), new NewPaths(), new PresenceDeltas());
     }
 
-    /** {@code matched / (matched + added + removed)}; higher is better. */
+    /**
+     * {@code matched / (matched + added + removed)}; higher is better. Not judged in a matched-only comparison, except
+     * that no matched document at all is RED; its observed value is then left out, so it does not enter the history
+     * learned thresholds are derived from.
+     */
     record KeySimilarity() implements Rule {
 
         @Override
@@ -44,6 +49,9 @@ public sealed interface Rule {
         @Override
         public RuleResult evaluate(RuleInput input) {
             var keys = input.keys();
+            if (input.matchedOnly()) {
+                return matchedOnly(keys);
+            }
             Thresholds.AtLeast band = input.thresholds().keySimilarity();
             Double value = keys.keySimilarity().valueFor(input.basis(), true);
             if (value == null) {
@@ -55,6 +63,18 @@ public sealed interface Rule {
             return new RuleResult(name(), level, value, band.toString(),
                     describe(keys.keySimilarity(), input.basis(), true) + " " + compareTo(level, band)
                             + " (" + counts + ")",
+                    List.of());
+        }
+
+        private RuleResult matchedOnly(KeyMetrics keys) {
+            String threshold = "not judged (matched-only), RED if no key exists on both sides";
+            String counts = keys.removed() + " only in the baseline, " + keys.added() + " only in the candidate";
+            if (keys.matched() == 0 && keys.added() + keys.removed() > 0) {
+                return new RuleResult(name(), Level.RED, null, threshold,
+                        "No key exists on both sides, so nothing was compared (" + counts + ")", List.of());
+            }
+            return new RuleResult(name(), Level.GREEN, null, threshold, "Not judged: matched-only comparison of the "
+                    + keys.matched() + " documents whose key exists on both sides (" + counts + " not compared)",
                     List.of());
         }
     }

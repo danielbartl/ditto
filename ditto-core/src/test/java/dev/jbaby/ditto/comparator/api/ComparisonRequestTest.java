@@ -15,6 +15,7 @@ class ComparisonRequestTest {
         assertThat(request.keyField()).isNull();
         assertThat(request.ignoredPaths()).isNull();
         assertThat(request.mode()).isNull();
+        assertThat(request.matchedOnly()).isNull();
         assertThat(request.thresholds()).isNull();
     }
 
@@ -26,6 +27,7 @@ class ComparisonRequestTest {
                 .orderSensitivePaths("steps")
                 .wildcardPaths("attributes.*")
                 .sample(500)
+                .matchedOnly()
                 .nullEqualsMissing(true)
                 .mixedKeyPolicy(MixedKeyPolicy.COMPARE)
                 .verdictBasis(VerdictBasis.POINT)

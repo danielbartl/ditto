@@ -25,6 +25,8 @@ import org.jspecify.annotations.Nullable;
  *                            for maxPathChangeRate nor make a document count as changed for the unchangedRate rule
  * @param redactedPaths       paths whose values are shown as {@code ***} in value examples
  * @param mode                full scan or sample
+ * @param matchedOnly         compare only documents whose key exists on both sides, e.g. when one side is a small
+ *                            subset like a test environment; keySimilarity is then reported but not judged
  * @param nullEqualsMissing   whether a field with value {@code null} counts as equal to a missing field
  * @param mixedKeyPolicy      what to do if key values of different BSON types are found
  * @param verdictBasis        which value of estimated rates the verdict uses (SAMPLE mode)
@@ -40,6 +42,7 @@ public record ComparisonRequest(
         @Nullable Set<String> expectedChangePaths,
         @Nullable Set<String> redactedPaths,
         @Nullable ComparisonMode mode,
+        @Nullable Boolean matchedOnly,
         @Nullable Boolean nullEqualsMissing,
         @Nullable MixedKeyPolicy mixedKeyPolicy,
         @Nullable VerdictBasis verdictBasis,
@@ -80,6 +83,7 @@ public record ComparisonRequest(
                 .expectedChangePaths(expectedChangePaths)
                 .redactedPaths(redactedPaths)
                 .mode(mode)
+                .matchedOnly(matchedOnly)
                 .nullEqualsMissing(nullEqualsMissing)
                 .mixedKeyPolicy(mixedKeyPolicy)
                 .verdictBasis(verdictBasis)
@@ -97,6 +101,7 @@ public record ComparisonRequest(
         private @Nullable Set<String> expectedChangePaths;
         private @Nullable Set<String> redactedPaths;
         private @Nullable ComparisonMode mode;
+        private @Nullable Boolean matchedOnly;
         private @Nullable Boolean nullEqualsMissing;
         private @Nullable MixedKeyPolicy mixedKeyPolicy;
         private @Nullable VerdictBasis verdictBasis;
@@ -170,6 +175,16 @@ public record ComparisonRequest(
             return mode(ComparisonMode.sample(size));
         }
 
+        public Builder matchedOnly(@Nullable Boolean matchedOnly) {
+            this.matchedOnly = matchedOnly;
+            return this;
+        }
+
+        /** Compares only documents whose key exists on both sides. */
+        public Builder matchedOnly() {
+            return matchedOnly(true);
+        }
+
         public Builder nullEqualsMissing(@Nullable Boolean nullEqualsMissing) {
             this.nullEqualsMissing = nullEqualsMissing;
             return this;
@@ -192,8 +207,8 @@ public record ComparisonRequest(
 
         public ComparisonRequest build() {
             return new ComparisonRequest(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths,
-                    wildcardPaths, expectedChangePaths, redactedPaths, mode, nullEqualsMissing, mixedKeyPolicy,
-                    verdictBasis, thresholds);
+                    wildcardPaths, expectedChangePaths, redactedPaths, mode, matchedOnly, nullEqualsMissing,
+                    mixedKeyPolicy, verdictBasis, thresholds);
         }
     }
 }

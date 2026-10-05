@@ -34,6 +34,10 @@ public final class HintAdvisor {
     static final double EVERYWHERE = 0.9;
     /** Child paths below one object from which it looks like a map. */
     static final int MANY_CHILDREN = 100;
+    /** Share of one side's keys missing from the other from which the other looks like a subset. */
+    static final double SUBSET_OUTSIDE = 0.5;
+    /** Share of the smaller side's keys missing from the larger one up to which it still counts as a subset. */
+    static final double SUBSET_INSIDE = 0.05;
     private static final int MAX_PER_KIND = 5;
     private static final Set<BsonType> TIME_TYPES = EnumSet.of(BsonType.DATE_TIME, BsonType.TIMESTAMP);
 
@@ -48,6 +52,7 @@ public final class HintAdvisor {
         List<Hint> hints = new ArrayList<>();
         changedPaths(settings, input, candidate, hints);
         replacedKeys(input, hints);
+        subset(input, hints);
         maps(settings, baseline, candidate, hints);
         sample(settings, input, rules, hints);
         return hints;
@@ -94,6 +99,28 @@ public final class HintAdvisor {
         }
     }
 
+    /** One side's keys are nearly all in the other, which has many more: a subset, e.g. a test environment. */
+    private static void subset(RuleInput input, List<Hint> hints) {
+        Double added = input.keys().addedRate().value();
+        Double removed = input.keys().removedRate().value();
+        if (input.matchedOnly() || input.keys().matched() == 0 || added == null || removed == null) {
+            return;
+        }
+        String message;
+        if (removed >= SUBSET_OUTSIDE && added <= SUBSET_INSIDE) {
+            message = "The candidate holds only " + percent(1 - removed) + " of the baseline keys, and "
+                    + percent(1 - added) + " of its keys exist in the baseline: it looks like a subset.";
+        } else if (added >= SUBSET_OUTSIDE && removed <= SUBSET_INSIDE) {
+            message = "The baseline holds only " + percent(1 - added) + " of the candidate keys, and "
+                    + percent(1 - removed) + " of its keys exist in the candidate: it looks like a subset.";
+        } else {
+            return;
+        }
+        hints.add(new Hint(Hint.Kind.MATCHED_ONLY, null, message + " If that is intended (e.g. a test environment"
+                + " with a part of the data), compare only the documents whose key exists on both sides.",
+                "ditto.matched-only=true", "--matched-only"));
+    }
+
     private static void maps(ComparisonSettings settings, StructureProfile baseline, StructureProfile candidate,
                              List<Hint> hints) {
         Map<String, Set<String>> children = new HashMap<>();
@@ -124,7 +151,7 @@ public final class HintAdvisor {
             return;
         }
         var point = verdictEvaluator.evaluate(new RuleInput(input.keys(), input.content(), input.changedPaths(),
-                input.structure(), input.thresholds(), VerdictBasis.POINT));
+                input.structure(), input.thresholds(), VerdictBasis.POINT, input.matchedOnly()));
         List<String> unconfirmed = new ArrayList<>();
         for (int i = 0; i < rules.size(); i++) {
             Level conservative = rules.get(i).level();

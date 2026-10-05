@@ -33,6 +33,7 @@ import dev.jbaby.ditto.comparator.metrics.ScanResult;
 import dev.jbaby.ditto.comparator.report.ReportAssembler;
 import dev.jbaby.ditto.comparator.report.ReportRepository;
 import dev.jbaby.ditto.comparator.scan.CollectionHandle;
+import dev.jbaby.ditto.comparator.scan.MatchedOnlyComparator;
 import dev.jbaby.ditto.comparator.scan.MergeJoinComparator;
 import dev.jbaby.ditto.comparator.scan.Preflight;
 import dev.jbaby.ditto.comparator.scan.ProgressReporter;
@@ -63,6 +64,7 @@ public class CollectionComparator {
     private final Preflight preflight;
     private final MergeJoinComparator mergeJoin;
     private final SampleComparator sampler;
+    private final MatchedOnlyComparator matchedOnly;
     private final ReportAssembler assembler;
     private final @Nullable ReportRepository repository;
     private final @Nullable ThresholdAdvisor thresholdAdvisor;
@@ -78,14 +80,16 @@ public class CollectionComparator {
      */
     public CollectionComparator(MongoDatabaseFactory databaseFactory, ComparatorProperties properties, Hasher hasher,
                                 Preflight preflight, MergeJoinComparator mergeJoin, SampleComparator sampler,
-                                ReportAssembler assembler, @Nullable ReportRepository repository,
-                                @Nullable ThresholdAdvisor thresholdAdvisor, ApplicationEventPublisher events) {
+                                MatchedOnlyComparator matchedOnly, ReportAssembler assembler,
+                                @Nullable ReportRepository repository, @Nullable ThresholdAdvisor thresholdAdvisor,
+                                ApplicationEventPublisher events) {
         this.databaseFactory = databaseFactory;
         this.properties = properties;
         this.hasher = hasher;
         this.preflight = preflight;
         this.mergeJoin = mergeJoin;
         this.sampler = sampler;
+        this.matchedOnly = matchedOnly;
         this.assembler = assembler;
         this.repository = repository;
         this.thresholdAdvisor = thresholdAdvisor;
@@ -177,15 +181,17 @@ public class CollectionComparator {
                 thresholdSource.kind() == ThresholdSource.Kind.HISTORY
                         ? "from " + thresholdSource.historyRuns() + " previous runs" : thresholdSource.kind());
         ScanAccumulator accumulator = new ScanAccumulator(settings, hasher);
-        ScanResult scan = switch (settings.mode()) {
-            case ComparisonMode.Full full -> mergeJoin.compare(baseline, candidate, settings, accumulator,
-                    new ProgressReporter(label, settings.tuning().progressInterval(),
-                            checked.baselineCount() + checked.candidateCount(), listener));
-            case ComparisonMode.Sample sample -> sampler.compare(baseline, candidate, settings, sample.size(),
-                    accumulator, new ProgressReporter(label, settings.tuning().progressInterval(),
-                            2L * sample.size(), listener));
-            case ComparisonMode.Auto auto -> throw new IllegalStateException("AUTO mode was not resolved");
-        };
+        ScanResult scan = settings.matchedOnly()
+                ? compareMatchedOnly(baseline, candidate, settings, checked, accumulator, label, listener, decisions)
+                : switch (settings.mode()) {
+                    case ComparisonMode.Full full -> mergeJoin.compare(baseline, candidate, settings, accumulator,
+                            new ProgressReporter(label, settings.tuning().progressInterval(),
+                                    checked.baselineCount() + checked.candidateCount(), listener));
+                    case ComparisonMode.Sample sample -> sampler.compare(baseline, candidate, settings, sample.size(),
+                            accumulator, new ProgressReporter(label, settings.tuning().progressInterval(),
+                                    2L * sample.size(), listener));
+                    case ComparisonMode.Auto auto -> throw new IllegalStateException("AUTO mode was not resolved");
+                };
         ComparisonReport report = assembler.assemble(settings, thresholdSource, decisions, checked, scan, startedAt,
                 Instant.now());
         log.info("{}: verdict {} (keySimilarity {}, unchangedRate {}, {} ms)", label, report.verdict(),
@@ -195,6 +201,25 @@ public class CollectionComparator {
                 hint.property() == null ? "" : " [" + hint.property() + "]"));
         store(report, label);
         return report;
+    }
+
+    /** Reads the smaller side (fully or sampled) and looks its keys up in the other. */
+    private ScanResult compareMatchedOnly(CollectionHandle baseline, CollectionHandle candidate,
+                                          ComparisonSettings settings, Preflight.Result checked,
+                                          ScanAccumulator accumulator, String label, ProgressListener listener,
+                                          List<String> decisions) {
+        boolean readBaseline = MatchedOnlyComparator.readsBaseline(checked.baselineCount(), checked.candidateCount());
+        CollectionHandle read = readBaseline ? baseline : candidate;
+        long readCount = readBaseline ? checked.baselineCount() : checked.candidateCount();
+        Integer sampleSize = settings.mode() instanceof ComparisonMode.Sample(int size) ? size : null;
+        decisions.add(String.format(Locale.ROOT, "Matched-only: compared only documents whose key exists on both"
+                + " sides, by reading %s the %s (%,d documents) and looking up its keys in the %s; documents on one"
+                + " side only are counted but not compared, and keySimilarity is not judged",
+                sampleSize == null ? "all of" : String.format(Locale.ROOT, "a sample of %,d keys of", sampleSize),
+                read.side(), readCount, readBaseline ? candidate.side() : baseline.side()));
+        long expected = 2L * (sampleSize == null ? readCount : Math.min(sampleSize, readCount));
+        return matchedOnly.compare(baseline, candidate, settings, readBaseline, sampleSize, accumulator,
+                new ProgressReporter(label, settings.tuning().progressInterval(), expected, listener));
     }
 
     /** Adds maps with dynamic keys found in a small sample of both sides to the wildcard paths. */
@@ -222,13 +247,24 @@ public class CollectionComparator {
         return settings.withWildcardPaths(wildcards);
     }
 
-    /** AUTO: FULL up to the full-scan limit per side, SAMPLE above. Explicit modes are kept. */
+    /**
+     * AUTO: FULL up to the full-scan limit per side, SAMPLE above. Matched-only reads just the smaller side, so only
+     * its size counts. Explicit modes are kept.
+     */
     private static ComparisonMode resolveMode(ComparisonSettings settings, Preflight.Result checked,
                                               List<String> decisions) {
         if (!(settings.mode() instanceof ComparisonMode.Auto)) {
             return settings.mode();
         }
         ComparisonSettings.Tuning tuning = settings.tuning();
+        if (settings.matchedOnly()) {
+            long smaller = Math.min(checked.baselineCount(), checked.candidateCount());
+            boolean full = smaller <= tuning.fullScanLimit();
+            decisions.add(String.format(Locale.ROOT, "Mode AUTO chose %s: matched-only reads the smaller side,"
+                    + " %,d documents, full-scan limit %,d", full ? "FULL" : String.format(Locale.ROOT,
+                    "SAMPLE of %,d keys", tuning.autoSampleSize()), smaller, tuning.fullScanLimit()));
+            return full ? ComparisonMode.full() : ComparisonMode.sample(tuning.autoSampleSize());
+        }
         long largest = Math.max(checked.baselineCount(), checked.candidateCount());
         if (largest <= tuning.fullScanLimit()) {
             decisions.add(String.format(Locale.ROOT, "Mode AUTO chose FULL: %,d and %,d documents, full-scan limit"

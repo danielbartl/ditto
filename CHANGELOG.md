@@ -6,6 +6,19 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ## [Unreleased]
 
+### Added
+
+- **Matched-only comparisons** for test environments that hold only part of the data:
+  `ComparisonRequest.Builder.matchedOnly()`, the property `ditto.matched-only` and the CLI option `--matched-only`.
+  ditto reads the smaller collection, looks up its keys in the other one, and measures content, changed paths and
+  structure on the documents present on both sides. keySimilarity is reported but not judged, unless no key matches
+  at all. A new hint (`MATCHED_ONLY`) suggests the option when one side looks like a subset of the other.
+
+### Changed
+
+- `ComparisonRequest` and `ComparisonSettings` have a new component `matchedOnly`, after `mode`. Code that calls their
+  constructors directly must pass it; the builder and stored reports are unaffected.
+
 ## [0.3.0] - 2026-10-03
 
 The first release on Maven Central. It runs without any configuration: point it at a collection

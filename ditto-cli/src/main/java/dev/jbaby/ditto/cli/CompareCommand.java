@@ -68,6 +68,7 @@ public class CompareCommand {
                 .expectedChangePaths(options.list("expected"))
                 .redactedPaths(options.list("redact"))
                 .mode(mode())
+                .matchedOnly(options.bool("matched-only"))
                 .nullEqualsMissing(options.bool("null-equals-missing"))
                 .mixedKeyPolicy(options.enumValue("mixed-key-types", MixedKeyPolicy.class))
                 .verdictBasis(options.enumValue("verdict-basis", VerdictBasis.class))

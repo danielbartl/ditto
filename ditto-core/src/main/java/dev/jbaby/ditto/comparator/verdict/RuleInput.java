@@ -18,9 +18,10 @@ import dev.jbaby.ditto.comparator.api.VerdictBasis;
  * @param structure    structure metrics
  * @param thresholds   thresholds to apply
  * @param basis        which value of estimated rates to evaluate
+ * @param matchedOnly  only documents on both sides were compared, so key similarity is not judged
  */
 public record RuleInput(KeyMetrics keys, ContentMetrics content, List<PathChange> changedPaths,
-                        StructureMetrics structure, Thresholds thresholds, VerdictBasis basis) {
+                        StructureMetrics structure, Thresholds thresholds, VerdictBasis basis, boolean matchedOnly) {
 
     public RuleInput {
         changedPaths = List.copyOf(changedPaths);
