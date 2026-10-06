@@ -260,6 +260,7 @@ How the three path options use this syntax:
 
 ```
 java -jar ditto-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
+java -jar ditto-cli.jar report [--id=<id> | --label=<key>=<value> | --collection=<collection>] [--html=<file>]
 java -jar ditto-cli.jar generate [options]
 java -jar ditto-cli.jar --help
 ```
@@ -299,6 +300,7 @@ ready-made options go to **stderr**, so `> report.json` and pipes into `jq` work
 | `--label=<key>=<value>`         | A [label](#labels-finding-the-report-of-a-job) stored with the report, e.g. `--label=batchJobId=4711`. Repeatable |
 | `--persist`                     | Also store the report in MongoDB                                           |
 | `--out=<file>`                  | Also write the report to a file                                            |
+| `--html=<file>`                 | Also write the report as a self-contained HTML page, see [viewing a report](#viewing-a-report) |
 | `--ditto.<property>=...`        | Any [library property](#configuration-reference), e.g. `--ditto.thresholds.key-similarity.green=0.995` |
 | `--spring.mongodb.<property>=...` | Any Spring Boot MongoDB property, e.g. credentials                       |
 
@@ -316,6 +318,27 @@ java -jar ditto-cli.jar --uri="$MONGO_URI" --db=shop \
 
 # the verdict and which rules fired
 java -jar ditto-cli.jar ... | jq '{verdict, rules: [.rules[] | select(.level != "GREEN") | {rule, level, reason}]}'
+```
+
+### report
+
+`report` prints a [stored](#persisting-reports) report, like `compare` prints a new one: JSON on stdout, a summary on
+stderr, and the report's verdict as exit code (3 if no report matches). It selects the report by one of:
+
+| Option                          | Report                                                                      |
+|---------------------------------|-----------------------------------------------------------------------------|
+| `--id=<id>`                     | The report with this id                                                     |
+| `--label=<key>=<value>`         | The newest report with these [labels](#labels-finding-the-report-of-a-job)  |
+| `--collection=<collection>`     | The newest report for this candidate (or `--candidate`, with `--candidate-db`) |
+| none                            | The newest report                                                           |
+
+`--out=<file>` and `--html=<file>` write it to files as well. It reads `ditto.persistence.database` and
+`ditto.persistence.collection` (default `comparison_reports`), and changes nothing: not the reports, and not the
+collection's indexes or retention.
+
+```bash
+# the report of batch job 4711 as a page
+java -jar ditto-cli.jar report --uri="$MONGO_URI" --db=shop --label=batchJobId=4711 --html=report.html
 ```
 
 ### generate
@@ -554,7 +577,7 @@ stored reports. Expose it like any endpoint, with `management.endpoints.web.expo
 - `GET /actuator/comparisons` returns summaries of the 50 most recent reports.
 - `GET /actuator/comparisons?label=batchJobId:4711` returns only reports with that label. Separate several labels
   with commas: `label=batchJobId:4711,environment:test`.
-- `GET /actuator/comparisons/{id}` returns one full report.
+- `GET /actuator/comparisons/{id}` returns one full report. The [report viewer](#viewing-a-report) can display it.
 
 Micrometer and Actuator are optional dependencies of `ditto-core`. They are only used if the host application
 already has them.
@@ -633,6 +656,26 @@ The MongoDB connection itself is configured with Spring Boot's own properties (`
 ---
 
 ## Interpreting a report
+
+### Viewing a report
+
+The report is JSON, but you don't have to read it raw. ditto renders it as one self-contained HTML page: the verdict,
+the hints with ready-to-copy options, every rule, key and content metrics, the changed paths with their before/after
+values, the structure diff and the effective settings. The page makes no external requests, so it works offline,
+as a CI artifact, or attached to an alert.
+
+- **CLI**: `--html=report.html` next to `--out=report.json`, for a new comparison or, with [`report`](#report), for a
+  stored one.
+- **Library**: inject `ReportHtml` and call `write(report)`, e.g. to attach the page to an alert or serve it from your
+  own endpoint.
+- **In the browser**: the [report viewer](https://danielbartl.github.io/ditto/viewer.html) opens a `report.json`
+  you drop on it or paste. It is the same page, renders in your browser and uploads nothing.
+  `viewer.html#url=<address>` loads a report from an address, e.g. `/actuator/comparisons/{id}`, if that server
+  allows the viewer's origin (`management.endpoints.web.cors.allowed-origins=https://danielbartl.github.io`). Here
+  is an
+  [example report](https://danielbartl.github.io/ditto/viewer.html#url=example-report.json).
+
+### The JSON
 
 Below is an abbreviated real report (FULL mode, 20,000 generated documents, 3% price changes, 0.5% deleted, 0.5% added):
 
@@ -800,7 +843,8 @@ Points to consider:
   .toString())`, so the report can be found from the job. With `ditto.adaptive-thresholds.enabled=true`, ditto tunes the thresholds to your
   normal churn by itself.
 - **Alerts** can also come from an `@EventListener` for `ComparisonCompletedEvent`, which works no matter who
-  triggered the comparison.
+  triggered the comparison. Attach `ReportHtml.write(report)` as an HTML file, so the reader sees the whole
+  report without access to MongoDB.
 - **Progress and cancellation**: the `ProgressListener` maps onto the dashboard progress bar. If the job is deleted
   while it's running, JobRunr interrupts the worker thread. The comparison then stops within a few hundred documents and throws
   `ComparisonException`.

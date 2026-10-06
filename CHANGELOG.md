@@ -6,6 +6,21 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ## [Unreleased]
 
+### Added
+
+- **Report viewer**: a report as one self-contained HTML page (verdict, hints, rules, metrics, changed paths with
+  before/after values, structure, settings) that makes no external requests. `ReportHtml.write(report)` renders it
+  (auto-configured bean), the CLI writes it with `--html=<file>`, and the
+  [hosted viewer](https://danielbartl.github.io/ditto/viewer.html) opens a report JSON from a file, pasted, or from
+  `#url=<address>`, e.g. `/actuator/comparisons/{id}`.
+- CLI command `report`: prints a stored report, selected by `--id`, `--label` or `--collection`, or the newest one,
+  with `--out` / `--html` and the report's verdict as exit code.
+- `ReportRepository.readOnly(...)`: a repository that only reads, without creating, changing or dropping indexes.
+
+### Fixed
+
+- The CLI flag `--persist` without a value failed at startup; only `--persist=true` worked.
+
 ## [0.4.1] - 2026-10-05
 
 ### Added
