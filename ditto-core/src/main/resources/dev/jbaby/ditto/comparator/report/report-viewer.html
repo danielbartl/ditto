@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ditto report</title>
+<meta name="description" content="Viewer for ditto comparison reports. Renders a report's JSON in the browser; nothing is uploaded.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='16' r='6' fill='%2322a35a'/%3E%3Ccircle cx='23' cy='16' r='6' fill='%2322a35a' fill-opacity='.45'/%3E%3C/svg%3E">
+<!--
+  ditto report viewer. Self-contained: no external requests. A report embedded in the script element
+  "ditto-report" is rendered on load; without one, the page offers to open, drop or paste a report's JSON,
+  or loads it from #url=<address>. All report values are inserted as text, never as markup.
+-->
+<style>
+:root {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f3f3f1;
+  --text: #1c1d1f;
+  --muted: #5d6066;
+  --border: #e3e3df;
+  --accent: #1f6feb;
+  --accent-soft: #e8f0fd;
+  --code-bg: #f5f5f3;
+  --green: #1d8a4c;
+  --green-bg: #e6f4ec;
+  --yellow: #8a6100;
+  --yellow-bg: #fdf3d8;
+  --red: #b42318;
+  --red-bg: #fde8e6;
+  --bar-a: #1d8a4c;
+  --bar-b: #c9a227;
+  --bar-c: #b42318;
+  --bar-d: #8c8f96;
+  --radius: 10px;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111214;
+    --surface: #17181b;
+    --surface-2: #1e2024;
+    --text: #e7e7e4;
+    --muted: #a0a3a9;
+    --border: #2b2d32;
+    --accent: #6ea8fe;
+    --accent-soft: #1b2a44;
+    --code-bg: #1b1d21;
+    --green: #5fd38d;
+    --green-bg: #15301f;
+    --yellow: #f2c14e;
+    --yellow-bg: #33290f;
+    --red: #ff8a80;
+    --red-bg: #3a1714;
+    --bar-a: #4cc27c;
+    --bar-b: #e0b84a;
+    --bar-c: #f0766b;
+    --bar-d: #7d8189;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); }
+code, pre, .mono { font-family: var(--mono); font-size: 0.86em; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+header.top { border-bottom: 1px solid var(--border); background: var(--surface); }
+header.top .wrap { display: flex; align-items: center; gap: 12px; height: 52px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; color: var(--text); text-decoration: none; }
+.brand .dots { display: inline-flex; gap: 4px; }
+.brand .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--green); }
+.brand .dots i:last-child { opacity: .45; }
+.brand small { color: var(--muted); font-weight: 500; }
+header.top .actions { margin-left: auto; display: flex; gap: 8px; }
+button, .btn {
+  font: 600 13px/1 var(--sans); color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 7px; padding: 8px 12px; cursor: pointer;
+}
+button:hover, .btn:hover { border-color: var(--muted); }
+button.small { padding: 4px 8px; font-size: 12px; }
+main { padding: 24px 0 64px; }
+h1, h2, h3 { letter-spacing: -0.02em; line-height: 1.25; }
+h2 { font-size: 19px; margin: 0 0 12px; }
+h3 { font-size: 15px; margin: 18px 0 8px; }
+.muted { color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin: 0 0 16px; }
+.empty { color: var(--muted); font-style: italic; margin: 0; }
+
+/* summary */
+.summary { display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; align-items: center; }
+.verdict { font: 750 30px/1 var(--sans); letter-spacing: .02em; padding: 14px 18px; border-radius: 12px; grid-row: span 3; text-align: center; }
+.verdict small { display: block; font: 600 11px/1 var(--sans); letter-spacing: .08em; margin-bottom: 6px; opacity: .8; }
+.pair { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.pair .arrow { color: var(--muted); font-weight: 400; margin: 0 6px; }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); font-size: 13px; }
+.facts b { color: var(--text); font-weight: 600; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px; background: var(--surface-2); }
+.tag .mono { font-size: 12px; }
+
+/* levels */
+.green { color: var(--green); background: var(--green-bg); }
+.yellow { color: var(--yellow); background: var(--yellow-bg); }
+.red { color: var(--red); background: var(--red-bg); }
+.chip { display: inline-block; font: 650 11px/1 var(--sans); letter-spacing: .05em; padding: 4px 7px; border-radius: 999px; white-space: nowrap; }
+.chip.neutral { color: var(--muted); background: var(--surface-2); }
+
+/* callouts */
+.callout { border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; padding: 10px 14px; margin: 0 0 10px; background: var(--surface); }
+.callout.hint { border-left-color: var(--accent); }
+.callout.warning { border-left-color: var(--yellow); }
+.callout.notice { border-left-color: var(--red); }
+.callout p { margin: 0; }
+.callout .kind { font: 650 11px/1 var(--sans); letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+.fix { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 8px; }
+.fix code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; overflow-wrap: anywhere; }
+
+/* tables */
+.table { width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.path { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+ul.details { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+
+/* metrics */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.stat { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.stat .label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.stat .value { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); gap: 2px; margin-bottom: 14px; }
+.stack span { display: block; min-width: 2px; }
+dl.rates { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; font-size: 14px; }
+dl.rates dt { color: var(--muted); }
+dl.rates dd { margin: 0; font-variant-numeric: tabular-nums; }
+.ci { color: var(--muted); font-size: 12px; }
+
+/* change-rate bar with confidence interval */
+.bar { position: relative; height: 8px; min-width: 80px; background: var(--surface-2); border-radius: 4px; }
+.bar .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--accent); }
+.bar .fill.expected { background: var(--bar-d); }
+.bar .whisker { position: absolute; top: -3px; bottom: -3px; border-left: 2px solid var(--text); border-right: 2px solid var(--text); opacity: .35; }
+button.toggle { all: unset; cursor: pointer; font: inherit; overflow-wrap: anywhere; }
+button.toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.caret { display: inline-block; width: 1em; color: var(--muted); transition: transform .15s; }
+button[aria-expanded="true"] .caret { transform: rotate(90deg); }
+tr.detail > td { background: var(--surface-2); border-radius: 8px; padding: 4px 12px 12px; }
+tr.detail h3 { font-family: var(--sans); }
+tr[hidden] { display: none !important; }
+.examples { margin: 10px 0 4px; display: grid; gap: 8px; }
+.change { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; font-size: 13px; }
+.change .key { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.side { border-radius: 6px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.side.before { background: var(--red-bg); }
+.side.after { background: var(--green-bg); }
+.side .lbl { font-family: var(--sans); font-size: 11px; color: var(--muted); display: block; }
+.keylist { display: flex; flex-wrap: wrap; gap: 6px; }
+.keylist code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; font-size: 12px; overflow-wrap: anywhere; }
+.types { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* collapsible cards */
+details.card > summary { cursor: pointer; font-weight: 650; font-size: 17px; letter-spacing: -0.01em; }
+details.card[open] > summary { margin-bottom: 12px; }
+pre.raw { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; max-height: 70vh; margin: 0; }
+dl.settings { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; font-size: 14px; }
+dl.settings dt { color: var(--muted); }
+dl.settings dd { margin: 0; overflow-wrap: anywhere; }
+
+/* loader */
+.loader { max-width: 640px; margin: 40px auto; text-align: center; }
+.drop { border: 2px dashed var(--border); border-radius: 14px; padding: 36px 20px; background: var(--surface); }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop h1 { font-size: 24px; margin: 0 0 8px; }
+.drop p { color: var(--muted); margin: 0 0 18px; }
+.loader textarea { width: 100%; min-height: 120px; margin-top: 16px; font: 12px/1.4 var(--mono); padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.loader .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.error { color: var(--red); margin-top: 12px; overflow-wrap: anywhere; }
+footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16px 32px; }
+
+@media (max-width: 760px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .summary { grid-template-columns: 1fr; }
+  .verdict { grid-row: auto; justify-self: start; font-size: 24px; padding: 10px 14px; }
+  .stats { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .stat .value { font-size: 16px; }
+  .change { grid-template-columns: 1fr; }
+  .hide-sm { display: none; }
+  /* tables become stacked rows, numeric cells labelled */
+  table thead { display: none; }
+  table tr { display: block; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  table tr:last-child { border-bottom: none; }
+  table td { display: block; border: none; padding: 2px 0; }
+  td.num { text-align: left; }
+  td[data-label]::before { content: attr(data-label); color: var(--muted); font: 12px var(--sans); margin-right: 8px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="https://danielbartl.github.io/ditto/"><span class="dots"><i></i><i></i></span>ditto <small>report</small></a>
+    <div class="actions" id="actions"></div>
+  </div>
+</header>
+<main class="wrap" id="app"></main>
+<footer>Rendered in your browser. Nothing is uploaded.</footer>
+<script type="application/json" id="ditto-report"></script>
+<script>
+"use strict";
+(function () {
+  var KNOWN_SCHEMA = 1;
+  var app = document.getElementById("app");
+  var actions = document.getElementById("actions");
+
+  // ---- DOM helpers: values always go in as text ----
+  function h(tag, attrs) {
+    var el = document.createElement(tag);
+    if (attrs) {
+      for (var name in attrs) {
+        if (attrs[name] == null || attrs[name] === false) continue;
+        if (name === "class") el.className = attrs[name];
+        else if (name === "style") el.setAttribute("style", attrs[name]);
+        else if (name.slice(0, 2) === "on") el.addEventListener(name.slice(2), attrs[name]);
+        else el.setAttribute(name, attrs[name]);
+      }
+    }
+    for (var i = 2; i < arguments.length; i++) append(el, arguments[i]);
+    return el;
+  }
+  function append(el, child) {
+    if (child == null || child === false) return;
+    if (Array.isArray(child)) { child.forEach(function (c) { append(el, c); }); return; }
+    el.appendChild(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  function list(value) { return Array.isArray(value) ? value : []; }
+  function obj(value) { return value && typeof value === "object" && !Array.isArray(value) ? value : {}; }
+
+  // ---- formatting ----
+  var NF = new Intl.NumberFormat("en-US");
+  function count(n) { return typeof n === "number" ? NF.format(n) : "n/a"; }
+  function pct(v) {
+    if (typeof v !== "number") return "n/a";
+    var p = v * 100;
+    var digits = p !== 0 && Math.abs(p) < 0.1 ? 3 : 2;
+    return p.toFixed(digits) + " %";
+  }
+  function num(v) { return typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(4)) : "–"; }
+  function levelClass(level) { return level === "GREEN" ? "green" : level === "YELLOW" ? "yellow" : level === "RED" ? "red" : "neutral"; }
+  function chip(level) { return h("span", { class: "chip " + levelClass(level) }, level || "?"); }
+  function ref(c) { var c2 = obj(c); return c2.database ? c2.database + "." + c2.collection : (c2.collection || "?"); }
+  function when(iso) {
+    if (!iso) return "n/a";
+    var d = new Date(iso);
+    return isNaN(d) ? String(iso) : d.toLocaleString();
+  }
+  function duration(ms) {
+    if (typeof ms !== "number") return "n/a";
+    if (ms < 1000) return ms + " ms";
+    var s = ms / 1000;
+    if (s < 120) return s.toFixed(1) + " s";
+    return Math.floor(s / 60) + " min " + Math.round(s % 60) + " s";
+  }
+  function keyText(key) { var k = obj(key); return k.value != null ? String(k.value) : "?"; }
+
+  /** A rate as text: exact with count/total, estimated with its 95% confidence interval. */
+  function rate(r) {
+    r = obj(r);
+    if (r.kind === "estimate") {
+      return h("span", null, pct(r.value), " ",
+        r.value == null ? null : h("span", { class: "ci" },
+          "95% CI " + pct(r.lower) + " – " + pct(r.upper) + ", n=" + count(r.sampleSize)));
+    }
+    return h("span", null, pct(r.value), " ",
+      r.total != null ? h("span", { class: "ci" }, count(r.count) + " / " + count(r.total)) : null);
+  }
+  function rateBar(r, expected) {
+    r = obj(r);
+    var bar = h("div", { class: "bar", title: pct(r.value) });
+    var v = typeof r.value === "number" ? r.value : 0;
+    bar.appendChild(h("div", { class: "fill" + (expected ? " expected" : ""), style: "width:" + Math.max(v * 100, v > 0 ? 1 : 0) + "%" }));
+    if (r.kind === "estimate" && typeof r.lower === "number" && typeof r.upper === "number") {
+      bar.appendChild(h("div", { class: "whisker", style: "left:" + r.lower * 100 + "%;width:" + Math.max((r.upper - r.lower) * 100, 0.5) + "%" }));
+    }
+    return bar;
+  }
+  function stack(parts) {
+    var total = parts.reduce(function (s, p) { return s + (p.value || 0); }, 0);
+    var el = h("div", { class: "stack", role: "img", "aria-label": parts.map(function (p) { return p.label + " " + count(p.value); }).join(", ") });
+    if (total > 0) parts.forEach(function (p) {
+      if (p.value > 0) el.appendChild(h("span", { style: "flex:" + p.value + " 0 0;background:var(" + p.color + ")", title: p.label + ": " + count(p.value) }));
+    });
+    return el;
+  }
+  function stat(label, value, color) {
+    return h("div", { class: "stat" },
+      h("div", { class: "label" }, color ? h("span", { class: "swatch", style: "background:var(" + color + ")" }) : null, label),
+      h("div", { class: "value" }, value));
+  }
+  function copyButton(text) {
+    return h("button", { class: "small", type: "button", onclick: function (e) {
+      var b = e.currentTarget;
+      var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1200); };
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {}); else done();
+    } }, "Copy");
+  }
+  function card(title, body) { return h("section", { class: "card" }, h("h2", null, title), body); }
+  function emptyNote(text) { return h("p", { class: "empty" }, text); }
+  /** Headers are strings or {text, cls, label}; label: the cell is labelled with the header on small screens. */
+  function table(headers, rows) {
+    rows.forEach(function (row) {
+      headers.forEach(function (hd, i) {
+        if (hd.label && row.cells[i]) row.cells[i].setAttribute("data-label", hd.text);
+      });
+    });
+    return h("div", { class: "table" }, h("table", null,
+      h("thead", null, h("tr", null, headers.map(function (hd) {
+        return typeof hd === "string" ? h("th", null, hd) : h("th", { class: hd.cls }, hd.text);
+      }))),
+      h("tbody", null, rows)));
+  }
+
+  // ---- sections ----
+  function summary(report) {
+    var run = obj(report.run), settings = obj(run.settings), mode = obj(settings.mode);
+    var modeText = mode.type === "SAMPLE" ? "SAMPLE, " + count(mode.size) + " keys" : (mode.type || "?");
+    var labels = obj(report.labels);
+    return h("section", { class: "card summary" },
+      h("div", { class: "verdict " + levelClass(report.verdict) }, h("small", null, "VERDICT"), report.verdict || "?"),
+      h("div", { class: "pair" }, ref(settings.baseline), h("span", { class: "arrow" }, "→"), ref(settings.candidate)),
+      h("div", { class: "facts" },
+        h("span", null, "Finished ", h("b", { title: run.finishedAt || "" }, when(run.finishedAt))),
+        h("span", null, "Duration ", h("b", null, duration(run.durationMillis))),
+        h("span", null, "Mode ", h("b", null, modeText)),
+        settings.matchedOnly ? h("span", null, h("b", null, "matched only")) : null,
+        h("span", null, "Documents ", h("b", null, count(run.baselineCount) + " → " + count(run.candidateCount))),
+        h("span", null, "Key ", h("b", { class: "mono" }, settings.keyField || "_id"))),
+      h("div", { class: "tags" },
+        Object.keys(labels).map(function (k) { return h("span", { class: "tag" }, k + " = ", h("span", { class: "mono" }, labels[k])); }),
+        h("span", { class: "tag muted", title: "Report id" }, "id ", h("span", { class: "mono" }, report.id || "?"))));
+  }
+
+  function callouts(report) {
+    var out = [];
+    if (typeof report.schemaVersion === "number" && report.schemaVersion > KNOWN_SCHEMA) {
+      out.push(h("div", { class: "callout notice" }, h("p", null,
+        "This report has format version " + report.schemaVersion + "; this viewer knows version " + KNOWN_SCHEMA +
+        ". Some details may be missing or shown incorrectly.")));
+    }
+    list(report.warnings).forEach(function (w) {
+      out.push(h("div", { class: "callout warning" }, h("div", { class: "kind" }, "WARNING"), h("p", null, w)));
+    });
+    list(report.hints).forEach(function (hint) {
+      hint = obj(hint);
+      var fixes = [];
+      if (hint.cliOption) fixes.push(h("span", null, h("code", null, hint.cliOption), " ", copyButton(hint.cliOption)));
+      if (hint.property) fixes.push(h("span", null, h("code", null, hint.property), " ", copyButton(hint.property)));
+      out.push(h("div", { class: "callout hint" },
+        h("div", { class: "kind" }, "HINT · " + String(hint.kind || "").replace(/_/g, " ")),
+        h("p", null, hint.message),
+        fixes.length ? h("div", { class: "fix" }, fixes) : null));
+    });
+    return out;
+  }
+
+  function rules(report) {
+    var rows = list(report.rules).map(function (rule) {
+      rule = obj(rule);
+      return h("tr", null,
+        h("td", null, chip(rule.level)),
+        h("td", { class: "mono" }, rule.rule),
+        h("td", { class: "num" }, num(rule.observed)),
+        h("td", null, rule.reason,
+          list(rule.details).length ? h("ul", { class: "details" }, list(rule.details).map(function (d) { return h("li", null, d); })) : null),
+        h("td", { class: "muted hide-sm", style: "font-size:13px" }, rule.threshold));
+    });
+    return card("Rules", rows.length ? table(["Level", "Rule", { text: "Observed", cls: "num", label: true }, "Reason", { text: "Thresholds", cls: "hide-sm" }], rows) : emptyNote("No rules in this report."));
+  }
+
+  function keys(report) {
+    var k = obj(report.keys);
+    return card("Keys", [
+      h("div", { class: "stats" },
+        stat("Matched", count(k.matched), "--bar-a"), stat("Added", count(k.added), "--bar-b"), stat("Removed", count(k.removed), "--bar-c")),
+      stack([{ label: "Matched", value: k.matched, color: "--bar-a" }, { label: "Added", value: k.added, color: "--bar-b" },
+        { label: "Removed", value: k.removed, color: "--bar-c" }]),
+      h("dl", { class: "rates" },
+        h("dt", null, "Key similarity"), h("dd", null, rate(k.keySimilarity)),
+        h("dt", null, "Added rate"), h("dd", null, rate(k.addedRate)),
+        h("dt", null, "Removed rate"), h("dd", null, rate(k.removedRate)))]);
+  }
+
+  function content(report) {
+    var c = obj(report.content);
+    var expectedOnly = c.changedExpectedOnly || 0;
+    var rates = [h("dt", null, "Unchanged rate"), h("dd", null, rate(c.unchangedRate)),
+      h("dt", null, "Changed rate"), h("dd", null, rate(c.changedRate))];
+    if (expectedOnly > 0) rates.push(h("dt", null, "Unchanged or expected"), h("dd", null, rate(c.unchangedOrExpectedRate)));
+    return card("Content of matched documents", [
+      h("div", { class: "stats" },
+        stat("Unchanged", count(c.unchanged), "--bar-a"),
+        stat("Expected only", count(expectedOnly), "--bar-d"),
+        stat("Changed", count((c.changed || 0) - expectedOnly), "--bar-c")),
+      stack([{ label: "Unchanged", value: c.unchanged, color: "--bar-a" },
+        { label: "Changed in expected paths only", value: expectedOnly, color: "--bar-d" },
+        { label: "Changed", value: (c.changed || 0) - expectedOnly, color: "--bar-c" }]),
+      h("dl", { class: "rates" }, rates)]);
+  }
+
+  function valueChange(change) {
+    change = obj(change);
+    function side(cls, label, values) {
+      values = list(values);
+      return h("div", { class: "side " + cls }, h("span", { class: "lbl" }, label), values.length ? values.join("\n") : "(absent)");
+    }
+    return h("div", { class: "change" },
+      h("div", { class: "key" }, "Key ", h("span", { class: "mono" }, keyText(change.key))),
+      side("before", "baseline", change.baseline), side("after", "candidate", change.candidate));
+  }
+
+  function changedPaths(report) {
+    var paths = list(report.topChangedPaths);
+    if (!paths.length) return card("Changed paths", emptyNote("No path changed."));
+    var rows = [];
+    paths.forEach(function (p) {
+      p = obj(p);
+      var examples = list(p.valueExamples), keysOnly = list(p.examples);
+      var hasDetails = examples.length || keysOnly.length;
+      var detail = hasDetails ? h("tr", { class: "detail", hidden: "hidden" }, h("td", { colspan: "4" },
+        examples.length ? h("div", { class: "examples" }, examples.map(valueChange)) : null,
+        keysOnly.length ? h("div", null, h("h3", null, "Documents with this change ", copyButton(keysOnly.map(keyText).join("\n"))),
+          h("div", { class: "keylist" }, keysOnly.map(function (k) { return h("code", null, keyText(k)); }))) : null)) : null;
+      var name = [p.path, p.expected ? h("span", null, " ", h("span", { class: "chip neutral", title: "Expected-change path: not counted for maxPathChangeRate" }, "EXPECTED")) : null];
+      var label = hasDetails ? h("button", { class: "toggle", type: "button", "aria-expanded": "false", onclick: function (e) {
+        var open = detail.hidden;
+        detail.hidden = !open;
+        e.currentTarget.setAttribute("aria-expanded", String(open));
+      } }, h("span", { class: "caret" }, "▸"), name) : h("span", { style: "padding-left:1em" }, name);
+      rows.push(h("tr", null,
+        h("td", { class: "path" }, label),
+        h("td", { class: "num" }, count(p.changedDocs)),
+        h("td", { class: "num" }, rate(p.changeRate)),
+        h("td", { class: "hide-sm", style: "width:22%;vertical-align:middle" }, rateBar(p.changeRate, p.expected))));
+      if (detail) rows.push(detail);
+    });
+    return card("Changed paths", [h("p", { class: "muted", style: "margin:-6px 0 8px;font-size:13px" }, "Most frequent first. Click a path for before/after examples."),
+      table(["Path", { text: "Documents", cls: "num", label: true }, { text: "Change rate", cls: "num", label: true }, { text: "", cls: "hide-sm" }], rows)]);
+  }
+
+  function structure(report) {
+    var s = obj(report.structure);
+    var parts = [h("p", { class: "muted", style: "margin:0 0 6px;font-size:13px" },
+      count(s.baselinePaths) + " paths in the baseline, " + count(s.candidatePaths) + " in the candidate, profiled over " +
+      count(s.baselineDocs) + " and " + count(s.candidateDocs) + " documents.")];
+    if (s.pathCapReached) parts.push(h("div", { class: "callout warning" }, h("p", null,
+      "The path cap was reached: " + count(s.untrackedPathOccurrences) + " path occurrences were not tracked.")));
+    function presenceTable(title, items, empty) {
+      items = list(items);
+      parts.push(h("h3", null, title));
+      parts.push(items.length ? table(["Path", { text: "Baseline", cls: "num", label: true }, { text: "Candidate", cls: "num", label: true }, { text: "Δ", cls: "num", label: true }],
+        items.map(function (p) {
+          p = obj(p);
+          return h("tr", null, h("td", { class: "path" }, p.path),
+            h("td", { class: "num" }, pct(p.baselinePresence), " ", h("span", { class: "ci" }, count(p.baselineDocs))),
+            h("td", { class: "num" }, pct(p.candidatePresence), " ", h("span", { class: "ci" }, count(p.candidateDocs))),
+            h("td", { class: "num" }, (p.presenceDelta > 0 ? "+" : "") + pct(p.presenceDelta)));
+        })) : emptyNote(empty));
+    }
+    presenceTable("Vanished paths", s.missingPaths, "No path vanished.");
+    presenceTable("New paths", s.newPaths, "No new path.");
+    var shifts = list(s.typeShifts);
+    parts.push(h("h3", null, "Type shifts"));
+    function shares(items) {
+      return h("div", { class: "types" }, list(items).map(function (t) {
+        t = obj(t);
+        return h("span", { class: "tag", title: count(t.docs) + " documents" }, h("span", { class: "mono" }, t.type), " " + pct(t.share));
+      }));
+    }
+    parts.push(shifts.length ? table(["Path", { text: "Baseline", label: true }, { text: "Candidate", label: true }], shifts.map(function (t) {
+      t = obj(t);
+      return h("tr", null, h("td", { class: "path" }, t.path), h("td", null, shares(t.baseline)), h("td", null, shares(t.candidate)));
+    })) : emptyNote("No type shift."));
+    presenceTable("Presence changes", s.presenceDeltas, "No path changed how often it occurs.");
+    return card("Structure", parts);
+  }
+
+  function exampleKeys(report) {
+    var e = obj(report.examples);
+    var groups = [["Changed", e.changed], ["Added (only in the candidate)", e.added], ["Removed (only in the baseline)", e.removed]];
+    var parts = groups.filter(function (g) { return list(g[1]).length; }).map(function (g) {
+      var text = list(g[1]).map(keyText);
+      return h("div", null, h("h3", null, g[0], " ", copyButton(text.join("\n"))),
+        h("div", { class: "keylist" }, text.map(function (t) { return h("code", null, t); })));
+    });
+    return card("Example keys", parts.length ? parts : emptyNote("No example keys."));
+  }
+
+  function setting(name, value) {
+    var text;
+    if (Array.isArray(value)) text = value.length ? value.join(", ") : "–";
+    else if (value && typeof value === "object") text = JSON.stringify(value);
+    else text = value == null ? "–" : String(value);
+    return [h("dt", null, name), h("dd", { class: typeof value === "string" || Array.isArray(value) ? "mono" : null }, text)];
+  }
+
+  function runDetails(report, raw) {
+    var run = obj(report.run), settings = obj(run.settings), source = obj(run.thresholdSource), t = obj(settings.thresholds);
+    var decisions = list(run.decisions), notes = list(source.notes);
+    function pair(x) { x = obj(x); return "GREEN " + num(x.green) + ", YELLOW " + num(x.yellow); }
+    var thresholds = obj(t.structure);
+    var runCard = h("details", { class: "card" }, h("summary", null, "Run and settings"),
+      decisions.length ? [h("h3", { style: "margin-top:0" }, "Decisions"), h("ul", { class: "details", style: "color:var(--text);font-size:14px" },
+        decisions.map(function (d) { return h("li", null, d); }))] : null,
+      h("h3", null, "Thresholds (" + (source.kind || "?") + (source.historyRuns ? ", " + source.historyRuns + " runs of history" : "") + ")"),
+      notes.length ? h("ul", { class: "details" }, notes.map(function (n) { return h("li", null, n); })) : null,
+      h("dl", { class: "settings" },
+        setting("keySimilarity", pair(t.keySimilarity)),
+        setting("unchangedRate", pair(t.unchangedRate)),
+        setting("maxPathChangeRate", pair(t.maxPathChangeRate)),
+        setting("structure", "typeShareDelta " + num(thresholds.typeShareDelta) + ", presenceDelta " + num(thresholds.presenceDelta) +
+          ", vanishedMinPresence " + num(thresholds.vanishedMinPresence))),
+      h("h3", null, "Settings"),
+      h("dl", { class: "settings" },
+        setting("Started", run.startedAt), setting("Finished", run.finishedAt),
+        setting("Documents read", count(run.baselineDocsRead) + " / " + count(run.candidateDocsRead)),
+        setting("Key field", settings.keyField), setting("Ignored paths", list(settings.ignoredPaths)),
+        setting("Order-sensitive paths", list(settings.orderSensitivePaths)), setting("Wildcard paths", list(settings.wildcardPaths)),
+        setting("Expected-change paths", list(settings.expectedChangePaths)), setting("Redacted paths", list(settings.redactedPaths)),
+        setting("Mode", settings.mode), setting("Matched only", settings.matchedOnly),
+        setting("Null equals missing", settings.nullEqualsMissing), setting("Mixed key types", settings.mixedKeyPolicy),
+        setting("Verdict basis", settings.verdictBasis), setting("Tuning", settings.tuning),
+        setting("Report format", report.schemaVersion)));
+    var rawCard = h("details", { class: "card" }, h("summary", null, "Raw JSON"),
+      h("div", { style: "margin-bottom:8px" }, copyButton(raw)), h("pre", { class: "raw" }, raw));
+    return [runCard, rawCard];
+  }
+
+  function render(report, raw) {
+    report = obj(report);
+    if (!report.verdict && !report.run) throw new Error("This doesn't look like a ditto report (no verdict, no run).");
+    app.textContent = "";
+    var settings = obj(obj(report.run).settings);
+    document.title = (report.verdict || "?") + " · " + ref(settings.candidate) + " · ditto report";
+    append(app, [summary(report), callouts(report), rules(report),
+      h("div", { class: "grid2" }, keys(report), content(report)),
+      changedPaths(report), structure(report), exampleKeys(report), runDetails(report, raw)]);
+    window.scrollTo(0, 0);
+  }
+
+  // ---- loading ----
+  function load(text, source) {
+    var report;
+    try { report = JSON.parse(text); } catch (e) { throw new Error("Not valid JSON" + (source ? " (" + source + ")" : "") + ": " + e.message); }
+    render(report, JSON.stringify(report, null, 2));
+  }
+
+  function loader(message) {
+    app.textContent = "";
+    actions.textContent = "";
+    document.title = "ditto report";
+    var error = h("div", { class: "error", role: "alert" }, message || "");
+    function attempt(fn) { try { error.textContent = ""; fn(); showReopen(); } catch (e) { error.textContent = e.message; } }
+    function readFile(file) {
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () { attempt(function () { load(String(reader.result), file.name); }); };
+      reader.readAsText(file);
+    }
+    var input = h("input", { type: "file", accept: ".json,application/json", style: "display:none", onchange: function () { readFile(input.files[0]); } });
+    var paste = h("textarea", { placeholder: "…or paste a report's JSON here", "aria-label": "Report JSON" });
+    var drop = h("div", { class: "drop" },
+      h("h1", null, "Open a ditto report"),
+      h("p", null, "Drop a report JSON file here, choose one, or paste it below. It is read in your browser and never uploaded."),
+      h("button", { type: "button", onclick: function () { input.click(); } }, "Choose file…"), input,
+      paste,
+      h("div", { class: "row" }, h("button", { type: "button", onclick: function () { attempt(function () { load(paste.value, "pasted"); }); } }, "Show pasted report")),
+      error);
+    ["dragenter", "dragover"].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add("over"); }); });
+    ["dragleave", "drop"].forEach(function (t) { drop.addEventListener(t, function () { drop.classList.remove("over"); }); });
+    drop.addEventListener("drop", function (e) { e.preventDefault(); readFile(e.dataTransfer.files[0]); });
+    append(app, h("div", { class: "loader" }, drop,
+      h("p", { class: "muted", style: "font-size:13px" }, "Tip: ", h("code", null, "#url=<address>"),
+        " loads a report from an address, e.g. ", h("code", null, "/actuator/comparisons/<id>"), " (the server must allow it via CORS).")));
+  }
+
+  function showReopen() {
+    actions.textContent = "";
+    append(actions, h("button", { type: "button", onclick: function () { history.replaceState(null, "", location.pathname + location.search); loader(); } }, "Open another report"));
+  }
+
+  function fromUrl(url) {
+    app.textContent = "";
+    append(app, h("p", { class: "muted" }, "Loading " + url + " …"));
+    fetch(url, { headers: { Accept: "application/json" } })
+      .then(function (response) {
+        if (!response.ok) throw new Error("Loading " + url + " failed: HTTP " + response.status);
+        return response.text();
+      })
+      .then(function (text) { load(text, url); showReopen(); })
+      .catch(function (e) { loader(e.message); });
+  }
+
+  var embedded = document.getElementById("ditto-report").textContent.trim();
+  var hashUrl = /^#url=(.+)$/.exec(location.hash);
+  try {
+    if (embedded) load(embedded);
+    else if (hashUrl) fromUrl(decodeURIComponent(hashUrl[1]));
+    else loader();
+  } catch (e) {
+    loader(e.message);
+  }
+})();
+</script>
+</body>
+</html>

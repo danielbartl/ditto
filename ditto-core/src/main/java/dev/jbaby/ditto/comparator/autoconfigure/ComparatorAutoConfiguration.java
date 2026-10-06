@@ -20,6 +20,7 @@ import dev.jbaby.ditto.comparator.history.ReportHistory;
 import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
 import dev.jbaby.ditto.comparator.key.KeyInspector;
 import dev.jbaby.ditto.comparator.report.ReportAssembler;
+import dev.jbaby.ditto.comparator.report.ReportHtml;
 import dev.jbaby.ditto.comparator.report.ReportJson;
 import dev.jbaby.ditto.comparator.report.ReportRepository;
 import dev.jbaby.ditto.comparator.scan.MatchedOnlyComparator;
@@ -54,6 +55,12 @@ public class ComparatorAutoConfiguration {
     @ConditionalOnMissingBean
     public ReportJson comparatorReportJson() {
         return new ReportJson();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ReportHtml comparatorReportHtml(ReportJson reportJson) {
+        return new ReportHtml(reportJson);
     }
 
     @Bean
