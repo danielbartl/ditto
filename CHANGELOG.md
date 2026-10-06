@@ -6,6 +6,12 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ## [Unreleased]
 
+### Fixed
+
+- The report viewer rejected pasted reports that weren't plain JSON. It now also reads a terminal copy of the CLI's
+  output (log and summary lines around the JSON) and a stored report as `mongosh` prints it (unquoted keys, single
+  quotes, `ISODate(...)`), and shows a stored report's `_id` as its id.
+
 ## [0.5.0] - 2026-10-06
 
 ### Added

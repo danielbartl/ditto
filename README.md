@@ -669,7 +669,8 @@ as a CI artifact, or attached to an alert.
 - **Library**: inject `ReportHtml` and call `write(report)`, e.g. to attach the page to an alert or serve it from your
   own endpoint.
 - **In the browser**: the [report viewer](https://danielbartl.github.io/ditto/viewer.html) opens a `report.json`
-  you drop on it or paste. It is the same page, renders in your browser and uploads nothing.
+  you drop on it or paste. Pasting also takes the CLI's terminal output as a whole and a stored report as `mongosh`
+  prints it. It is the same page, renders in your browser and uploads nothing.
   `viewer.html#url=<address>` loads a report from an address, e.g. `/actuator/comparisons/{id}`, if that server
   allows the viewer's origin (`management.endpoints.web.cors.allowed-origins=https://danielbartl.github.io`). Here
   is an

@@ -557,9 +557,101 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
   }
 
   // ---- loading ----
-  function load(text, source) {
-    var report;
-    try { report = JSON.parse(text); } catch (e) { throw new Error("Not valid JSON" + (source ? " (" + source + ")" : "") + ": " + e.message); }
+  /**
+   * Reads what people paste: the report's JSON, also with the CLI's log and summary lines around it (a terminal
+   * copy), or a stored report as mongosh prints it (unquoted keys, single quotes, ISODate(...)).
+   */
+  function parseReport(text) {
+    text = String(text).trim();
+    if (!text) throw new Error("Nothing to show: the input is empty.");
+    try { return JSON.parse(text); } catch (ignored) { /* try the lenient forms */ }
+    // the outermost {...} block, from a line starting with "{" to the last line starting with "}"
+    var start = text.search(/^\{/m), end = text.lastIndexOf("\n}");
+    var block = start >= 0 && end > start ? text.slice(start, end + 2) : text;
+    try { return JSON.parse(block); } catch (ignored) { /* maybe mongosh syntax */ }
+    try { return parseShell(block); } catch (e) {
+      throw new Error("This is neither JSON nor mongosh output of a report (" + e.message + "). Paste the JSON the CLI " +
+        "prints or writes with --out, the response of /actuator/comparisons/{id}, or a document of the report collection.");
+    }
+  }
+
+  /** A JavaScript object literal as mongosh prints documents, e.g. { _id: 'x', createdAt: ISODate('...'), n: Long('5') }. */
+  function parseShell(text) {
+    var i = 0;
+    function fail(what) { throw new Error(what + " at line " + (text.slice(0, i).split("\n").length)); }
+    function ws() { while (i < text.length && /\s/.test(text[i])) i++; }
+    function word() { var m = /^[A-Za-z_$][\w$]*/.exec(text.slice(i, i + 64)); if (!m) return null; i += m[0].length; return m[0]; }
+    function string() {
+      var quote = text[i++], out = "";
+      while (i < text.length && text[i] !== quote) {
+        var c = text[i++];
+        if (c !== "\\") { out += c; continue; }
+        var e = text[i++];
+        if (e === "n") out += "\n"; else if (e === "t") out += "\t"; else if (e === "r") out += "\r";
+        else if (e === "b") out += "\b"; else if (e === "f") out += "\f"; else if (e === "0") out += "\0";
+        else if (e === "u") { out += String.fromCharCode(parseInt(text.substr(i, 4), 16)); i += 4; }
+        else if (e === "x") { out += String.fromCharCode(parseInt(text.substr(i, 2), 16)); i += 2; }
+        else out += e;
+      }
+      if (text[i++] !== quote) fail("Unterminated string");
+      return out;
+    }
+    function value() {
+      ws();
+      var c = text[i];
+      if (c === "{") {
+        i++; var o = {};
+        for (;;) {
+          ws();
+          if (text[i] === "}") { i++; return o; }
+          var key = text[i] === "'" || text[i] === '"' ? string() : word();
+          if (key == null) fail("Expected a field name");
+          ws();
+          if (text[i++] !== ":") fail("Expected ':'");
+          o[key] = value();
+          ws();
+          if (text[i] === ",") i++; else if (text[i] !== "}") fail("Expected ',' or '}'");
+        }
+      }
+      if (c === "[") {
+        i++; var a = [];
+        for (;;) {
+          ws();
+          if (text[i] === "]") { i++; return a; }
+          if (/^\[(Object|Array)\]/.test(text.slice(i, i + 8))) fail("mongosh shortened a nested value to [Object]; print it with printjson(...)");
+          a.push(value());
+          ws();
+          if (text[i] === ",") i++; else if (text[i] !== "]") fail("Expected ',' or ']'");
+        }
+      }
+      if (c === "'" || c === '"' || c === "`") return string();
+      var number = /^-?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/.exec(text.slice(i, i + 40));
+      if (number) { i += number[0].length; return Number(number[0]); }
+      var name = word();
+      if (name == null) fail("Unexpected character '" + c + "'");
+      if (name === "true") return true;
+      if (name === "false") return false;
+      if (name === "null" || name === "undefined") return null;
+      if (name === "Infinity" || name === "NaN") return null;
+      ws();
+      if (text[i] !== "(") fail("Unexpected word '" + name + "'");
+      i++; ws();
+      var arg = text[i] === ")" ? null : value();
+      ws();
+      if (text[i++] !== ")") fail("Expected ')' after " + name + "(");
+      // Long('5'), Int32(5), Decimal128('1.5') are numbers; ISODate, ObjectId, UUID and the like keep their text
+      return /^(Long|NumberLong|Int32|NumberInt|Double|Decimal128|NumberDecimal)$/.test(name) && arg != null ? Number(arg) : arg;
+    }
+    var result = value();
+    ws();
+    if (i < text.length) fail("Unexpected text after the document");
+    return result;
+  }
+
+  function load(text) {
+    var report = parseReport(text);
+    // a stored report keeps its id as _id
+    if (report && typeof report === "object" && report.id == null && report._id != null) report.id = report._id;
     render(report, JSON.stringify(report, null, 2));
   }
 
@@ -572,17 +664,17 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
     function readFile(file) {
       if (!file) return;
       var reader = new FileReader();
-      reader.onload = function () { attempt(function () { load(String(reader.result), file.name); }); };
+      reader.onload = function () { attempt(function () { load(String(reader.result)); }); };
       reader.readAsText(file);
     }
     var input = h("input", { type: "file", accept: ".json,application/json", style: "display:none", onchange: function () { readFile(input.files[0]); } });
-    var paste = h("textarea", { placeholder: "…or paste a report's JSON here", "aria-label": "Report JSON" });
+    var paste = h("textarea", { placeholder: "…or paste a report here: its JSON, or a stored report as mongosh prints it", "aria-label": "Report" });
     var drop = h("div", { class: "drop" },
       h("h1", null, "Open a ditto report"),
       h("p", null, "Drop a report JSON file here, choose one, or paste it below. It is read in your browser and never uploaded."),
       h("button", { type: "button", onclick: function () { input.click(); } }, "Choose file…"), input,
       paste,
-      h("div", { class: "row" }, h("button", { type: "button", onclick: function () { attempt(function () { load(paste.value, "pasted"); }); } }, "Show pasted report")),
+      h("div", { class: "row" }, h("button", { type: "button", onclick: function () { attempt(function () { load(paste.value); }); } }, "Show pasted report")),
       error);
     ["dragenter", "dragover"].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add("over"); }); });
     ["dragleave", "drop"].forEach(function (t) { drop.addEventListener(t, function () { drop.classList.remove("over"); }); });
@@ -605,7 +697,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
         if (!response.ok) throw new Error("Loading " + url + " failed: HTTP " + response.status);
         return response.text();
       })
-      .then(function (text) { load(text, url); showReopen(); })
+      .then(function (text) { load(text); showReopen(); })
       .catch(function (e) { loader(e.message); });
   }
 
