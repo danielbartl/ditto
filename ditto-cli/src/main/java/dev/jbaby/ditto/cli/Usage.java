@@ -8,6 +8,7 @@ final class Usage {
     static final String TEXT = """
             Usage: java -jar ditto-cli.jar [compare] --collection=<collection> [options]
                    java -jar ditto-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
+                   java -jar ditto-cli.jar report [--id=<id> | --label=<key>=<value> | --collection=<collection>]
                    java -jar ditto-cli.jar generate [options]
 
             Connection
@@ -42,6 +43,14 @@ final class Usage {
               --html=<file>                 also write the report as a self-contained HTML page
               --ditto.<property>=...        any library property, e.g.
                                             --ditto.thresholds.key-similarity.green=0.995
+
+            report (prints a stored report as JSON; exit code from its verdict, 3 if none matches)
+              --id=<id>                     the report with this id
+              --label=<key>=<value>         the newest report with these labels, e.g. --label=batchJobId=4711
+              --collection=<collection>     the newest report for this candidate (also --candidate, --candidate-db)
+                                            without a selection: the newest report
+              --out=<file>, --html=<file>   also write the report as JSON or as a self-contained HTML page
+              reads ditto.persistence.database / .collection (default comparison_reports); changes nothing
 
             generate (writes a baseline collection and a modified copy)
               --baseline=<collection>       default demo_backup

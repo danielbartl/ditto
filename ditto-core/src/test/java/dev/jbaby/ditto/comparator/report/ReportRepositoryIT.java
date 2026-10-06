@@ -1,7 +1,10 @@
 package dev.jbaby.ditto.comparator.report;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +19,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 
+import dev.jbaby.ditto.comparator.api.ComparisonReport;
 import dev.jbaby.ditto.comparator.support.Collections;
 import dev.jbaby.ditto.comparator.support.MongoContainer;
 
@@ -74,6 +78,24 @@ class ReportRepositoryIT {
         repository(Duration.ofDays(7)).findRecent(null, 1);
         repository(null).findRecent(null, 1);
         assertThat(indexNames()).as("no retention keeps reports").doesNotContain(ReportRepository.RETENTION_INDEX);
+    }
+
+    @Test
+    void aReadOnlyRepositoryReadsWithoutTouchingTheIndexes() throws IOException {
+        ComparisonReport report;
+        try (var in = getClass().getResourceAsStream("/reports/report-v0.1.0.json")) {
+            report = new ReportJson().read(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        repository(Duration.ofDays(30)).save(report);
+        List<String> indexes = indexNames();
+
+        ReportRepository readOnly = ReportRepository.readOnly(factory, null, COLLECTION, new ReportJson());
+
+        assertThat(readOnly.findById(report.id())).contains(report);
+        assertThat(readOnly.findRecent(null, 10)).containsExactly(report);
+        assertThat(indexNames()).as("the retention is kept").isEqualTo(indexes)
+                .contains(ReportRepository.RETENTION_INDEX);
+        assertThatThrownBy(() -> readOnly.save(report)).isInstanceOf(UnsupportedOperationException.class);
     }
 
     private ReportRepository repository(@Nullable Duration retention) {

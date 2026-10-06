@@ -24,12 +24,14 @@ public class CliRunner implements ApplicationRunner {
 
     private final CompareCommand compare;
     private final GenerateCommand generate;
+    private final ReportCommand report;
     private final CliConsole console;
     private int exitCode = ExitCodes.ERROR;
 
-    public CliRunner(CompareCommand compare, GenerateCommand generate, CliConsole console) {
+    public CliRunner(CompareCommand compare, GenerateCommand generate, ReportCommand report, CliConsole console) {
         this.compare = compare;
         this.generate = generate;
+        this.report = report;
         this.console = console;
     }
 
@@ -41,6 +43,7 @@ public class CliRunner implements ApplicationRunner {
             exitCode = switch (command) {
                 case "compare" -> compare.run();
                 case "generate" -> generate.run();
+                case "report" -> report.run();
                 default -> throw new CliUsageException("Unknown command '" + command + "'");
             };
         } catch (CliUsageException e) {

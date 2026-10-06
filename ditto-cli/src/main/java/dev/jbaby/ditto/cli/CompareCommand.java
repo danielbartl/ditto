@@ -147,7 +147,7 @@ public class CompareCommand {
         };
     }
 
-    private static String summary(ComparisonReport report) {
+    static String summary(ComparisonReport report) {
         return String.format(Locale.ROOT, "Verdict %s: keySimilarity %s, unchangedRate %s, %d changed paths, %d ms",
                 report.verdict(), format(report.keys().keySimilarity().value()),
                 format(report.content().unchangedRate().value()), report.topChangedPaths().size(),
@@ -158,7 +158,7 @@ public class CompareCommand {
         return value == null ? "n/a" : String.format(Locale.ROOT, "%.4f", value);
     }
 
-    private static void write(Path path, String text) {
+    static void write(Path path, String text) {
         try {
             Files.writeString(path, text + System.lineSeparator(), StandardCharsets.UTF_8);
         } catch (IOException e) {

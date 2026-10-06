@@ -37,6 +37,8 @@ import dev.jbaby.ditto.comparator.api.Labels;
  * that lets MongoDB delete older reports. Without a retention, a TTL index left from an earlier configuration is
  * dropped, so reports are kept. If the indexes can't be created (e.g. missing privileges), a warning is logged and
  * reading and writing work as before.
+ * <p>A {@linkplain #readOnly read-only} repository only reads: it neither stores reports nor touches the indexes, so a
+ * tool that just looks at reports can't change the retention the writing application configured.
  */
 public final class ReportRepository {
 
@@ -53,6 +55,7 @@ public final class ReportRepository {
     private final String collection;
     private final @Nullable Duration retention;
     private final ReportJson json;
+    private final boolean readOnly;
     private volatile boolean indexed;
 
     /**
@@ -73,6 +76,11 @@ public final class ReportRepository {
      */
     public ReportRepository(MongoDatabaseFactory databaseFactory, @Nullable String database, String collection,
                             @Nullable Duration retention, ReportJson json) {
+        this(databaseFactory, database, collection, retention, json, false);
+    }
+
+    private ReportRepository(MongoDatabaseFactory databaseFactory, @Nullable String database, String collection,
+                             @Nullable Duration retention, ReportJson json, boolean readOnly) {
         if (retention != null && retention.toSeconds() < 1) {
             throw new IllegalArgumentException("retention must be at least one second, was " + retention);
         }
@@ -81,9 +89,25 @@ public final class ReportRepository {
         this.collection = collection;
         this.retention = retention;
         this.json = json;
+        this.readOnly = readOnly;
     }
 
+    /**
+     * A repository that only reads reports: it creates, changes or drops no index, and {@link #save} fails.
+     *
+     * @param database   database of the report collection, {@code null} for the default database
+     * @param collection report collection
+     */
+    public static ReportRepository readOnly(MongoDatabaseFactory databaseFactory, @Nullable String database,
+                                            String collection, ReportJson json) {
+        return new ReportRepository(databaseFactory, database, collection, null, json, true);
+    }
+
+    /** @throws UnsupportedOperationException if this repository is {@linkplain #readOnly read-only} */
     public void save(ComparisonReport report) {
+        if (readOnly) {
+            throw new UnsupportedOperationException("This report repository is read-only");
+        }
         Document document = Document.parse(json.write(report));
         document.remove("id");
         Document stored = new Document("_id", report.id())
@@ -165,7 +189,7 @@ public final class ReportRepository {
     private MongoCollection<Document> collection() {
         var db = database == null ? databaseFactory.getMongoDatabase() : databaseFactory.getMongoDatabase(database);
         MongoCollection<Document> reports = db.getCollection(collection);
-        if (!indexed) {
+        if (!indexed && !readOnly) {
             ensureIndexes(db, reports);
         }
         return reports;
