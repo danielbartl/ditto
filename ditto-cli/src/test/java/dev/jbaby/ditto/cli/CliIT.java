@@ -44,7 +44,7 @@ class CliIT {
         assertThat(unconfigured.code()).isEqualTo(ExitCodes.RED);
         assertThat(unconfigured.err()).contains("Hints:").contains("--ignore=meta.syncedAt");
         Result green = run("compare", "--baseline=g_base", "--candidate=g_same", "--ignore=meta.syncedAt",
-                "--out=" + tmp.resolve("report.json"));
+                "--out=" + tmp.resolve("report.json"), "--html=" + tmp.resolve("report.html"));
         run("generate", "--docs=500", "--baseline=stock_backup", "--candidate=stock");
         assertThat(run("--collection=stock", "--ignore=meta.syncedAt").code()).isEqualTo(ExitCodes.GREEN);
         assertThat(green.code()).isEqualTo(ExitCodes.GREEN);
@@ -52,7 +52,10 @@ class CliIT {
         assertThat(report.verdict()).isEqualTo(Level.GREEN);
         assertThat(report.keys().matched()).isEqualTo(3000);
         assertThat(Files.readString(tmp.resolve("report.json")).strip()).isEqualTo(green.out().strip());
-        assertThat(green.err()).contains("Verdict GREEN");
+        assertThat(green.err()).contains("Verdict GREEN").contains("report.json, " + tmp.resolve("report.html"));
+        assertThat(Files.readString(tmp.resolve("report.html"))).startsWith("<!doctype html>")
+                .contains("<script type=\"application/json\" id=\"ditto-report\">{\"schemaVersion\"")
+                .contains(report.id());
 
         run("generate", "--docs=3000", "--seed=7", "--baseline=g_base", "--candidate=g_yellow",
                 "--changes=modify:name:0.08,shuffle-arrays:1");

@@ -5,6 +5,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -20,10 +22,12 @@ import dev.jbaby.ditto.comparator.api.Labels;
 import dev.jbaby.ditto.comparator.api.MixedKeyPolicy;
 import dev.jbaby.ditto.comparator.api.VerdictBasis;
 import dev.jbaby.ditto.comparator.autoconfigure.ComparatorProperties;
+import dev.jbaby.ditto.comparator.report.ReportHtml;
 import dev.jbaby.ditto.comparator.report.ReportJson;
 
 /**
- * {@code compare}: runs one comparison, prints the report as JSON and maps the verdict to the exit code.
+ * {@code compare}: runs one comparison, prints the report as JSON and maps the verdict to the exit code. The report
+ * can also be written to a file as JSON ({@code --out}) and as a self-contained HTML page ({@code --html}).
  */
 @Component
 public class CompareCommand {
@@ -31,14 +35,16 @@ public class CompareCommand {
     private final CollectionComparator comparator;
     private final ComparatorProperties properties;
     private final ReportJson json;
+    private final ReportHtml html;
     private final CliOptions options;
     private final CliConsole console;
 
     public CompareCommand(CollectionComparator comparator, ComparatorProperties properties, ReportJson json,
-                          CliOptions options, CliConsole console) {
+                          ReportHtml html, CliOptions options, CliConsole console) {
         this.comparator = comparator;
         this.properties = properties;
         this.json = json;
+        this.html = html;
         this.options = options;
         this.console = console;
     }
@@ -48,11 +54,19 @@ public class CompareCommand {
         ComparisonReport report = comparator.compare(request);
         String text = json.writePretty(report);
         console.out().println(text);
+        List<String> files = new ArrayList<>();
         String out = options.string("out");
         if (out != null) {
             write(Path.of(out), text);
+            files.add(out);
         }
-        console.err().println(summary(report) + (out != null ? "; report written to " + out : ""));
+        String page = options.string("html");
+        if (page != null) {
+            write(Path.of(page), html.write(report));
+            files.add(page);
+        }
+        console.err().println(summary(report)
+                + (files.isEmpty() ? "" : "; report written to " + String.join(", ", files)));
         if (!report.hints().isEmpty()) {
             console.err().println("Hints:");
             report.hints().forEach(hint -> console.err().println("  - " + hint.message()

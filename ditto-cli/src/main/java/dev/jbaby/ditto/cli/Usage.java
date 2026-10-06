@@ -39,6 +39,7 @@ final class Usage {
                                             repeatable
               --persist                     store the report (ditto.persistence.*)
               --out=<file>                  also write the report to a file
+              --html=<file>                 also write the report as a self-contained HTML page
               --ditto.<property>=...        any library property, e.g.
                                             --ditto.thresholds.key-similarity.green=0.995
 
