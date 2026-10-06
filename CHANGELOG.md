@@ -6,6 +6,8 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-06
+
 ### Added
 
 - **Report viewer**: a report as one self-contained HTML page (verdict, hints, rules, metrics, changed paths with
@@ -142,7 +144,8 @@ First release.
   optional persistence of reports in MongoDB.
 - CLI with exit codes 0/1/2/3 (GREEN/YELLOW/RED/error), and a test-data generator.
 
-[Unreleased]: https://github.com/danielbartl/ditto/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/danielbartl/ditto/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/danielbartl/ditto/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/danielbartl/ditto/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/danielbartl/ditto/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/danielbartl/ditto/compare/v0.2.0...v0.3.0
