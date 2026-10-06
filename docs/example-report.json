@@ -1,0 +1,873 @@
+{
+  "schemaVersion": 1,
+  "id": "a9dbad04-ff44-4964-b58c-c753c71c3379",
+  "verdict": "RED",
+  "rules": [
+    {
+      "rule": "keySimilarity",
+      "level": "GREEN",
+      "observed": 1.0,
+      "threshold": "GREEN >= 0.99, YELLOW >= 0.97",
+      "reason": "1.0000 meets GREEN (>= 0.9900) (matched 5000, added 0, removed 0)",
+      "details": []
+    },
+    {
+      "rule": "unchangedRate",
+      "level": "RED",
+      "observed": 0.0,
+      "threshold": "GREEN >= 0.95, YELLOW >= 0.85",
+      "reason": "0.0000 is below YELLOW (0.8500) (unchanged 0, changed 5000)",
+      "details": []
+    },
+    {
+      "rule": "maxPathChangeRate",
+      "level": "RED",
+      "observed": 1.0,
+      "threshold": "GREEN < 0.05, YELLOW < 0.2",
+      "reason": "Path 'legacyCode' changed in 1.0000 of matched documents, at or above the YELLOW limit 0.2000",
+      "details": [
+        "legacyCode: 1.0000 (5000 documents)",
+        "promo: 0.5026 (2513 documents)",
+        "qty: 0.2972 (1486 documents)"
+      ]
+    },
+    {
+      "rule": "structure.vanishedPaths",
+      "level": "RED",
+      "observed": 1.0,
+      "threshold": "RED if present in more than 0.0000 of baseline documents, else YELLOW",
+      "reason": "1 path(s) vanished from the candidate",
+      "details": [
+        "legacyCode (in 1.0000 of baseline)"
+      ]
+    },
+    {
+      "rule": "structure.typeShifts",
+      "level": "RED",
+      "observed": 1.0,
+      "threshold": "RED if a type appears, disappears or its share changes by more than 0.0100",
+      "reason": "1 path(s) changed their BSON type distribution",
+      "details": [
+        "qty: INT32 1.0000 -> INT32 0.7028, STRING 0.2972"
+      ]
+    },
+    {
+      "rule": "structure.newPaths",
+      "level": "YELLOW",
+      "observed": 1.0,
+      "threshold": "YELLOW if any",
+      "reason": "1 path(s) only present in the candidate",
+      "details": [
+        "promo (in 0.5026 of candidate)"
+      ]
+    },
+    {
+      "rule": "structure.presenceDeltas",
+      "level": "GREEN",
+      "observed": 0.0,
+      "threshold": "YELLOW if presence changes by more than 0.0500",
+      "reason": "No significant presence change",
+      "details": []
+    }
+  ],
+  "keys": {
+    "matched": 5000,
+    "added": 0,
+    "removed": 0,
+    "keySimilarity": {
+      "kind": "exact",
+      "count": 5000,
+      "total": 5000,
+      "value": 1.0
+    },
+    "addedRate": {
+      "kind": "exact",
+      "count": 0,
+      "total": 5000,
+      "value": 0.0
+    },
+    "removedRate": {
+      "kind": "exact",
+      "count": 0,
+      "total": 5000,
+      "value": 0.0
+    }
+  },
+  "content": {
+    "unchanged": 0,
+    "changed": 5000,
+    "changedExpectedOnly": 0,
+    "unchangedRate": {
+      "kind": "exact",
+      "count": 0,
+      "total": 5000,
+      "value": 0.0
+    },
+    "changedRate": {
+      "kind": "exact",
+      "count": 5000,
+      "total": 5000,
+      "value": 1.0
+    },
+    "unchangedOrExpectedRate": {
+      "kind": "exact",
+      "count": 0,
+      "total": 5000,
+      "value": 0.0
+    }
+  },
+  "topChangedPaths": [
+    {
+      "path": "legacyCode",
+      "changedDocs": 5000,
+      "changeRate": {
+        "kind": "exact",
+        "count": 5000,
+        "total": 5000,
+        "value": 1.0
+      },
+      "expected": false,
+      "examples": [
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1001740cebb13ba419d\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1011740cebb13569b59\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1021740cebb1322eca8\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1031740cebb13b329ef\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1041740cebb13c7e254\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1051740cebb13b3b933\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1061740cebb13483e25\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1071740cebb13e753f9\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1081740cebb13823d03\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1091740cebb138af9d5\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10a1740cebb136c56f2\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10b1740cebb137bc62c\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10c1740cebb13132074\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10d1740cebb134dbe6d\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10e1740cebb13a7d8d5\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10f1740cebb13acef24\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1101740cebb13931381\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1111740cebb13eb9de5\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1121740cebb13e3a27e\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1131740cebb13503c30\"}"
+        }
+      ],
+      "valueExamples": [
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1001740cebb13ba419d\"}"
+          },
+          "baseline": [
+            "\"L0\""
+          ],
+          "candidate": []
+        },
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1011740cebb13569b59\"}"
+          },
+          "baseline": [
+            "\"L1\""
+          ],
+          "candidate": []
+        },
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1021740cebb1322eca8\"}"
+          },
+          "baseline": [
+            "\"L2\""
+          ],
+          "candidate": []
+        }
+      ]
+    },
+    {
+      "path": "promo",
+      "changedDocs": 2513,
+      "changeRate": {
+        "kind": "exact",
+        "count": 2513,
+        "total": 5000,
+        "value": 0.5026
+      },
+      "expected": false,
+      "examples": [
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1041740cebb13c7e254\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1051740cebb13b3b933\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1071740cebb13e753f9\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10a1740cebb136c56f2\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10b1740cebb137bc62c\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10c1740cebb13132074\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10e1740cebb13a7d8d5\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1111740cebb13eb9de5\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1121740cebb13e3a27e\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1141740cebb13e0f9ab\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1151740cebb13ef454a\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1171740cebb130f00a4\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1191740cebb1351c5ce\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f11d1740cebb138af794\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f11e1740cebb13f89fe6\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f11f1740cebb134d8364\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1211740cebb13cc2db4\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1221740cebb1331c7a5\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1241740cebb138b0045\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1281740cebb1375ed7c\"}"
+        }
+      ],
+      "valueExamples": [
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1041740cebb13c7e254\"}"
+          },
+          "baseline": [],
+          "candidate": [
+            "\"added-776\""
+          ]
+        },
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1051740cebb13b3b933\"}"
+          },
+          "baseline": [],
+          "candidate": [
+            "\"added-83\""
+          ]
+        },
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1071740cebb13e753f9\"}"
+          },
+          "baseline": [],
+          "candidate": [
+            "\"added-581\""
+          ]
+        }
+      ]
+    },
+    {
+      "path": "qty",
+      "changedDocs": 1486,
+      "changeRate": {
+        "kind": "exact",
+        "count": 1486,
+        "total": 5000,
+        "value": 0.2972
+      },
+      "expected": false,
+      "examples": [
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1011740cebb13569b59\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1091740cebb138af9d5\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f10a1740cebb136c56f2\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1101740cebb13931381\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1191740cebb1351c5ce\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f11a1740cebb13f8ad92\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f11f1740cebb134d8364\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1251740cebb13cb3087\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1271740cebb135d86af\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1291740cebb1335bae7\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f12e1740cebb13396a53\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f12f1740cebb136bdc36\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1371740cebb13ff6fc8\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f13f1740cebb136ee51c\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1431740cebb137c06a9\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1441740cebb13066684\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1471740cebb1307255e\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1481740cebb1320852a\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1491740cebb1320e284\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1501740cebb13c06759\"}"
+        }
+      ],
+      "valueExamples": [
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1011740cebb13569b59\"}"
+          },
+          "baseline": [
+            "85"
+          ],
+          "candidate": [
+            "\"85\""
+          ]
+        },
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1091740cebb138af9d5\"}"
+          },
+          "baseline": [
+            "463"
+          ],
+          "candidate": [
+            "\"463\""
+          ]
+        },
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f10a1740cebb136c56f2\"}"
+          },
+          "baseline": [
+            "129"
+          ],
+          "candidate": [
+            "\"129\""
+          ]
+        }
+      ]
+    },
+    {
+      "path": "price",
+      "changedDocs": 115,
+      "changeRate": {
+        "kind": "exact",
+        "count": 115,
+        "total": 5000,
+        "value": 0.023
+      },
+      "expected": false,
+      "examples": [
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f13c1740cebb13f09606\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f15f1740cebb13202f89\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1661740cebb13ee0760\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f19a1740cebb134b8a87\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f19b1740cebb13f10464\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f1f11740cebb133ba73a\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f20d1740cebb136e8447\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f2291740cebb1392878e\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f2371740cebb13f9907c\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f25b1740cebb13c1c356\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f2761740cebb13badbaf\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f2ad1740cebb1376683e\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f2c31740cebb13e4dea9\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f3631740cebb13e527db\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f3c81740cebb13b87c40\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f4081740cebb13f57559\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f40c1740cebb13d70a65\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f43c1740cebb1329c620\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f45a1740cebb1313703a\"}"
+        },
+        {
+          "type": "OBJECT_ID",
+          "value": "{\"$oid\": \"6553f4621740cebb13c2ebca\"}"
+        }
+      ],
+      "valueExamples": [
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f13c1740cebb13f09606\"}"
+          },
+          "baseline": [
+            "708.92"
+          ],
+          "candidate": [
+            "709.92"
+          ]
+        },
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f15f1740cebb13202f89\"}"
+          },
+          "baseline": [
+            "592.31"
+          ],
+          "candidate": [
+            "593.31"
+          ]
+        },
+        {
+          "key": {
+            "type": "OBJECT_ID",
+            "value": "{\"$oid\": \"6553f1661740cebb13ee0760\"}"
+          },
+          "baseline": [
+            "412.97"
+          ],
+          "candidate": [
+            "413.97"
+          ]
+        }
+      ]
+    }
+  ],
+  "structure": {
+    "baselineDocs": 5000,
+    "candidateDocs": 5000,
+    "baselinePaths": 34,
+    "candidatePaths": 34,
+    "newPaths": [
+      {
+        "path": "promo",
+        "baselineDocs": 0,
+        "candidateDocs": 2513,
+        "baselinePresence": 0.0,
+        "candidatePresence": 0.5026,
+        "presenceDelta": 0.5026
+      }
+    ],
+    "missingPaths": [
+      {
+        "path": "legacyCode",
+        "baselineDocs": 5000,
+        "candidateDocs": 0,
+        "baselinePresence": 1.0,
+        "candidatePresence": 0.0,
+        "presenceDelta": -1.0
+      }
+    ],
+    "typeShifts": [
+      {
+        "path": "qty",
+        "baseline": [
+          {
+            "type": "INT32",
+            "docs": 5000,
+            "share": 1.0
+          }
+        ],
+        "candidate": [
+          {
+            "type": "INT32",
+            "docs": 3514,
+            "share": 0.7028
+          },
+          {
+            "type": "STRING",
+            "docs": 1486,
+            "share": 0.2972
+          }
+        ]
+      }
+    ],
+    "presenceDeltas": [],
+    "pathCapReached": false,
+    "untrackedPathOccurrences": 0
+  },
+  "examples": {
+    "changed": [
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1001740cebb13ba419d\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1011740cebb13569b59\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1021740cebb1322eca8\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1031740cebb13b329ef\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1041740cebb13c7e254\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1051740cebb13b3b933\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1061740cebb13483e25\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1071740cebb13e753f9\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1081740cebb13823d03\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1091740cebb138af9d5\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f10a1740cebb136c56f2\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f10b1740cebb137bc62c\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f10c1740cebb13132074\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f10d1740cebb134dbe6d\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f10e1740cebb13a7d8d5\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f10f1740cebb13acef24\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1101740cebb13931381\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1111740cebb13eb9de5\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1121740cebb13e3a27e\"}"
+      },
+      {
+        "type": "OBJECT_ID",
+        "value": "{\"$oid\": \"6553f1131740cebb13503c30\"}"
+      }
+    ],
+    "added": [],
+    "removed": []
+  },
+  "run": {
+    "startedAt": "2026-10-06T13:13:08.869687891Z",
+    "finishedAt": "2026-10-06T13:13:09.298501705Z",
+    "durationMillis": 428,
+    "baselineCount": 5000,
+    "candidateCount": 5000,
+    "baselineDocsRead": 5000,
+    "candidateDocsRead": 5000,
+    "settings": {
+      "baseline": {
+        "database": "ditto",
+        "collection": "s_backup"
+      },
+      "candidate": {
+        "database": "ditto",
+        "collection": "s"
+      },
+      "keyField": "_id",
+      "ignoredPaths": [
+        "_class",
+        "meta.syncedAt"
+      ],
+      "orderSensitivePaths": [],
+      "wildcardPaths": [
+        "attributes.*"
+      ],
+      "expectedChangePaths": [],
+      "redactedPaths": [],
+      "mode": {
+        "type": "FULL"
+      },
+      "matchedOnly": false,
+      "nullEqualsMissing": false,
+      "mixedKeyPolicy": "REJECT",
+      "verdictBasis": "CONSERVATIVE",
+      "thresholds": {
+        "keySimilarity": {
+          "green": 0.99,
+          "yellow": 0.97
+        },
+        "unchangedRate": {
+          "green": 0.95,
+          "yellow": 0.85
+        },
+        "maxPathChangeRate": {
+          "green": 0.05,
+          "yellow": 0.2
+        },
+        "structure": {
+          "typeShareDelta": 0.01,
+          "presenceDelta": 0.05,
+          "vanishedMinPresence": 0.0
+        }
+      },
+      "tuning": {
+        "batchSize": 1000,
+        "noCursorTimeout": false,
+        "maxExamples": 20,
+        "maxValueExamples": 3,
+        "maxTrackedPaths": 10000,
+        "topChangedPaths": 50,
+        "progressInterval": "PT10S",
+        "sampleLookupBatchSize": 500,
+        "fullScanLimit": 5000000,
+        "autoSampleSize": 20000
+      }
+    },
+    "thresholdSource": {
+      "kind": "CONFIGURED",
+      "historyRuns": 0,
+      "notes": []
+    },
+    "decisions": [
+      "Mode AUTO chose FULL: 5,000 and 5,000 documents, full-scan limit 5,000,000"
+    ]
+  },
+  "warnings": [],
+  "hints": [
+    {
+      "kind": "INVESTIGATE",
+      "path": "legacyCode",
+      "message": "legacyCode changed in 100% of matched documents. A change in nearly every document usually means a mapping or format change; its valueExamples show before and after.",
+      "property": null,
+      "cliOption": null
+    },
+    {
+      "kind": "EXPECTED_CHANGE",
+      "path": "promo",
+      "message": "promo changed in 50% of matched documents. If this field is supposed to change between runs (prices, stock, counters), declare it as an expected change so it does not count against the verdict.",
+      "property": "ditto.expected-change-paths=promo",
+      "cliOption": "--expected=promo"
+    },
+    {
+      "kind": "EXPECTED_CHANGE",
+      "path": "qty",
+      "message": "qty changed in 30% of matched documents. If this field is supposed to change between runs (prices, stock, counters), declare it as an expected change so it does not count against the verdict.",
+      "property": "ditto.expected-change-paths=qty",
+      "cliOption": "--expected=qty"
+    }
+  ],
+  "labels": {}
+}

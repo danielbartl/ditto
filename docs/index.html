@@ -231,6 +231,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
       <a class="btn" href="https://github.com/danielbartl/ditto">View on GitHub</a>
       <a class="btn" href="https://github.com/danielbartl/ditto/releases/latest">Download CLI</a>
       <a class="btn" href="https://github.com/danielbartl/ditto#readme">Full README</a>
+      <a class="btn" href="viewer.html">Report viewer</a>
     </div>
     <div class="meta">
       <span>Java 21+</span><span>Spring Boot 4.1</span><span>MongoDB 4.4+</span>
@@ -676,6 +677,15 @@ void onComparison(ComparisonCompletedEvent event) {
   <section id="report">
     <h2>Reading a report</h2>
     <p class="lead">Start at the top and work down: verdict, the rules that fired, then the metrics that explain them.</p>
+    <h3>In the browser</h3>
+    <p><code>--html=report.html</code> writes the report as a single HTML page next to the JSON: verdict, hints with
+      ready-to-copy options, rules, changed paths with before/after values and the structure diff. The page makes no
+      external requests, so it works offline, as a CI artifact or as an e-mail attachment. For a stored report, use
+      <code>java -jar ditto-cli.jar report --label=batchJobId=4711 --html=report.html</code>; in your own code,
+      inject <code>ReportHtml</code>.</p>
+    <p>Already have a <code>report.json</code>? Open it in the <a href="viewer.html">report viewer</a>: it renders the
+      file in your browser and uploads nothing. See an <a href="viewer.html#url=example-report.json">example report</a>.</p>
+    <h3>The JSON</h3>
     <div class="code"><span class="label">report.json (abbreviated)</span><pre>{
   "verdict": "YELLOW",
   "rules": [
@@ -733,6 +743,8 @@ void onComparison(ComparisonCompletedEvent event) {
       <tr><td><code>--label=key=value</code></td><td>Label stored with the report, e.g. a batch job id; repeatable</td></tr>
       <tr><td><code>--persist</code></td><td>Store the report in MongoDB</td></tr>
       <tr><td><code>--out=file</code></td><td>Also write the report to a file</td></tr>
+      <tr><td><code>--html=file</code></td><td>Also write the report as a self-contained HTML page</td></tr>
+      <tr><td><code>report --id=…</code>, <code>--label=…</code>, <code>--collection=…</code></td><td>Print a stored report (and with <code>--html</code> write it as a page); the newest one if several match. Exits with its verdict</td></tr>
       <tr><td><code>--help</code></td><td>Full usage</td></tr>
     </table></div>
 
