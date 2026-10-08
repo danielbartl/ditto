@@ -111,6 +111,11 @@ p { max-width: 75ch; }
 @media (prefers-color-scheme: dark) { .btn.primary { color: #0b1220; } }
 .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .meta span { font-size: 13px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; background: var(--surface); }
+.meta .central { display: inline-flex; border: 1px solid var(--accent); border-radius: 999px; overflow: hidden; font-size: 13px; }
+.meta .central span { border: 0; border-radius: 0; padding: 2px 10px; background: var(--surface); color: var(--muted); }
+.meta .central .ver { background: var(--accent-soft); color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+.meta .central:hover { text-decoration: none; }
+.meta .central:hover span:first-child { color: var(--text); }
 
 /* verdict chips */
 .chip { display: inline-block; font: 600 12px/1 var(--sans); letter-spacing: .04em; padding: 4px 8px; border-radius: 999px; vertical-align: 1px; }
@@ -234,6 +239,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
       <a class="btn" href="viewer.html">Report viewer</a>
     </div>
     <div class="meta">
+      <a class="central" href="https://central.sonatype.com/artifact/dev.jbaby.ditto/ditto-core" aria-label="Maven Central, latest version"><span>Maven Central</span><span class="ver" id="central-version">v0.5.0</span></a>
       <span>Java 21+</span><span>Spring Boot 4.1</span><span>MongoDB 4.4+</span>
       <span>Zero configuration to start</span><span>Library + CLI</span><span>Streaming, constant memory</span><span>Learns from history</span><span>MIT licensed</span>
     </div>
@@ -788,6 +794,16 @@ void onComparison(ComparisonCompletedEvent event) {
 </footer>
 
 <script>
+// Maven Central badge: latest version, with the built-in one as fallback
+(function () {
+  var ver = document.getElementById('central-version');
+  if (!ver || !window.fetch) return;
+  fetch('https://img.shields.io/maven-central/v/dev.jbaby.ditto/ditto-core.json')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (d && /^v\d+\.\d+\.\d+$/.test(d.value)) ver.textContent = d.value; })
+    .catch(function () {});
+})();
+
 // tabs
 document.querySelectorAll('[data-tabs]').forEach(function (tabs) {
   var buttons = Array.prototype.slice.call(tabs.querySelectorAll('[role=tab]'));
