@@ -13,7 +13,7 @@ import org.springframework.boot.actuate.endpoint.annotation.Selector;
 import dev.jbaby.ditto.comparator.api.ComparisonReport;
 import dev.jbaby.ditto.comparator.api.Labels;
 import dev.jbaby.ditto.comparator.api.Level;
-import dev.jbaby.ditto.comparator.report.ReportRepository;
+import dev.jbaby.ditto.comparator.report.ReportStore;
 
 /**
  * Actuator endpoint {@code comparisons}, read-only: {@code GET /actuator/comparisons} lists the most recent stored
@@ -26,9 +26,9 @@ public class ComparisonsEndpoint {
 
     static final int LIMIT = 50;
 
-    private final ReportRepository repository;
+    private final ReportStore repository;
 
-    public ComparisonsEndpoint(ReportRepository repository) {
+    public ComparisonsEndpoint(ReportStore repository) {
         this.repository = repository;
     }
 

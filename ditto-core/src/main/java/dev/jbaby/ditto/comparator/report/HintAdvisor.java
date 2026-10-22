@@ -1,5 +1,7 @@
 package dev.jbaby.ditto.comparator.report;
 
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -8,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.bson.BsonType;
 
@@ -17,6 +20,7 @@ import dev.jbaby.ditto.comparator.api.ComparisonReport.RuleResult;
 import dev.jbaby.ditto.comparator.api.ComparisonSettings;
 import dev.jbaby.ditto.comparator.api.Hint;
 import dev.jbaby.ditto.comparator.api.Level;
+import dev.jbaby.ditto.comparator.api.ValueChange;
 import dev.jbaby.ditto.comparator.api.VerdictBasis;
 import dev.jbaby.ditto.comparator.path.PathPattern;
 import dev.jbaby.ditto.comparator.path.Paths;
@@ -70,7 +74,7 @@ public final class HintAdvisor {
                 continue;
             }
             String percent = percent(rate);
-            if (rate >= EVERYWHERE && isTime(candidate, change.path()) && ignore++ < MAX_PER_KIND) {
+            if (rate >= EVERYWHERE && isTime(candidate, change) && ignore++ < MAX_PER_KIND) {
                 hints.add(new Hint(Hint.Kind.IGNORE_TECHNICAL_FIELD, change.path(), change.path() + " changed in "
                         + percent + " of matched documents and holds dates: it looks like a technical timestamp"
                         + " written by every run. If so, ignore it.",
@@ -169,13 +173,39 @@ public final class HintAdvisor {
         }
     }
 
-    private static boolean isTime(StructureProfile profile, String path) {
-        StructureProfile.PathStat stat = profile.paths().get(path);
+    /**
+     * Whether a changed path holds dates: BSON dates or timestamps, or strings whose value examples are all ISO-8601
+     * date-times (JSON sources such as OpenSearch have no date type).
+     */
+    static boolean isTime(StructureProfile profile, PathChange change) {
+        StructureProfile.PathStat stat = profile.paths().get(change.path());
         if (stat == null || stat.documents() == 0) {
             return false;
         }
         long time = TIME_TYPES.stream().mapToLong(type -> stat.types().getOrDefault(type, 0L)).sum();
-        return time >= EVERYWHERE * stat.documents();
+        if (time >= EVERYWHERE * stat.documents()) {
+            return true;
+        }
+        long strings = stat.types().getOrDefault(BsonType.STRING, 0L);
+        List<String> values = change.valueExamples().stream()
+                .flatMap((ValueChange example) -> Stream.concat(example.baseline().stream(),
+                        example.candidate().stream()))
+                .toList();
+        return strings >= EVERYWHERE * stat.documents() && !values.isEmpty()
+                && values.stream().allMatch(HintAdvisor::isDateTimeString);
+    }
+
+    /** A rendered string value ({@code "2024-01-01T00:00:00Z"}, quotes included) holding an ISO-8601 date-time. */
+    private static boolean isDateTimeString(String rendered) {
+        if (rendered.length() < 2 || !rendered.startsWith("\"") || !rendered.endsWith("\"")) {
+            return false;
+        }
+        try {
+            DateTimeFormatter.ISO_DATE_TIME.parse(rendered.substring(1, rendered.length() - 1));
+            return true;
+        } catch (DateTimeParseException e) {
+            return false;
+        }
     }
 
     private static boolean isAddressable(String pattern) {

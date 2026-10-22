@@ -40,7 +40,7 @@ import dev.jbaby.ditto.comparator.api.Labels;
  * <p>A {@linkplain #readOnly read-only} repository only reads: it neither stores reports nor touches the indexes, so a
  * tool that just looks at reports can't change the retention the writing application configured.
  */
-public final class ReportRepository {
+public final class ReportRepository implements ReportStore {
 
     private static final Logger log = LoggerFactory.getLogger(ReportRepository.class);
     private static final JsonWriterSettings RELAXED = JsonWriterSettings.builder().outputMode(JsonMode.RELAXED).build();
@@ -104,6 +104,7 @@ public final class ReportRepository {
     }
 
     /** @throws UnsupportedOperationException if this repository is {@linkplain #readOnly read-only} */
+    @Override
     public void save(ComparisonReport report) {
         if (readOnly) {
             throw new UnsupportedOperationException("This report repository is read-only");
@@ -118,6 +119,7 @@ public final class ReportRepository {
         collection().insertOne(stored);
     }
 
+    @Override
     public Optional<ComparisonReport> findById(String id) {
         return Optional.ofNullable(collection().find(Filters.eq("_id", id)).first()).map(this::toReport);
     }
@@ -128,6 +130,7 @@ public final class ReportRepository {
      * @param candidate only reports for this candidate ({@code db.collection}), all if {@code null}
      * @param limit     maximum number of reports
      */
+    @Override
     public List<ComparisonReport> findRecent(@Nullable String candidate, int limit) {
         Bson filter = candidate == null ? Filters.empty() : Filters.eq("candidate", candidate);
         List<ComparisonReport> reports = new ArrayList<>();
@@ -142,6 +145,7 @@ public final class ReportRepository {
      * @param labels labels a report must have, with these values; all reports if empty
      * @param limit  maximum number of reports
      */
+    @Override
     public List<ComparisonReport> findByLabels(Map<String, String> labels, int limit) {
         Bson filter = labels.isEmpty() ? Filters.empty() : Filters.and(Labels.of(labels).entrySet().stream()
                 .map(label -> Filters.eq("labels." + label.getKey(), label.getValue())).toList());
@@ -159,6 +163,7 @@ public final class ReportRepository {
      * @param includeRed   whether RED reports are included
      * @param limit        maximum number of reports
      */
+    @Override
     public List<ComparisonReport> findHistory(String baseline, String candidate, boolean includeRed, int limit) {
         Bson filter = Filters.and(Filters.eq("baseline", baseline), Filters.eq("candidate", candidate));
         if (!includeRed) {

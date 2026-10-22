@@ -13,6 +13,7 @@ import org.bson.codecs.BsonDocumentCodec;
 
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
@@ -26,19 +27,22 @@ import dev.jbaby.ditto.comparator.key.BsonKeyOrder;
 import dev.jbaby.ditto.comparator.key.KeyInspector;
 
 /**
- * One side of the comparison: where it lives and how it is read. Documents are read as {@link RawBsonDocument}, so
- * exact BSON types are preserved and no object mapping takes place.
+ * One side of the comparison in MongoDB: where it lives and how it is read. Documents are read as
+ * {@link RawBsonDocument}, so exact BSON types are preserved and no object mapping takes place. A full scan is sorted
+ * by key under the simple collation, so both sides can be merge-joined.
  *
  * @param side       "baseline" or "candidate", for messages
  * @param ref        the collection
  * @param database   its database
  * @param collection the collection, reading raw BSON
  */
-public record CollectionHandle(String side, CollectionRef ref, MongoDatabase database,
-                               MongoCollection<RawBsonDocument> collection) {
+public record MongoCollectionSource(String side, CollectionRef ref, MongoDatabase database,
+                                    MongoCollection<RawBsonDocument> collection) implements DocumentSource {
 
-    public static CollectionHandle of(String side, CollectionRef ref, MongoDatabase database) {
-        return new CollectionHandle(side, ref, database,
+    private static final BsonDocumentCodec CODEC = new BsonDocumentCodec();
+
+    public static MongoCollectionSource of(String side, CollectionRef ref, MongoDatabase database) {
+        return new MongoCollectionSource(side, ref, database,
                 database.getCollection(ref.collection(), RawBsonDocument.class));
     }
 
@@ -46,47 +50,72 @@ public record CollectionHandle(String side, CollectionRef ref, MongoDatabase dat
         return collection.withDocumentClass(BsonDocument.class);
     }
 
+    @Override
+    public boolean keyOrdered() {
+        return true;
+    }
+
     /** All documents sorted by key under the simple collation, as the merge-join needs them. */
-    public FindIterable<RawBsonDocument> sortedByKey(String keyField, int batchSize, boolean noCursorTimeout) {
-        return collection.find()
+    @Override
+    public DocumentCursor scan(String keyField, int batchSize, boolean noCursorTimeout, boolean keysOnly) {
+        FindIterable<RawBsonDocument> find = collection.find()
                 .sort(Sorts.ascending(keyField))
                 .collation(KeyInspector.SIMPLE)
                 .batchSize(batchSize)
                 .noCursorTimeout(noCursorTimeout)
                 .allowDiskUse(true);
+        if (keysOnly) {
+            find = find.projection(Projections.include(keyField));
+        }
+        MongoCursor<RawBsonDocument> cursor = find.cursor();
+        return new DocumentCursor() {
+            @Override
+            public boolean hasNext() {
+                return cursor.hasNext();
+            }
+
+            @Override
+            public KeyedDocument next() {
+                RawBsonDocument document = cursor.next();
+                return new KeyedDocument(keyOf(document, keyField), new RawDocument(document));
+            }
+
+            @Override
+            public void close() {
+                cursor.close();
+            }
+        };
     }
 
     /** Up to {@code size} random documents ({@code $sample}), decoded. */
+    @Override
     public List<BsonDocument> randomDocuments(int size) {
         List<BsonDocument> documents = new ArrayList<>(Math.min(size, 1024));
         collection.aggregate(List.of(Aggregates.sample(size))).allowDiskUse(true)
-                .forEach(document -> documents.add(document.decode(new BsonDocumentCodec())));
+                .forEach(document -> documents.add(document.decode(CODEC)));
         return documents;
     }
 
-    /** Up to {@code size} random documents by key, sorted by key, without the duplicates {@code $sample} may return. */
-    public NavigableMap<BsonValue, RawBsonDocument> randomByKey(String keyField, int size) {
-        NavigableMap<BsonValue, RawBsonDocument> sample = new TreeMap<>(BsonKeyOrder.INSTANCE);
+    /** Up to {@code size} random documents by key ({@code $sample}), without the duplicates it may return. */
+    @Override
+    public NavigableMap<BsonValue, SourceDocument> randomByKey(String keyField, int size) {
+        NavigableMap<BsonValue, SourceDocument> sample = new TreeMap<>(BsonKeyOrder.INSTANCE);
         collection.aggregate(List.of(Aggregates.sample(size))).allowDiskUse(true)
-                .forEach(document -> sample.put(keyOf(document, keyField), document));
+                .forEach(document -> sample.put(keyOf(document, keyField), new RawDocument(document)));
         return sample;
     }
 
-    /**
-     * Documents with the given keys ({@code $in}), by key.
-     *
-     * @param keysOnly fetch only the key field
-     * @throws ComparisonException if a key occurs twice
-     */
-    public Map<BsonValue, RawBsonDocument> findByKeys(String keyField, List<BsonValue> keys, boolean keysOnly) {
-        Map<BsonValue, RawBsonDocument> found = new TreeMap<>(BsonKeyOrder.INSTANCE);
+    /** Documents with the given keys ({@code $in}), by key. */
+    @Override
+    public Map<BsonValue, SourceDocument> findByKeys(String keyField, List<BsonValue> keys, boolean keysOnly) {
+        Map<BsonValue, SourceDocument> found = new TreeMap<>(BsonKeyOrder.INSTANCE);
         var find = collection.find(Filters.in(keyField, keys)).collation(KeyInspector.SIMPLE);
         if (keysOnly) {
             find = find.projection(Projections.include(keyField));
         }
         find.forEach(document -> {
             BsonValue key = keyOf(document, keyField);
-            if (found.put(key, document) != null) {
+            if (found.put(key, new RawDocument(document)) != null) {
                 throw new ComparisonException("Duplicate key " + KeyRef.of(key).value() + " in " + this
                         + ": the key field must be unique");
             }
@@ -107,5 +136,20 @@ public record CollectionHandle(String side, CollectionRef ref, MongoDatabase dat
     @Override
     public String toString() {
         return side + " " + ref;
+    }
+
+    /** A raw BSON document; byte-identical BSON is unchanged content. */
+    public record RawDocument(RawBsonDocument raw) implements SourceDocument {
+
+        @Override
+        public BsonDocument decode() {
+            return raw.decode(CODEC);
+        }
+
+        @Override
+        public boolean sameBytes(SourceDocument other) {
+            return other instanceof RawDocument(RawBsonDocument otherRaw)
+                    && raw.getByteBuffer().asNIO().equals(otherRaw.getByteBuffer().asNIO());
+        }
     }
 }

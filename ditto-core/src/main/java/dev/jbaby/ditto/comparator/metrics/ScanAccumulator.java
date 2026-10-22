@@ -6,8 +6,6 @@ import java.util.SortedSet;
 
 import org.bson.BsonDocument;
 import org.bson.BsonValue;
-import org.bson.RawBsonDocument;
-import org.bson.codecs.BsonDocumentCodec;
 
 import dev.jbaby.ditto.comparator.api.ComparisonSettings;
 import dev.jbaby.ditto.comparator.api.ValueChange;
@@ -19,6 +17,7 @@ import dev.jbaby.ditto.comparator.flatten.DocumentDiff;
 import dev.jbaby.ditto.comparator.flatten.Flattener;
 import dev.jbaby.ditto.comparator.path.PathMatcher;
 import dev.jbaby.ditto.comparator.path.PathRules;
+import dev.jbaby.ditto.comparator.scan.SourceDocument;
 import dev.jbaby.ditto.comparator.structure.StructureProfiler;
 
 /**
@@ -33,8 +32,6 @@ import dev.jbaby.ditto.comparator.structure.StructureProfiler;
  * Not thread-safe; one instance per comparison run.
  */
 public final class ScanAccumulator {
-
-    private static final BsonDocumentCodec CODEC = new BsonDocumentCodec();
 
     private final Normalizer normalizer;
     private final Hasher hasher;
@@ -77,13 +74,14 @@ public final class ScanAccumulator {
         this.profileUnmatched = !settings.matchedOnly();
     }
 
-    public void matched(BsonValue key, RawBsonDocument baselineRaw, RawBsonDocument candidateRaw) {
+    public void matched(BsonValue key, SourceDocument baselineSource, SourceDocument candidateSource) {
         matched++;
-        BsonDocument baseline = baselineRaw.decode(CODEC);
-        BsonDocument candidate = candidateRaw.decode(CODEC);
+        BsonDocument baseline = baselineSource.decode();
+        BsonDocument candidate = candidateSource.decode();
         baselineProfiler.profile(baseline);
         candidateProfiler.profile(candidate);
-        if (sameBytes(baselineRaw, candidateRaw)) {
+        // byte-identical documents are always unchanged content; skips normalization for the common case
+        if (baselineSource.sameBytes(candidateSource)) {
             unchanged++;
             return;
         }
@@ -106,19 +104,19 @@ public final class ScanAccumulator {
         }
     }
 
-    public void removed(BsonValue key, RawBsonDocument baseline) {
+    public void removed(BsonValue key, SourceDocument baseline) {
         removed++;
         removedExamples.offer(key);
         if (profileUnmatched) {
-            baselineProfiler.profile(baseline.decode(CODEC));
+            baselineProfiler.profile(baseline.decode());
         }
     }
 
-    public void added(BsonValue key, RawBsonDocument candidate) {
+    public void added(BsonValue key, SourceDocument candidate) {
         added++;
         addedExamples.offer(key);
         if (profileUnmatched) {
-            candidateProfiler.profile(candidate.decode(CODEC));
+            candidateProfiler.profile(candidate.decode());
         }
     }
 
@@ -132,10 +130,5 @@ public final class ScanAccumulator {
                 added, removed, candidateSampled, pathChanges.sorted(), pathChanges.untrackedOccurrences(),
                 changedExamples.keys(), addedExamples.keys(), removedExamples.keys(), baselineProfiler.snapshot(),
                 candidateProfiler.snapshot());
-    }
-
-    /** Byte-identical BSON is always unchanged content; skips normalization for the common case. */
-    private static boolean sameBytes(RawBsonDocument a, RawBsonDocument b) {
-        return a.getByteBuffer().asNIO().equals(b.getByteBuffer().asNIO());
     }
 }

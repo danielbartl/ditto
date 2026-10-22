@@ -25,7 +25,7 @@ import dev.jbaby.ditto.comparator.metrics.ScanResult;
 import dev.jbaby.ditto.comparator.metrics.Wilson;
 import dev.jbaby.ditto.comparator.path.PathMatcher;
 import dev.jbaby.ditto.comparator.scan.MatchedOnlyComparator;
-import dev.jbaby.ditto.comparator.scan.Preflight;
+import dev.jbaby.ditto.comparator.scan.PreflightResult;
 import dev.jbaby.ditto.comparator.structure.StructureDiff;
 import dev.jbaby.ditto.comparator.verdict.RuleInput;
 import dev.jbaby.ditto.comparator.verdict.VerdictEvaluator;
@@ -44,7 +44,7 @@ public final class ReportAssembler {
 
     public ComparisonReport assemble(ComparisonSettings settings, Map<String, String> labels,
                                      ThresholdSource thresholdSource, List<String> decisions,
-                                     Preflight.Result preflight, ScanResult scan, Instant startedAt,
+                                     PreflightResult preflight, ScanResult scan, Instant startedAt,
                                      Instant finishedAt) {
         boolean full = switch (settings.mode()) {
             case ComparisonMode.Full fullScan -> true;
@@ -116,7 +116,7 @@ public final class ReportAssembler {
      * keySimilarity = Nb(1-r) / (Nb + Nc·a). keySimilarity falls with both r and a, so its interval combines the
      * worse bounds of both (lower bound from upper r and upper a), which is conservative.
      */
-    private static Measured estimated(ScanResult scan, Preflight.Result preflight, int topChangedPaths,
+    private static Measured estimated(ScanResult scan, PreflightResult preflight, int topChangedPaths,
                                       PathMatcher expected) {
         long baselineSampled = scan.matched() + scan.removed();
         long nb = preflight.baselineCount();
@@ -170,7 +170,7 @@ public final class ReportAssembler {
      * sample, the share {@code p} of read keys found on the other side estimates matched = N·p, where N is the read
      * side's size; every key rate is monotonic in matched, so its interval follows from the one of {@code p}.
      */
-    private static Measured matchedOnly(ScanResult scan, Preflight.Result preflight, boolean full,
+    private static Measured matchedOnly(ScanResult scan, PreflightResult preflight, boolean full,
                                         int topChangedPaths, PathMatcher expected) {
         boolean readBaseline = MatchedOnlyComparator.readsBaseline(preflight.baselineCount(),
                 preflight.candidateCount());
@@ -222,7 +222,7 @@ public final class ReportAssembler {
         return denominator == 0 ? 0.0 : Math.clamp(nb * (1 - removedRate) / denominator, 0.0, 1.0);
     }
 
-    private static List<String> warnings(Preflight.Result preflight, ScanResult scan, StructureMetrics structure,
+    private static List<String> warnings(PreflightResult preflight, ScanResult scan, StructureMetrics structure,
                                          ComparisonSettings settings) {
         List<String> warnings = new ArrayList<>(preflight.warnings());
         if (structure.pathCapReached()) {

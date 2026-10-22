@@ -175,28 +175,57 @@ class MergeJoinIT {
         }
     }
 
+    @Test
+    void lookupJoinGivesTheSameResult() {
+        Collections.create(DB, "lj_base", "{_id: 1, v: 1}", "{_id: 2, v: 2}", "{_id: 3, v: 3, a: [1, 2]}",
+                "{_id: 5, v: 5}", "{_id: 6, v: 6}", "{_id: 'x', v: 0}");
+        Collections.create(DB, "lj_cand", "{_id: 0, v: 0}", "{_id: 1, v: 1}", "{_id: 2, v: -2}",
+                "{_id: 3, v: 3, a: [2, 1]}", "{_id: 4, v: 4}", "{_id: 6, v: 6, w: true}", "{_id: 'x', v: 0}");
+        var request = ComparisonRequest.builder("lj_base", "lj_cand")
+                .mixedKeyPolicy(dev.jbaby.ditto.comparator.api.MixedKeyPolicy.COMPARE).build();
+
+        ScanResult merged = compare(request, progress -> {
+        }, false);
+        ScanResult lookedUp = compare(request, progress -> {
+        }, true);
+
+        assertThat(lookedUp).isEqualTo(merged);
+        assertThat(lookedUp.matched()).isEqualTo(5);
+        assertThat(lookedUp.changed()).isEqualTo(2);
+    }
+
     private static ScanResult compare(ComparisonRequest request) {
         return compare(request, progress -> {
         });
     }
 
     private static ScanResult compare(ComparisonRequest request, dev.jbaby.ditto.comparator.api.ProgressListener listener) {
+        return compare(request, listener, false);
+    }
+
+    /** @param lookupJoin compare with the lookup join (in small batches) instead of the merge-join */
+    private static ScanResult compare(ComparisonRequest request,
+                                      dev.jbaby.ditto.comparator.api.ProgressListener listener, boolean lookupJoin) {
         ComparisonSettings settings = settings(request);
-        CollectionHandle baseline = handle("baseline", settings.baseline());
-        CollectionHandle candidate = handle("candidate", settings.candidate());
+        MongoCollectionSource baseline = handle("baseline", settings.baseline());
+        MongoCollectionSource candidate = handle("candidate", settings.candidate());
         var preflight = new Preflight(new KeyInspector()).run(baseline, candidate, settings);
         var progress = new ProgressReporter("test", Duration.ofMillis(1),
                 preflight.baselineCount() + preflight.candidateCount(), listener);
-        return new MergeJoinComparator().compare(baseline, candidate, settings,
-                new ScanAccumulator(settings, new Hasher(new CanonicalEncoder())), progress);
+        var accumulator = new ScanAccumulator(settings, new Hasher(new CanonicalEncoder()));
+        return lookupJoin
+                ? new LookupJoinComparator().compare(baseline, candidate, settings, accumulator, progress)
+                : new MergeJoinComparator().compare(baseline, candidate, settings, accumulator, progress);
     }
 
     private static ComparisonSettings settings(ComparisonRequest request) {
-        return new ComparatorProperties().settingsFor(request, DB.getName());
+        var properties = new ComparatorProperties();
+        properties.getSample().setLookupBatchSize(2);
+        return properties.settingsFor(request, DB.getName());
     }
 
-    private static CollectionHandle handle(String side, CollectionRef ref) {
-        return CollectionHandle.of(side, ref, DB);
+    private static MongoCollectionSource handle(String side, CollectionRef ref) {
+        return MongoCollectionSource.of(side, ref, DB);
     }
 
     private static KeyRef key(int id) {

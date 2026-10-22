@@ -9,15 +9,15 @@ import org.springframework.context.annotation.Bean;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
-import dev.jbaby.ditto.comparator.CollectionComparator;
+import dev.jbaby.ditto.comparator.DocumentComparator;
 import dev.jbaby.ditto.comparator.observability.ComparisonMetrics;
 
 /**
  * Micrometer metrics for comparisons, if Micrometer is on the classpath.
  */
-@AutoConfiguration(after = ComparatorAutoConfiguration.class)
+@AutoConfiguration(afterName = {ComparatorEngineNames.MONGODB, ComparatorEngineNames.OPENSEARCH})
 @ConditionalOnClass(MeterRegistry.class)
-@ConditionalOnBean(CollectionComparator.class)
+@ConditionalOnBean(DocumentComparator.class)
 public class ComparatorMetricsAutoConfiguration {
 
     @Bean

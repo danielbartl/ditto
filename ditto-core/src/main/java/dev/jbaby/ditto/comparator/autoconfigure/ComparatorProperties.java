@@ -17,6 +17,7 @@ import dev.jbaby.ditto.comparator.api.ComparisonRequest;
 import dev.jbaby.ditto.comparator.api.ComparisonSettings;
 import dev.jbaby.ditto.comparator.api.Labels;
 import dev.jbaby.ditto.comparator.api.MixedKeyPolicy;
+import dev.jbaby.ditto.comparator.api.Store;
 import dev.jbaby.ditto.comparator.api.Thresholds;
 import dev.jbaby.ditto.comparator.api.VerdictBasis;
 import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
@@ -114,12 +115,23 @@ public class ComparatorProperties {
     private final MapDetection mapDetection = new MapDetection();
 
     /**
-     * Merges the request with these defaults.
+     * Merges the request for two MongoDB collections with these defaults.
      *
      * @param defaultDatabase database used for collections without an explicit database
      */
     public ComparisonSettings settingsFor(ComparisonRequest request, String defaultDatabase) {
+        return settingsFor(request, Store.MONGODB, defaultDatabase);
+    }
+
+    /**
+     * Merges the request with these defaults.
+     *
+     * @param store           where both sides live
+     * @param defaultDatabase database (OpenSearch: cluster name) used for references without an explicit one
+     */
+    public ComparisonSettings settingsFor(ComparisonRequest request, Store store, String defaultDatabase) {
         return new ComparisonSettings(
+                store,
                 request.baseline().withDefaultDatabase(defaultDatabase),
                 request.candidate().withDefaultDatabase(defaultDatabase),
                 Objects.requireNonNullElse(request.keyField(), keyField),

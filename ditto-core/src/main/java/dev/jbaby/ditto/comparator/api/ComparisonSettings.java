@@ -7,9 +7,13 @@ import java.util.List;
 
 /**
  * The effective configuration of one comparison: the request merged with the configured defaults.
- * Collections always carry a database name. Path lists are sorted, so reports are deterministic.
+ * Collections always carry a database name (for OpenSearch: the cluster name). Path lists are sorted, so reports are
+ * deterministic.
+ *
+ * @param store where both sides live; reports stored before this existed are {@link Store#MONGODB}
  */
 public record ComparisonSettings(
+        Store store,
         CollectionRef baseline,
         CollectionRef candidate,
         String keyField,
@@ -27,6 +31,8 @@ public record ComparisonSettings(
         Tuning tuning) {
 
     public ComparisonSettings {
+        // reports stored before OpenSearch support
+        store = store == null ? Store.MONGODB : store;
         requireNonNull(baseline, "baseline");
         requireNonNull(candidate, "candidate");
         requireNonNull(keyField, "keyField");
@@ -50,19 +56,19 @@ public record ComparisonSettings(
     }
 
     public ComparisonSettings withMode(ComparisonMode mode) {
-        return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
+        return new ComparisonSettings(store, baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
                 expectedChangePaths, redactedPaths, mode, matchedOnly, nullEqualsMissing, mixedKeyPolicy, verdictBasis,
                 thresholds, tuning);
     }
 
     public ComparisonSettings withWildcardPaths(List<String> wildcardPaths) {
-        return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
+        return new ComparisonSettings(store, baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
                 expectedChangePaths, redactedPaths, mode, matchedOnly, nullEqualsMissing, mixedKeyPolicy, verdictBasis,
                 thresholds, tuning);
     }
 
     public ComparisonSettings withThresholds(Thresholds thresholds) {
-        return new ComparisonSettings(baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
+        return new ComparisonSettings(store, baseline, candidate, keyField, ignoredPaths, orderSensitivePaths, wildcardPaths,
                 expectedChangePaths, redactedPaths, mode, matchedOnly, nullEqualsMissing, mixedKeyPolicy, verdictBasis,
                 thresholds, tuning);
     }

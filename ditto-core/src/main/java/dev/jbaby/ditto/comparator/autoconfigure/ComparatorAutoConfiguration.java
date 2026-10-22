@@ -18,15 +18,10 @@ import dev.jbaby.ditto.comparator.canonical.CanonicalEncoder;
 import dev.jbaby.ditto.comparator.canonical.Hasher;
 import dev.jbaby.ditto.comparator.history.ReportHistory;
 import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
-import dev.jbaby.ditto.comparator.key.KeyInspector;
 import dev.jbaby.ditto.comparator.report.ReportAssembler;
 import dev.jbaby.ditto.comparator.report.ReportHtml;
 import dev.jbaby.ditto.comparator.report.ReportJson;
 import dev.jbaby.ditto.comparator.report.ReportRepository;
-import dev.jbaby.ditto.comparator.scan.MatchedOnlyComparator;
-import dev.jbaby.ditto.comparator.scan.MergeJoinComparator;
-import dev.jbaby.ditto.comparator.scan.Preflight;
-import dev.jbaby.ditto.comparator.scan.SampleComparator;
 import dev.jbaby.ditto.comparator.verdict.VerdictEvaluator;
 
 /**
@@ -95,9 +90,7 @@ public class ComparatorAutoConfiguration {
                                                      ObjectProvider<ReportRepository> repository,
                                                      ObjectProvider<ThresholdAdvisor> thresholdAdvisor,
                                                      ApplicationEventPublisher events) {
-        return new CollectionComparator(databaseFactory, properties, hasher, new Preflight(new KeyInspector()),
-                new MergeJoinComparator(), new SampleComparator(), new MatchedOnlyComparator(),
-                new ReportAssembler(verdictEvaluator),
+        return new CollectionComparator(databaseFactory, properties, hasher, new ReportAssembler(verdictEvaluator),
                 repository.getIfAvailable(), thresholdAdvisor.getIfAvailable(), events);
     }
 }

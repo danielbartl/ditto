@@ -36,6 +36,7 @@ class ReportJsonTest {
         assertThat(report.run().thresholdSource()).isEqualTo(ThresholdSource.configured());
         assertThat(report.run().settings().expectedChangePaths()).isEmpty();
         assertThat(report.run().settings().matchedOnly()).isFalse();
+        assertThat(report.run().settings().store()).isEqualTo(dev.jbaby.ditto.comparator.api.Store.MONGODB);
         assertThat(report.labels()).isEmpty();
         assertThat(report.run().settings().tuning().maxValueExamples()).isZero();
         // and it round-trips in the current format, which names its version first
