@@ -14,6 +14,7 @@ import dev.jbaby.ditto.comparator.autoconfigure.ComparatorEngineAutoConfiguratio
 import dev.jbaby.ditto.comparator.autoconfigure.ComparatorMetricsAutoConfiguration;
 import dev.jbaby.ditto.comparator.observability.ComparisonMetrics;
 import dev.jbaby.ditto.opensearch.IndexComparator;
+import dev.jbaby.ditto.opensearch.report.OpenSearchReportRepository;
 
 class OpenSearchComparatorAutoConfigurationTest {
 
@@ -54,6 +55,25 @@ class OpenSearchComparatorAutoConfigurationTest {
                     assertThat(context).doesNotHaveBean(OpenSearchTransport.class);
                     assertThat(context).hasSingleBean(IndexComparator.class);
                 });
+    }
+
+    @Test
+    void registersRepositoryWhenPersistenceIsEnabled() {
+        var withClient = runner.withPropertyValues("ditto.opensearch.uris=http://localhost:1");
+
+        withClient.run(context -> assertThat(context).doesNotHaveBean(OpenSearchReportRepository.class));
+        withClient.withPropertyValues("ditto.persistence.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(OpenSearchReportRepository.class);
+                    assertThat(context).hasSingleBean(IndexComparator.class);
+                });
+    }
+
+    @Test
+    void adaptiveThresholdsNeedPersistence() {
+        runner.withPropertyValues("ditto.opensearch.uris=http://localhost:1", "ditto.adaptive-thresholds.enabled=true")
+                .run(context -> assertThat(context).getFailure().rootCause()
+                        .hasMessageContaining("set ditto.persistence.enabled=true"));
     }
 
     @Test
