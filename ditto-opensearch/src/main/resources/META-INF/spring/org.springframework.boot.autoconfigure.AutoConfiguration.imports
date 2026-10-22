@@ -1,0 +1,2 @@
+dev.jbaby.ditto.opensearch.autoconfigure.DittoOpenSearchClientAutoConfiguration
+dev.jbaby.ditto.opensearch.autoconfigure.OpenSearchComparatorAutoConfiguration

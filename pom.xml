@@ -57,6 +57,7 @@
     <modules>
         <module>ditto-engine</module>
         <module>ditto-core</module>
+        <module>ditto-opensearch</module>
         <module>ditto-cli</module>
     </modules>
 
@@ -65,6 +66,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Mockito attaches its agent at runtime; allow it without JDK warnings -->
         <argLine>-XX:+EnableDynamicAgentLoading</argLine>
+        <opensearch-java.version>3.10.0</opensearch-java.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
         <!-- false: upload and validate only, then publish by hand in the Central Portal -->
@@ -82,6 +84,11 @@
             <dependency>
                 <groupId>dev.jbaby.ditto</groupId>
                 <artifactId>ditto-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.jbaby.ditto</groupId>
+                <artifactId>ditto-opensearch</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
