@@ -13,7 +13,6 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
-import dev.jbaby.ditto.comparator.CollectionComparator;
 import dev.jbaby.ditto.comparator.api.CollectionRef;
 import dev.jbaby.ditto.comparator.api.ComparisonMode;
 import dev.jbaby.ditto.comparator.api.ComparisonReport;
@@ -32,16 +31,16 @@ import dev.jbaby.ditto.comparator.report.ReportJson;
 @Component
 public class CompareCommand {
 
-    private final CollectionComparator comparator;
+    private final Target target;
     private final ComparatorProperties properties;
     private final ReportJson json;
     private final ReportHtml html;
     private final CliOptions options;
     private final CliConsole console;
 
-    public CompareCommand(CollectionComparator comparator, ComparatorProperties properties, ReportJson json,
-                          ReportHtml html, CliOptions options, CliConsole console) {
-        this.comparator = comparator;
+    public CompareCommand(Target target, ComparatorProperties properties, ReportJson json, ReportHtml html,
+                          CliOptions options, CliConsole console) {
+        this.target = target;
         this.properties = properties;
         this.json = json;
         this.html = html;
@@ -51,7 +50,7 @@ public class CompareCommand {
 
     public int run() {
         ComparisonRequest request = request();
-        ComparisonReport report = comparator.compare(request);
+        ComparisonReport report = target.comparator().compare(request);
         String text = json.writePretty(report);
         console.out().println(text);
         List<String> files = new ArrayList<>();
@@ -105,22 +104,37 @@ public class CompareCommand {
         }
     }
 
-    /** {@code --collection=x} for x_backup vs. x, or explicit {@code --baseline} and {@code --candidate}. */
+    /**
+     * {@code --collection=x} (for OpenSearch also {@code --index=x}) for x_backup vs. x, or explicit
+     * {@code --baseline} and {@code --candidate}.
+     */
     private ComparisonRequest.Builder builder() {
-        String collection = options.string("collection");
-        if (collection != null) {
+        String name = name(options, target);
+        if (name != null) {
             if (options.string("baseline") != null || options.string("candidate") != null) {
-                throw new CliUsageException("Use either --collection or --baseline/--candidate, not both");
+                throw new CliUsageException("Use either --" + target.noun() + " or --baseline/--candidate, not both");
             }
-            return comparator.backupRequest(collection);
+            return target.comparator().backupRequest(name);
         }
         if (options.string("baseline") == null && options.string("candidate") == null) {
-            throw new CliUsageException("Missing collections: --collection=<name> compares <name>"
-                    + properties.getBackupSuffix() + " with <name>, or give --baseline and --candidate");
+            String option = "--" + target.noun() + "=<name>";
+            throw new CliUsageException("Missing " + (target.isOpenSearch() ? "indices: " : "collections: ") + option
+                    + " compares <name>" + properties.getBackupSuffix() + " with <name>, or give --baseline and"
+                    + " --candidate");
         }
         var baseline = new CollectionRef(options.string("baseline-db"), options.required("baseline"));
         var candidate = new CollectionRef(options.string("candidate-db"), options.required("candidate"));
         return ComparisonRequest.builder(baseline, candidate);
+    }
+
+    /** {@code --collection}, or for OpenSearch {@code --index} (both are accepted there). */
+    static @Nullable String name(CliOptions options, Target target) {
+        String collection = options.string("collection");
+        String index = target.isOpenSearch() ? options.string("index") : null;
+        if (collection != null && index != null) {
+            throw new CliUsageException("Use either --index or --collection, not both");
+        }
+        return index != null ? index : collection;
     }
 
     private @Nullable ComparisonMode mode() {

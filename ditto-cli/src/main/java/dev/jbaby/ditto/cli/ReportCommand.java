@@ -9,36 +9,30 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.jspecify.annotations.Nullable;
-import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.stereotype.Component;
 
-import dev.jbaby.ditto.comparator.api.CollectionRef;
 import dev.jbaby.ditto.comparator.api.ComparisonReport;
 import dev.jbaby.ditto.comparator.api.Labels;
-import dev.jbaby.ditto.comparator.autoconfigure.ComparatorProperties;
 import dev.jbaby.ditto.comparator.report.ReportHtml;
 import dev.jbaby.ditto.comparator.report.ReportJson;
-import dev.jbaby.ditto.comparator.report.ReportRepository;
+import dev.jbaby.ditto.comparator.report.ReportStore;
 
 /**
  * {@code report}: reads a stored report ({@code ditto.persistence.*}), prints it as JSON and maps its verdict to the
- * exit code, like {@code compare}. It selects the report by id, by labels or by candidate collection, or takes the
- * most recent one. Reading never changes the report collection, not even its indexes.
+ * exit code, like {@code compare}. It selects the report by id, by labels or by candidate collection (or index), or
+ * takes the most recent one. Reading never changes the report collection or index, not even its indexes.
  */
 @Component
 public class ReportCommand {
 
-    private final MongoDatabaseFactory databaseFactory;
-    private final ComparatorProperties properties;
+    private final Target target;
     private final ReportJson json;
     private final ReportHtml html;
     private final CliOptions options;
     private final CliConsole console;
 
-    public ReportCommand(MongoDatabaseFactory databaseFactory, ComparatorProperties properties, ReportJson json,
-                         ReportHtml html, CliOptions options, CliConsole console) {
-        this.databaseFactory = databaseFactory;
-        this.properties = properties;
+    public ReportCommand(Target target, ReportJson json, ReportHtml html, CliOptions options, CliConsole console) {
+        this.target = target;
         this.json = json;
         this.html = html;
         this.options = options;
@@ -46,14 +40,9 @@ public class ReportCommand {
     }
 
     public int run() {
-        var persistence = properties.getPersistence();
-        ReportRepository repository = ReportRepository.readOnly(databaseFactory, persistence.getDatabase(),
-                persistence.getCollection(), json);
-        Optional<ComparisonReport> found = find(repository);
+        Optional<ComparisonReport> found = find(target.reports());
         if (found.isEmpty()) {
-            console.err().println("No stored report " + selection() + " in "
-                    + new CollectionRef(persistence.getDatabase(), persistence.getCollection())
-                    .withDefaultDatabase(databaseFactory.getMongoDatabase().getName()));
+            console.err().println("No stored report " + selection() + " in " + target.reportLocation());
             return ExitCodes.ERROR;
         }
         ComparisonReport report = found.get();
@@ -76,13 +65,14 @@ public class ReportCommand {
         return ExitCodes.of(report.verdict());
     }
 
-    private Optional<ComparisonReport> find(ReportRepository repository) {
+    private Optional<ComparisonReport> find(ReportStore repository) {
         String id = options.string("id");
         String labels = options.string("label");
         String candidate = candidate();
         long criteria = Stream.of(id, labels, candidate).filter(Objects::nonNull).count();
         if (criteria > 1) {
-            throw new CliUsageException("Select the report by one of --id, --label or --collection/--candidate");
+            throw new CliUsageException("Select the report by one of --id, --label or --" + target.noun()
+                    + "/--candidate");
         }
         if (id != null) {
             return repository.findById(id);
@@ -93,19 +83,18 @@ public class ReportCommand {
         return repository.findRecent(candidate, 1).stream().findFirst();
     }
 
-    /** {@code db.collection} of the candidate, as stored with the report; {@code null} if not given. */
+    /** {@code db.collection} (or {@code cluster.index}) of the candidate, as stored with the report. */
     private @Nullable String candidate() {
-        String collection = options.string("collection");
+        String collection = CompareCommand.name(options, target);
         String candidate = options.string("candidate");
         if (collection != null && candidate != null) {
-            throw new CliUsageException("Use either --collection or --candidate, not both");
+            throw new CliUsageException("Use either --" + target.noun() + " or --candidate, not both");
         }
         String name = collection != null ? collection : candidate;
         if (name == null) {
             return null;
         }
-        return new CollectionRef(options.string("candidate-db"), name)
-                .withDefaultDatabase(databaseFactory.getMongoDatabase().getName()).toString();
+        return target.qualify(options.string("candidate-db"), name);
     }
 
     private static Map<String, String> labels(String labels) {

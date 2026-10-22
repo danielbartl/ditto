@@ -9,25 +9,22 @@ import org.bson.BsonDateTime;
 import org.bson.BsonDocument;
 import org.jspecify.annotations.Nullable;
 
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-
 /**
- * Writes a baseline collection and a candidate copy with the configured changes, in batches.
+ * Writes a baseline collection (or index) and a candidate copy with the configured changes, in batches.
  */
 public final class TestDataGenerator {
 
     private static final int BATCH = 1000;
 
-    private final MongoDatabase database;
+    private final DocumentSink sink;
 
-    public TestDataGenerator(MongoDatabase database) {
-        this.database = database;
+    public TestDataGenerator(DocumentSink sink) {
+        this.sink = sink;
     }
 
     /**
-     * @param baseline   baseline collection (dropped and recreated)
-     * @param candidate  candidate collection (dropped and recreated)
+     * @param baseline   baseline collection or index (dropped and recreated)
+     * @param candidate  candidate collection or index (dropped and recreated)
      * @param docs       documents in the baseline
      * @param seed       random seed; equal settings produce equal data
      * @param changes    changes applied to the candidate
@@ -56,8 +53,10 @@ public final class TestDataGenerator {
     }
 
     public Stats generate(Settings settings) {
-        MongoCollection<BsonDocument> baseline = recreate(settings.baseline());
-        MongoCollection<BsonDocument> candidate = recreate(settings.candidate());
+        String baseline = settings.baseline();
+        String candidate = settings.candidate();
+        sink.recreate(baseline);
+        sink.recreate(candidate);
         DocumentFactory factory = new DocumentFactory(settings.seed());
         Mutator mutator = new Mutator(settings.seed() + 1);
         Map<String, Long> applied = new LinkedHashMap<>();
@@ -97,6 +96,8 @@ public final class TestDataGenerator {
         }
         flush(baseline, baselineBatch);
         flush(candidate, candidateBatch);
+        sink.finish(baseline);
+        sink.finish(candidate);
         return new Stats(baselineDocs, candidateDocs, applied);
     }
 
@@ -121,22 +122,15 @@ public final class TestDataGenerator {
         return document;
     }
 
-    private MongoCollection<BsonDocument> recreate(String name) {
-        MongoCollection<BsonDocument> collection = database.getCollection(name, BsonDocument.class);
-        collection.drop();
-        database.createCollection(name);
-        return collection;
-    }
-
-    private static void flushIfFull(MongoCollection<BsonDocument> collection, List<BsonDocument> batch) {
+    private void flushIfFull(String name, List<BsonDocument> batch) {
         if (batch.size() >= BATCH) {
-            flush(collection, batch);
+            flush(name, batch);
         }
     }
 
-    private static void flush(MongoCollection<BsonDocument> collection, List<BsonDocument> batch) {
+    private void flush(String name, List<BsonDocument> batch) {
         if (!batch.isEmpty()) {
-            collection.insertMany(batch);
+            sink.insert(name, batch);
             batch.clear();
         }
     }

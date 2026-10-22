@@ -1,8 +1,11 @@
-# Local MongoDB for manual experiments.
+# Local MongoDB and OpenSearch for manual experiments.
 #
-#   docker compose up -d                 start MongoDB on localhost:27017
-#   ./mvnw -q package -DskipTests        build ditto-cli/target/ditto-cli.jar
-#   docker compose run --rm seed         generate a baseline collection and a modified copy
+#   docker compose up -d                       start MongoDB on localhost:27017
+#   ./mvnw -q package -DskipTests              build ditto-cli/target/ditto-cli.jar
+#   docker compose run --rm seed               generate a baseline collection and a modified copy
+#
+#   docker compose up -d opensearch            start OpenSearch on localhost:9200 (security off)
+#   docker compose run --rm seed-opensearch    generate a baseline index and a modified copy
 #
 # Override the generator arguments with SEED_ARGS, e.g.
 #   SEED_ARGS="--docs=200000 --changes=modify:price:0.1" docker compose run --rm seed
@@ -32,5 +35,36 @@ services:
     environment:
       SEED_ARGS: ${SEED_ARGS:---docs=50000 --baseline=demo_backup --candidate=demo --seed=42}
 
+  opensearch:
+    image: opensearchproject/opensearch:3.9.0
+    profiles: ["opensearch", "seed-opensearch"]
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+  seed-opensearch:
+    image: eclipse-temurin:25-jre
+    profiles: ["seed-opensearch"]
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    volumes:
+      - ./ditto-cli/target:/app:ro
+    entrypoint: ["sh", "-c", "exec java -jar /app/ditto-cli.jar generate --opensearch=http://opensearch:9200 $${SEED_ARGS}"]
+    environment:
+      SEED_ARGS: ${SEED_ARGS:---docs=50000 --baseline=demo_backup --candidate=demo --seed=42}
+
 volumes:
   mongo-data:
+  opensearch-data:

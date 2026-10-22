@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import com.mongodb.MongoException;
 
 import dev.jbaby.ditto.comparator.api.ComparisonException;
+import dev.jbaby.ditto.opensearch.OpenSearchAccessException;
 
 /**
  * Dispatches to the command given as first non-option argument ({@code compare} if none) and records its exit code.
@@ -50,7 +51,8 @@ public class CliRunner implements ApplicationRunner {
             console.err().println(e.getMessage());
             console.err().println("Run with --help for usage.");
             exitCode = ExitCodes.ERROR;
-        } catch (ComparisonException | DataAccessException | MongoException | IllegalArgumentException e) {
+        } catch (ComparisonException | DataAccessException | MongoException | OpenSearchAccessException
+                 | IllegalArgumentException e) {
             console.err().println("Error: " + e.getMessage());
             exitCode = ExitCodes.ERROR;
         } catch (RuntimeException e) {

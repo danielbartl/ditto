@@ -55,9 +55,21 @@ public final class OpenSearchHttp {
      * @throws OpenSearchAccessException on I/O errors
      */
     public Reply execute(String method, String endpoint, Map<String, String> parameters, @Nullable JsonNode body) {
+        return execute(method, endpoint, parameters, body == null ? null : mapper.writeValueAsBytes(body), JSON);
+    }
+
+    /**
+     * Sends a request with a body of any content type, e.g. {@code application/x-ndjson} for {@code _bulk}, and
+     * returns the response, whatever its status.
+     *
+     * @param body request body, {@code null} for none
+     * @throws OpenSearchAccessException on I/O errors
+     */
+    public Reply execute(String method, String endpoint, Map<String, String> parameters, byte @Nullable [] body,
+                         String contentType) {
         var builder = Requests.builder().method(method).endpoint(endpoint).query(parameters);
         if (body != null) {
-            builder.body(Body.from(mapper.writeValueAsBytes(body), JSON));
+            builder.body(Body.from(body, contentType));
         }
         Request request = builder.build();
         try (Response response = client.execute(request)) {

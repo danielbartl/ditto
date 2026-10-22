@@ -10,10 +10,13 @@ final class Usage {
                    java -jar ditto-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
                    java -jar ditto-cli.jar report [--id=<id> | --label=<key>=<value> | --collection=<collection>]
                    java -jar ditto-cli.jar generate [options]
+            OpenSearch: add --opensearch=<url>; collections are then indices (--index works as --collection)
 
             Connection
               --uri=<mongodb uri>           default mongodb://localhost:27017
               --db=<database>               default database, default "test"
+              --opensearch=<url,...>        compare OpenSearch indices instead, e.g. http://localhost:9200
+              --opensearch-user=<user>      basic authentication; password from DITTO_OPENSEARCH_PASSWORD
 
             compare (prints the report as JSON on stdout; exit code 0 GREEN, 1 YELLOW, 2 RED, 3 error)
               --collection=<collection>     compares <collection>_backup (baseline) with <collection> (candidate)
@@ -21,7 +24,8 @@ final class Usage {
               --candidate=<collection>      collection to judge
               --baseline-db=<database>      database of the baseline if not --db
               --candidate-db=<database>     database of the candidate if not --db
-              --key=<field>                 key field, default _id
+              --key=<field>                 key field, default _id; OpenSearch: a keyword or integer field,
+                                            or a text field with a keyword subfield
               --ignore=<path,...>           paths to ignore, e.g. meta.syncedAt,items[].etag
               --ordered=<path,...>          arrays whose element order matters
               --wildcard=<path,...>         maps with dynamic keys, e.g. attributes.*
@@ -50,9 +54,10 @@ final class Usage {
               --collection=<collection>     the newest report for this candidate (also --candidate, --candidate-db)
                                             without a selection: the newest report
               --out=<file>, --html=<file>   also write the report as JSON or as a self-contained HTML page
-              reads ditto.persistence.database / .collection (default comparison_reports); changes nothing
+              reads ditto.persistence.database / .collection (default comparison_reports; with --opensearch
+              the index of that name); changes nothing
 
-            generate (writes a baseline collection and a modified copy)
+            generate (writes a baseline collection, or index, and a modified copy)
               --baseline=<collection>       default demo_backup
               --candidate=<collection>      default demo
               --docs=<n>                    documents in the baseline, default 10000
@@ -72,6 +77,7 @@ final class Usage {
               Generated fields: _id (ObjectId), sku, name, price (decimal), qty (int), active, createdAt,
               category{id,name,path[]}, tags[], attributes{<dynamic>}, variants[{sku,price,stock,dims{w,h}}],
               history[] (ordered events), legacyCode, note (sometimes null), meta{syncedAt,source,version}
+              In OpenSearch the ObjectId is the document id, dates are ISO strings, and only sku is indexed.
             """;
 
     private Usage() {
