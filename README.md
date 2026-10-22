@@ -1,12 +1,13 @@
-# ditto: MongoDB collection comparator
+# ditto: MongoDB collection and OpenSearch index comparator
 
 [![CI](https://github.com/danielbartl/ditto/actions/workflows/ci.yml/badge.svg)](https://github.com/danielbartl/ditto/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/danielbartl/ditto)](https://github.com/danielbartl/ditto/releases/latest)
 [![Maven Central](https://img.shields.io/maven-central/v/dev.jbaby.ditto/ditto-core)](https://central.sonatype.com/artifact/dev.jbaby.ditto/ditto-core)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-ditto compares two MongoDB collections that have the same or a very similar document structure, and tells you how
-similar they are. Each comparison gives a **GREEN / YELLOW / RED** verdict plus the metrics behind it.
+ditto compares two MongoDB collections, or two OpenSearch indices, that have the same or a very similar document
+structure, and tells you how similar they are. Each comparison gives a **GREEN / YELLOW / RED** verdict plus the
+metrics behind it.
 
 The typical case is a batch job that fully replicates data into MongoDB:
 
@@ -15,14 +16,18 @@ The typical case is a batch job that fully replicates data into MongoDB:
 3. ditto compares baseline and candidate and tells you whether the new data looks usable.
 
 The tool is fully generic. It works on raw BSON (`RawBsonDocument` / `BsonDocument`) and knows nothing about what the
-documents mean.
+documents mean. OpenSearch documents (`_source`) are read as JSON and converted to BSON without losing number
+precision, so both stores get the same metrics, verdict and report.
 
-| Module       | What it is                                                                                     |
-|--------------|------------------------------------------------------------------------------------------------|
-| `ditto-core` | The library. Spring Boot auto-configuration: add the dependency, inject `CollectionComparator`. |
-| `ditto-cli`  | A runnable jar: compares two collections, prints the report as JSON, exits 0/1/2/3.            |
+| Module             | What it is                                                                                       |
+|--------------------|--------------------------------------------------------------------------------------------------|
+| `ditto-core`       | The library for MongoDB. Spring Boot auto-configuration: add the dependency, inject `CollectionComparator`. |
+| `ditto-opensearch` | The library for OpenSearch: add the dependency, inject `IndexComparator`. See [OpenSearch](#comparing-opensearch-indices). |
+| `ditto-engine`     | The store-neutral engine both libraries build on. It comes with them; you don't add it yourself.   |
+| `ditto-cli`        | A runnable jar: compares two collections or indices, prints the report as JSON, exits 0/1/2/3.     |
 
-Requirements: Java 21 or newer, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0). Integration tests need Docker.
+Requirements: Java 21 or newer, Spring Boot 4.1, and MongoDB 4.4+ (tested with 8.0) or OpenSearch 2.19 or 3.x
+(tested with 2.19 and 3.9). Integration tests need Docker.
 
 **Home page:** https://danielbartl.github.io/ditto/
 
@@ -35,6 +40,7 @@ Requirements: Java 21 or newer, Spring Boot 4.1, MongoDB 4.4+ (tested with 8.0).
 - [What ditto measures](#what-ditto-measures)
 - [Running the CLI](#running-the-cli)
 - [Embedding the library](#embedding-the-library)
+- [Comparing OpenSearch indices](#comparing-opensearch-indices)
 - [Configuration reference](#configuration-reference)
 - [Interpreting a report](#interpreting-a-report)
 - [Running it as a JobRunr job after a batch run](#running-it-as-a-jobrunr-job-after-a-batch-run)
@@ -265,6 +271,9 @@ java -jar ditto-cli.jar generate [options]
 java -jar ditto-cli.jar --help
 ```
 
+Every command works on OpenSearch indices as well: add `--opensearch=<url>`. Collections are then indices, and
+`--index` works like `--collection`. See [OpenSearch](#comparing-opensearch-indices).
+
 The report goes to **stdout** as JSON, and nothing else does. Logs, a one-line summary and the hints with
 ready-made options go to **stderr**, so `> report.json` and pipes into `jq` work.
 
@@ -281,11 +290,14 @@ ready-made options go to **stderr**, so `> report.json` and pipes into `jq` work
 |---------------------------------|----------------------------------------------------------------------------|
 | `--uri=<uri>`                   | MongoDB connection string. Default `mongodb://localhost:27017`             |
 | `--db=<database>`               | Default database. Default `test`                                           |
+| `--opensearch=<url,...>`        | Compare OpenSearch indices instead, e.g. `http://localhost:9200`. MongoDB is then not connected |
+| `--opensearch-user=<user>`      | Basic authentication for OpenSearch; the password comes from `DITTO_OPENSEARCH_PASSWORD` |
+| `--index=<index>`               | With `--opensearch`: same as `--collection`                                |
 | `--collection=<collection>`     | Compares `<collection>_backup` (baseline) with `<collection>` (candidate)  |
 | `--baseline=<collection>`       | Reference collection, e.g. the backup (instead of `--collection`)          |
 | `--candidate=<collection>`      | Collection to judge (instead of `--collection`)                            |
 | `--baseline-db` / `--candidate-db` | Database per side, if it differs from `--db`                           |
-| `--key=<field>`                 | Top-level key field. Default `_id`                                         |
+| `--key=<field>`                 | Top-level key field. Default `_id`. OpenSearch: a keyword or integer field, or a text field with a keyword subfield |
 | `--ignore=<path,...>`           | Ignored paths, e.g. `meta.syncedAt,items[].etag`                           |
 | `--ordered=<path,...>`          | Order-sensitive arrays                                                     |
 | `--wildcard=<path,...>`         | Maps with dynamic keys, e.g. `attributes.*`                                |
@@ -584,6 +596,118 @@ already has them.
 
 ---
 
+## Comparing OpenSearch indices
+
+ditto compares two OpenSearch indices the same way as two collections: the same verdict, metrics, hints, report and
+viewer. A document is its `_source`, and `_id` is its key.
+
+### Quick start
+
+```bash
+docker compose up -d opensearch                    # OpenSearch 3 on localhost:9200, security off
+./mvnw package -DskipTests
+
+# baseline index "demo_backup" and a modified copy "demo"
+SEED_ARGS="--docs=50000 --changes=modify:price:0.03,delete-docs:0.005,add-docs:0.005" \
+  docker compose run --rm seed-opensearch
+
+java -jar ditto-cli/target/ditto-cli.jar --opensearch=http://localhost:9200 --index=demo > report.json
+```
+
+As with MongoDB, the first run is RED because `meta.syncedAt` changed everywhere, and the hint says to add
+`--ignore=meta.syncedAt`. For a secured cluster add `--opensearch-user=<user>` and put the password in
+`DITTO_OPENSEARCH_PASSWORD`.
+
+### Add the dependency
+
+```xml
+<dependency>
+    <groupId>dev.jbaby.ditto</groupId>
+    <artifactId>ditto-opensearch</artifactId>
+    <version>0.6.0</version>
+</dependency>
+```
+
+ditto-opensearch is new in 0.6.0. It doesn't bring the MongoDB driver along; it uses only the small `bson` library
+for its document model.
+
+ditto talks to OpenSearch through the application's `OpenSearchClient` bean (opensearch-java, built and tested with
+3.10), e.g. from `spring-data-opensearch-starter` or your own `@Bean`. It sends raw JSON requests through the client's
+generic API, so whatever transport the client uses applies, including AWS SigV4 signing for Amazon OpenSearch
+Service. Without a client bean, set `ditto.opensearch.uris` (plus `username` and `password` if needed) and ditto
+creates one. `OpenSearchComparatorAutoConfiguration` then registers an `IndexComparator`.
+
+### Call it
+
+```java
+@Service
+class IndexCheck {
+
+    private final IndexComparator comparator;
+
+    IndexCheck(IndexComparator comparator) {
+        this.comparator = comparator;
+    }
+
+    void afterReindex() {
+        ComparisonReport report = comparator.compareWithBackup("products");   // products_backup -> products
+        if (report.verdict() == Level.RED) {
+            throw new IllegalStateException("products looks broken: " + report.hints());
+        }
+    }
+}
+```
+
+Everything else works as described for collections: request options, labels, expected changes, thresholds,
+persistence, history, events, metrics and the Actuator endpoint. Names are index names or aliases. An application
+with both MongoDB and OpenSearch gets both comparators.
+
+### What is different from MongoDB
+
+- **Keys**: `_id` is a string and not part of the document. A custom `key-field` must be a `keyword` or integer field,
+  or a `text` field with a `keyword` subfield. It must be present in every document and unique.
+- **Numbers and dates**: JSON numbers are read exactly. Integers become int or long. Decimals become double if a double
+  holds them exactly as written, else decimal. As in MongoDB, `1`, `1.0` and `1.00` are equal content. `_source`
+  has no date type, so dates are strings; ditto still recognises ISO-8601 timestamps that changed in every document
+  and suggests ignoring them.
+- **Reading**: OpenSearch cannot return all documents sorted by `_id`, so FULL mode uses a lookup join instead of a
+  merge-join. It scrolls the baseline and looks up each batch of keys in the candidate. Then it scrolls the
+  candidate's ids and looks those up in the baseline. That reads the candidate's keys twice but needs no sort.
+  - Locally, two indices of 20,000 documents took about 2 seconds.
+  - Lookups are searches (`ids` or `terms` queries), not multi-gets, so documents with custom routing are found and
+    an id indexed on two shards is reported as a duplicate.
+  - SAMPLE mode draws documents by a random score (`function_score` with `random_score`).
+- **Refresh**: only refreshed documents are visible. Refresh both indices after writing (`POST /<index>/_refresh`).
+  ditto warns if an index has `refresh_interval: -1`. It never writes to the compared indices.
+- **Indices and aliases**: a name may be an alias, but of exactly one index; `_id` is only unique per index. Index
+  patterns and lists are rejected. Indices must store `_source`.
+- **Names in reports**: the cluster name takes the place of the database, e.g. `my-cluster.products`.
+
+### Persisting reports in OpenSearch
+
+`ditto.persistence.enabled=true` stores reports in the index `ditto.persistence.collection` (default
+`comparison_reports`) of the same cluster. ditto creates the index with an explicit mapping if it doesn't exist:
+`createdAt`, `baseline`, `candidate`, `verdict` and `labels.*` are indexed, and the report itself is stored but not
+indexed. `ditto.persistence.retention` deletes older reports with a `_delete_by_query` after each save.
+
+History-derived thresholds, the CLI command `report` and the `comparisons` Actuator endpoint work as with MongoDB.
+`OpenSearchReportRepository` offers `findById`, `findRecent`, `findByLabels` and `findHistory`, and
+`OpenSearchReportRepository.readOnly(...)` only reads. If both MongoDB and OpenSearch store reports, each comparator
+keeps its own; the Actuator endpoint then isn't registered automatically, as it serves one report store.
+
+### OpenSearch properties
+
+| Property                             | Default | Meaning                                                                              |
+|--------------------------------------|---------|--------------------------------------------------------------------------------------|
+| `ditto.opensearch.uris`              | –       | Nodes for the client ditto creates if the application has none, e.g. `http://localhost:9200` |
+| `ditto.opensearch.username`          | –       | Basic authentication for that client                                                 |
+| `ditto.opensearch.password`          | –       | Basic authentication for that client                                                 |
+| `ditto.opensearch.scroll-keep-alive` | `5m`    | How long OpenSearch keeps a scroll open between two pages                            |
+
+All other `ditto.*` properties apply to OpenSearch as well.
+
+---
+
 ## Configuration reference
 
 All properties have the prefix `ditto`. Request values take precedence where the request has a matching option.
@@ -622,7 +746,7 @@ These are rarely needed. The defaults fit most data.
 | `full-scan-limit`                          | `5000000`            | AUTO scans fully up to this many documents per side                             |
 | `sample.size`                              | `20000`              | Keys sampled per side (SAMPLE, and AUTO above the limit)                        |
 | `sample.verdict-basis`                     | `CONSERVATIVE`       | `CONSERVATIVE` (worse confidence bound) or `POINT`                              |
-| `sample.lookup-batch-size`                 | `500`                | Keys per `$in` lookup                                                           |
+| `sample.lookup-batch-size`                 | `500`                | Keys per lookup (`$in`, or an OpenSearch `ids`/`terms` query)                   |
 | `map-detection.enabled`                    | `true`               | Detect maps with dynamic keys before comparing                                  |
 | `map-detection.sample-size`                | `500`                | Documents sampled per side for detection                                        |
 | `map-detection.min-distinct-keys`          | `20`                 | Distinct field names needed before an object counts as a map                    |
@@ -637,21 +761,21 @@ These are rarely needed. The defaults fit most data.
 | `adaptive-thresholds.yellow-sigma`         | `3.0`                | YELLOW bound distance from the mean, in standard deviations                     |
 | `adaptive-thresholds.min-spread`           | `0.005`              | Lower limit for the standard deviation                                          |
 | **Persistence**                            |                      |                                                                                 |
-| `persistence.collection`                   | `comparison_reports` | Report collection                                                               |
-| `persistence.database`                     | default database     | Report database                                                                 |
-| `persistence.retention`                    | –                    | How long reports are kept, e.g. `365d` (TTL index); forever if not set          |
+| `persistence.collection`                   | `comparison_reports` | Report collection (OpenSearch: report index)                                    |
+| `persistence.database`                     | default database     | Report database (MongoDB only)                                                  |
+| `persistence.retention`                    | –                    | How long reports are kept, e.g. `365d` (MongoDB: TTL index; OpenSearch: deleted on save); forever if not set |
 | `labels.<key>`                             | –                    | [Labels](#labels-finding-the-report-of-a-job) stored with every report, e.g. `labels.environment=test` |
 | **Report and resources**                   |                      |                                                                                 |
 | `max-examples`                             | `20`                 | Example keys per category and per changed path                                  |
 | `max-value-examples`                       | `3`                  | Before/after value examples per changed path; `0` disables them                 |
 | `top-changed-paths`                        | `50`                 | Changed paths listed in the report                                              |
 | `max-tracked-paths`                        | `10000`              | Distinct paths tracked per side. Further paths are counted, and a warning is added |
-| `batch-size`                               | `1000`               | Cursor batch size                                                               |
+| `batch-size`                               | `1000`               | Cursor batch size (OpenSearch: scroll page size)                                |
 | `no-cursor-timeout`                        | `false`              | Keep idle server cursors alive, see [operational notes](#performance-and-operational-notes) |
 | `progress-interval`                        | `10s`                | Progress logging and listener interval                                          |
 
 The MongoDB connection itself is configured with Spring Boot's own properties (`spring.mongodb.uri`,
-`spring.mongodb.database`, …).
+`spring.mongodb.database`, …). For OpenSearch see [its properties](#opensearch-properties).
 
 ---
 
@@ -905,6 +1029,9 @@ The collections are read with ordinary queries, not a snapshot. Compare after th
   prices, the change is reported as the array path (`items[]`), not as the individual fields.
 - **Duplicate keys in SAMPLE mode**: duplicate keys are only detected on the looked-up side. FULL mode detects them
   on both sides.
+- **Duplicate keys in OpenSearch**: FULL mode reports a duplicate custom key when a lookup finds it twice or one scroll
+  page holds it twice. Two baseline documents with the same key, in different pages and without counterpart in the
+  candidate, are counted as two removed documents instead.
 - **Estimated counts**: SAMPLE mode extrapolates with `estimatedDocumentCount()` (collection metadata), which can be
   slightly off after an unclean shutdown.
 - **Changing the encoding**: the canonical byte encoding is pinned by a unit test. Changing it changes all content
@@ -919,15 +1046,17 @@ public API; every such change is listed in the [changelog](CHANGELOG.md).
 
 The public API is:
 
-- `CollectionComparator` (inject it; its constructor is internal) and everything in `dev.jbaby.ditto.comparator.api`;
-- the `ditto.*` configuration properties (`ComparatorProperties`) and the auto-configuration class names;
-- `ReportJson` and `ReportRepository`;
+- `CollectionComparator` and `IndexComparator` (inject them; their constructors are internal), the
+  `DocumentComparator` interface they share, and everything in `dev.jbaby.ditto.comparator.api`;
+- the `ditto.*` configuration properties (`ComparatorProperties`, `OpenSearchComparatorProperties`) and the
+  auto-configuration class names;
+- `ReportJson`, `ReportHtml`, `ReportStore`, `ReportRepository` and `OpenSearchReportRepository`;
 - the report JSON format (versioned by its `schemaVersion`), the CLI options and exit codes, the Micrometer meter
   names and the `comparisons` Actuator endpoint.
 
-All other packages (`canonical`, `flatten`, `history`, `key`, `metrics`, `observability`, `path`, `scan`,
-`structure`, `verdict`) and the remaining classes in `report` are internal, even where they are `public` Java types.
-They may change in any release.
+All other packages (`canonical`, `engine`, `flatten`, `history`, `key`, `metrics`, `observability`, `path`, `scan`,
+`structure`, `verdict`, and in ditto-opensearch `client` and `scan`) and the remaining classes in `report` are
+internal, even where they are `public` Java types. They may change in any release.
 
 **Report format.** Every report carries a `schemaVersion` (currently 1). Adding fields does not raise it: readers
 should ignore fields they don't know, as `ReportJson` does. Renaming, removing or changing the meaning of a field
@@ -945,31 +1074,45 @@ CI runs `./mvnw verify` on every push and pull request.
 ./mvnw package -DskipTests
 ```
 
-The integration tests start `mongo:8.0` through Testcontainers. Highlights:
+The integration tests start `mongo:8.0` and `opensearchproject/opensearch:3.9.0` through Testcontainers (another
+OpenSearch image with `-Dditto.opensearch.image=...`). Highlights:
 
 - `ComparisonScenariosIT`: end-to-end behaviour. Covers identical collections, reordered arrays, int vs double, a
   vanished field, a field changed everywhere, added and removed documents, nested arrays, null vs missing, empty
   collections, mixed-type keys, ignored and wildcard paths.
 - `KeyOrderIT`: Java key order vs. server sort order.
 - `SampleModeIT`: SAMPLE estimates vs. the FULL result.
-- `CliIT`: exit codes, stdout JSON, generate → compare.
+- `IndexComparatorIT`: the same behaviour for OpenSearch indices, plus custom routing, aliases, key mappings and
+  scroll cleanup.
+- `MongoParityIT`: the same documents in MongoDB and OpenSearch give the same report.
+- `CliIT`, `OpenSearchCliIT`: exit codes, stdout JSON, generate → compare → report.
 
-Package layout of `ditto-core` (`dev.jbaby.ditto.comparator`):
+Package layout (`dev.jbaby.ditto.comparator`, split across the modules; ditto-opensearch uses
+`dev.jbaby.ditto.opensearch`):
 
-| Package          | Responsibility                                                                               |
-|------------------|----------------------------------------------------------------------------------------------|
-| (root)           | `CollectionComparator`, the facade                                                           |
-| `api`            | Request, settings, report records, `Rate`, `Thresholds`, `Level`, `ComparisonException`       |
-| `path`           | Path patterns compiled into a trie (`PathRules`)                                              |
-| `canonical`      | `Normalizer`, `CanonicalEncoder`, `Hasher`                                                   |
-| `flatten`        | `Flattener` (path/type sets, leaves), `DocumentDiff` (changed paths)                         |
-| `key`            | `BsonKeyOrder`, `KeyInspector`, `KeyOrderGuard`                                              |
-| `scan`           | `MergeJoinComparator` (FULL), `SampleComparator` (SAMPLE), `Preflight`, `ProgressReporter`   |
-| `metrics`        | `ScanAccumulator`, `PathChangeStats`, `ExampleCollector`, `Wilson`                           |
-| `structure`      | `StructureProfiler`, `StructureDiff`                                                         |
-| `verdict`        | `Rule` (sealed), `VerdictEvaluator`                                                          |
-| `report`         | `ReportAssembler`, `ReportJson`, `ReportRepository`                                          |
-| `autoconfigure`  | `ComparatorAutoConfiguration`, `ComparatorProperties`                                        |
+| Module             | Package          | Responsibility                                                                     |
+|--------------------|------------------|------------------------------------------------------------------------------------|
+| `ditto-engine`     | (root)           | `DocumentComparator`, the interface of both facades                                 |
+|                    | `api`            | Request, settings, report records, `Rate`, `Thresholds`, `Level`, `ComparisonException` |
+|                    | `engine`         | `ComparisonEngine` (thresholds, mode, map detection, scan, report, events), `DocumentStore` |
+|                    | `scan`           | `DocumentSource`, `MergeJoinComparator`, `LookupJoinComparator`, `SampleComparator`, `MatchedOnlyComparator` |
+|                    | `path`           | Path patterns compiled into a trie (`PathRules`)                                    |
+|                    | `canonical`      | `Normalizer`, `CanonicalEncoder`, `Hasher`                                          |
+|                    | `flatten`        | `Flattener` (path/type sets, leaves), `DocumentDiff` (changed paths)                |
+|                    | `key`            | `BsonKeyOrder`, `KeyOrderGuard`                                                     |
+|                    | `metrics`        | `ScanAccumulator`, `PathChangeStats`, `ExampleCollector`, `Wilson`                  |
+|                    | `structure`      | `StructureProfiler`, `StructureDiff`, `MapDetector`                                 |
+|                    | `verdict`        | `Rule` (sealed), `VerdictEvaluator`                                                 |
+|                    | `report`         | `ReportAssembler`, `HintAdvisor`, `ReportJson`, `ReportHtml` and the viewer, `ReportStore` |
+|                    | `autoconfigure`  | `ComparatorProperties`, shared beans, metrics and endpoint                          |
+| `ditto-core`       | (root)           | `CollectionComparator`, the MongoDB facade                                          |
+|                    | `scan`, `key`    | `MongoCollectionSource`, `MongoDocumentStore`, `Preflight`, `KeyInspector`          |
+|                    | `report`         | `ReportRepository`                                                                  |
+|                    | `autoconfigure`  | `ComparatorAutoConfiguration`                                                       |
+| `ditto-opensearch` | (root)           | `IndexComparator`, the OpenSearch facade                                            |
+|                    | `scan`, `client` | `OpenSearchIndexSource`, `OpenSearchPreflight`, `SourceParser`, `SearchPage`        |
+|                    | `report`         | `OpenSearchReportRepository`                                                        |
+|                    | `autoconfigure`  | `OpenSearchComparatorAutoConfiguration`, `DittoOpenSearchClientAutoConfiguration`   |
 
 ### Releasing
 
@@ -978,9 +1121,10 @@ Rename the `[Unreleased]` section of the [changelog](CHANGELOG.md) to the new ve
 
 1. Takes the version from the tag. `master` stays on `-SNAPSHOT`.
 2. Runs the full build.
-3. Deploys the parent POM and `ditto-core` (with sources and javadoc) to GitHub Packages.
+3. Deploys the parent POM and the libraries `ditto-engine`, `ditto-core` and `ditto-opensearch` (with sources and
+   javadoc) to GitHub Packages.
 4. Creates a GitHub Release with `ditto-cli.jar` attached.
-5. Signs the parent POM and `ditto-core` and publishes them to Maven Central.
+5. Signs the parent POM and the libraries and publishes them to Maven Central.
 
 Publishing to Maven Central needs a Sonatype Central Portal account with the verified namespace `dev.jbaby`, a GPG
 key, and the repository secrets `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `GPG_PRIVATE_KEY` and

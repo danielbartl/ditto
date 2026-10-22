@@ -258,6 +258,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
   function levelClass(level) { return level === "GREEN" ? "green" : level === "YELLOW" ? "yellow" : level === "RED" ? "red" : "neutral"; }
   function chip(level) { return h("span", { class: "chip " + levelClass(level) }, level || "?"); }
   function ref(c) { var c2 = obj(c); return c2.database ? c2.database + "." + c2.collection : (c2.collection || "?"); }
+  function storeName(settings) { return settings.store === "OPENSEARCH" ? "OpenSearch" : "MongoDB"; }
   function when(iso) {
     if (!iso) return "n/a";
     var d = new Date(iso);
@@ -336,8 +337,10 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
     var labels = obj(report.labels);
     return h("section", { class: "card summary" },
       h("div", { class: "verdict " + levelClass(report.verdict) }, h("small", null, "VERDICT"), report.verdict || "?"),
-      h("div", { class: "pair" }, ref(settings.baseline), h("span", { class: "arrow" }, "→"), ref(settings.candidate)),
+      h("div", { class: "pair", title: settings.store === "OPENSEARCH" ? "cluster.index" : "database.collection" },
+        ref(settings.baseline), h("span", { class: "arrow" }, "→"), ref(settings.candidate)),
       h("div", { class: "facts" },
+        h("span", null, "Store ", h("b", null, storeName(settings))),
         h("span", null, "Finished ", h("b", { title: run.finishedAt || "" }, when(run.finishedAt))),
         h("span", null, "Duration ", h("b", null, duration(run.durationMillis))),
         h("span", null, "Mode ", h("b", null, modeText)),
@@ -530,7 +533,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
           ", vanishedMinPresence " + num(thresholds.vanishedMinPresence))),
       h("h3", null, "Settings"),
       h("dl", { class: "settings" },
-        setting("Started", run.startedAt), setting("Finished", run.finishedAt),
+        setting("Store", storeName(settings)), setting("Started", run.startedAt), setting("Finished", run.finishedAt),
         setting("Documents read", count(run.baselineDocsRead) + " / " + count(run.candidateDocsRead)),
         setting("Key field", settings.keyField), setting("Ignored paths", list(settings.ignoredPaths)),
         setting("Order-sensitive paths", list(settings.orderSensitivePaths)), setting("Wildcard paths", list(settings.wildcardPaths)),
@@ -571,7 +574,8 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
     try { return JSON.parse(block); } catch (ignored) { /* maybe mongosh syntax */ }
     try { return parseShell(block); } catch (e) {
       throw new Error("This is neither JSON nor mongosh output of a report (" + e.message + "). Paste the JSON the CLI " +
-        "prints or writes with --out, the response of /actuator/comparisons/{id}, or a document of the report collection.");
+        "prints or writes with --out, the response of /actuator/comparisons/{id}, or a stored report (a document of " +
+        "the report collection or index).");
     }
   }
 
@@ -650,6 +654,11 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 16
 
   function load(text) {
     var report = parseReport(text);
+    // OpenSearch: a GET _doc response holds the stored document in _source, which holds the report in "report"
+    if (report && typeof report === "object" && report._source && typeof report._source === "object") report = report._source;
+    if (report && typeof report === "object" && !Array.isArray(report.rules) && report.report && typeof report.report === "object") {
+      report = report.report;
+    }
     // a stored report keeps its id as _id
     if (report && typeof report === "object" && report.id == null && report._id != null) report.id = report._id;
     render(report, JSON.stringify(report, null, 2));

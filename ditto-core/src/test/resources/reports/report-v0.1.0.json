@@ -1,0 +1,419 @@
+{
+  "id" : "647fc74d-d99a-4c98-95b8-c4f88264229f",
+  "verdict" : "GREEN",
+  "rules" : [ {
+    "rule" : "keySimilarity",
+    "level" : "GREEN",
+    "observed" : 0.9900497512437811,
+    "threshold" : "GREEN >= 0.99, YELLOW >= 0.97",
+    "reason" : "0.9900 meets GREEN (>= 0.9900) (matched 19900, added 100, removed 100)",
+    "details" : [ ]
+  }, {
+    "rule" : "unchangedRate",
+    "level" : "GREEN",
+    "observed" : 0.9704020100502513,
+    "threshold" : "GREEN >= 0.95, YELLOW >= 0.85",
+    "reason" : "0.9704 meets GREEN (>= 0.9500) (unchanged 19311, changed 589)",
+    "details" : [ ]
+  }, {
+    "rule" : "maxPathChangeRate",
+    "level" : "GREEN",
+    "observed" : 0.029597989949748743,
+    "threshold" : "GREEN < 0.05, YELLOW < 0.2",
+    "reason" : "Path 'price' changed in 0.0296 of matched documents, below the GREEN limit 0.0500",
+    "details" : [ ]
+  }, {
+    "rule" : "structure.vanishedPaths",
+    "level" : "GREEN",
+    "observed" : 0.0,
+    "threshold" : "RED if present in more than 0.0000 of baseline documents, else YELLOW",
+    "reason" : "No path vanished",
+    "details" : [ ]
+  }, {
+    "rule" : "structure.typeShifts",
+    "level" : "GREEN",
+    "observed" : 0.0,
+    "threshold" : "RED if a type appears, disappears or its share changes by more than 0.0100",
+    "reason" : "No type shift",
+    "details" : [ ]
+  }, {
+    "rule" : "structure.newPaths",
+    "level" : "GREEN",
+    "observed" : 0.0,
+    "threshold" : "YELLOW if any",
+    "reason" : "No new path",
+    "details" : [ ]
+  }, {
+    "rule" : "structure.presenceDeltas",
+    "level" : "GREEN",
+    "observed" : 0.0,
+    "threshold" : "YELLOW if presence changes by more than 0.0500",
+    "reason" : "No significant presence change",
+    "details" : [ ]
+  } ],
+  "keys" : {
+    "matched" : 19900,
+    "added" : 100,
+    "removed" : 100,
+    "keySimilarity" : {
+      "kind" : "exact",
+      "count" : 19900,
+      "total" : 20100,
+      "value" : 0.9900497512437811
+    },
+    "addedRate" : {
+      "kind" : "exact",
+      "count" : 100,
+      "total" : 20000,
+      "value" : 0.005
+    },
+    "removedRate" : {
+      "kind" : "exact",
+      "count" : 100,
+      "total" : 20000,
+      "value" : 0.005
+    }
+  },
+  "content" : {
+    "unchanged" : 19311,
+    "changed" : 589,
+    "unchangedRate" : {
+      "kind" : "exact",
+      "count" : 19311,
+      "total" : 19900,
+      "value" : 0.9704020100502513
+    },
+    "changedRate" : {
+      "kind" : "exact",
+      "count" : 589,
+      "total" : 19900,
+      "value" : 0.029597989949748743
+    }
+  },
+  "topChangedPaths" : [ {
+    "path" : "price",
+    "changedDocs" : 589,
+    "changeRate" : {
+      "kind" : "exact",
+      "count" : 589,
+      "total" : 19900,
+      "value" : 0.029597989949748743
+    },
+    "examples" : [ {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1212161972337cc2db4\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1372161972337ff6fc8\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f18d21619723370c6cfd\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f19d216197233727a483\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1a22161972337086bd6\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1c6216197233778a0c3\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1cc216197233730674f\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1db2161972337bf7cf9\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f227216197233706d557\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f23c21619723370b232c\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2492161972337832c34\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2512161972337606a89\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f252216197233702d05a\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f267216197233799285e\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f27921619723378a37d3\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2c621619723373d8a6f\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2db216197233704a7b8\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f33021619723375f83d0\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f33d2161972337327761\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f37321619723374a47e3\"}"
+    } ]
+  } ],
+  "structure" : {
+    "baselineDocs" : 20000,
+    "candidateDocs" : 20000,
+    "baselinePaths" : 34,
+    "candidatePaths" : 34,
+    "newPaths" : [ ],
+    "missingPaths" : [ ],
+    "typeShifts" : [ ],
+    "presenceDeltas" : [ ],
+    "pathCapReached" : false,
+    "untrackedPathOccurrences" : 0
+  },
+  "examples" : {
+    "changed" : [ {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1212161972337cc2db4\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1372161972337ff6fc8\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f18d21619723370c6cfd\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f19d216197233727a483\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1a22161972337086bd6\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1c6216197233778a0c3\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1cc216197233730674f\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f1db2161972337bf7cf9\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f227216197233706d557\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f23c21619723370b232c\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2492161972337832c34\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2512161972337606a89\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f252216197233702d05a\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f267216197233799285e\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f27921619723378a37d3\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2c621619723373d8a6f\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2db216197233704a7b8\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f33021619723375f83d0\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f33d2161972337327761\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f37321619723374a47e3\"}"
+    } ],
+    "added" : [ {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2021619723373962d3\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2121619723372a2d1c\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f22216197233701d2aa\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f232161972337c39276\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f242161972337bdb92f\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2521619723375f3b45\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2621619723371896f8\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f272161972337198b96\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f282161972337fe6cbe\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f292161972337000cef\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2a2161972337b7f0b7\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2b21619723372ae076\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2c21619723370cb197\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2d2161972337f5d24d\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2e2161972337a076f7\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f2f21619723378404f7\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f30216197233767f639\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f312161972337bf7d38\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f322161972337c95b94\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"65543f332161972337daca14\"}"
+    } ],
+    "removed" : [ {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2ad216197233776683e\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f2f02161972337ffada9\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f493216197233706f11d\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f50a2161972337ddfbdc\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f58d2161972337eb5bea\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f6f72161972337d8e5af\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f74721619723377cb434\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f7722161972337d68e28\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f7882161972337b4ef08\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f7ef216197233749cf8d\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f88e216197233751fe6c\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f90b21619723373dffe6\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f978216197233796e716\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f9c321619723376e55b2\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553f9f621619723378deaab\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553fa4821619723378d64f5\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553fb5b21619723374e5343\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553fc5f2161972337b2ed08\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553fcee21619723370332c1\"}"
+    }, {
+      "type" : "OBJECT_ID",
+      "value" : "{\"$oid\": \"6553fd052161972337c97c98\"}"
+    } ]
+  },
+  "run" : {
+    "startedAt" : "2026-10-02T13:39:02.586750431Z",
+    "finishedAt" : "2026-10-02T13:39:03.272943699Z",
+    "durationMillis" : 686,
+    "baselineCount" : 20000,
+    "candidateCount" : 20000,
+    "baselineDocsRead" : 20000,
+    "candidateDocsRead" : 20000,
+    "settings" : {
+      "baseline" : {
+        "database" : "ditto",
+        "collection" : "demo_backup"
+      },
+      "candidate" : {
+        "database" : "ditto",
+        "collection" : "demo"
+      },
+      "keyField" : "_id",
+      "ignoredPaths" : [ "meta.syncedAt" ],
+      "orderSensitivePaths" : [ "history" ],
+      "wildcardPaths" : [ "attributes.*" ],
+      "mode" : {
+        "type" : "FULL"
+      },
+      "nullEqualsMissing" : false,
+      "mixedKeyPolicy" : "REJECT",
+      "verdictBasis" : "CONSERVATIVE",
+      "thresholds" : {
+        "keySimilarity" : {
+          "green" : 0.99,
+          "yellow" : 0.97
+        },
+        "unchangedRate" : {
+          "green" : 0.95,
+          "yellow" : 0.85
+        },
+        "maxPathChangeRate" : {
+          "green" : 0.05,
+          "yellow" : 0.2
+        },
+        "structure" : {
+          "typeShareDelta" : 0.01,
+          "presenceDelta" : 0.05,
+          "vanishedMinPresence" : 0.0
+        }
+      },
+      "tuning" : {
+        "batchSize" : 1000,
+        "noCursorTimeout" : false,
+        "maxExamples" : 20,
+        "maxTrackedPaths" : 10000,
+        "topChangedPaths" : 50,
+        "progressInterval" : "PT10S",
+        "sampleLookupBatchSize" : 500
+      }
+    }
+  },
+  "warnings" : [ ]
+}

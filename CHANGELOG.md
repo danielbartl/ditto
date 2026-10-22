@@ -6,6 +6,41 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ## [Unreleased]
 
+### Added
+
+- **OpenSearch**: the new module `ditto-opensearch` compares two OpenSearch indices with the same metrics, verdict,
+  hints and report as two collections. Inject `IndexComparator`, e.g. `compareWithBackup("products")`.
+  - It uses the application's `OpenSearchClient` (opensearch-java) through its generic raw-JSON API, so any transport
+    works, AWS SigV4 included; without one, `ditto.opensearch.uris` (plus `username`/`password`) creates a client.
+  - FULL mode is a lookup join (scroll one side, look up keys in the other), as OpenSearch cannot sort by `_id`;
+    SAMPLE and matched-only mode work as for MongoDB. `_source` is parsed into BSON without losing number precision.
+  - Before reading it checks that both names are single indices (or aliases of one), that `_source` is stored, and
+    that the key field (`_id`, a keyword or integer field, or a keyword subfield) is present everywhere. It warns if
+    refreshing is switched off.
+  - With `ditto.persistence.enabled=true`, reports are stored in an OpenSearch index (`OpenSearchReportRepository`),
+    for history-derived thresholds, labels lookup, the `report` CLI command and the Actuator endpoint.
+  - CLI: `--opensearch=<url>` (with `--opensearch-user` and `DITTO_OPENSEARCH_PASSWORD`) runs `compare`, `report` and
+    `generate` against OpenSearch; `--index` works like `--collection`. docker-compose has an `opensearch` service and
+    a `seed-opensearch` profile.
+- `DocumentComparator`, the interface of `CollectionComparator` and `IndexComparator`, and `ReportStore`, the
+  interface of `ReportRepository` and `OpenSearchReportRepository`.
+- Reports record where both sides live: `run.settings.store` is `MONGODB` or `OPENSEARCH` (missing in older reports,
+  which read as `MONGODB`). The report viewer shows it and also opens reports stored in OpenSearch.
+- The hint to ignore a technical timestamp also recognises ISO-8601 date-time strings, not only BSON dates.
+
+### Changed
+
+- The store-neutral part of ditto is now the module `ditto-engine`, which `ditto-core` and `ditto-opensearch` depend
+  on. The coordinates of `ditto-core` and all package and class names stay the same, so nothing changes for MongoDB
+  users. `ditto-engine` needs only the `bson` library, not the MongoDB driver.
+- The shared beans (`Hasher`, `VerdictEvaluator`, `ReportJson`, `ReportHtml`) and `ComparatorProperties` are
+  registered by the new `ComparatorEngineAutoConfiguration`; tests that list auto-configurations explicitly need to
+  add it.
+- The `comparisons` Actuator endpoint needs a single `ReportStore` bean. With persistence for both MongoDB and
+  OpenSearch, define it yourself.
+- Internal: the constructor of `CollectionComparator` changed, the orchestration moved to `ComparisonEngine`, and
+  `CollectionHandle` and `Preflight.Result` became `MongoCollectionSource` and `PreflightResult`.
+
 ### Fixed
 
 - The report viewer rejected pasted reports that weren't plain JSON. It now also reads a terminal copy of the CLI's

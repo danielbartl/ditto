@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ditto · MongoDB collection comparator</title>
-<meta name="description" content="ditto compares two MongoDB collections and gives a GREEN / YELLOW / RED verdict with the metrics behind it. Java 21+, Spring Boot 4, generic on BSON level.">
+<title>ditto · MongoDB collection and OpenSearch index comparator</title>
+<meta name="description" content="ditto compares two MongoDB collections or two OpenSearch indices and gives a GREEN / YELLOW / RED verdict with the metrics behind it. Java 21+, Spring Boot 4, generic on BSON level.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='16' r='6' fill='%2322a35a'/%3E%3Ccircle cx='23' cy='16' r='6' fill='%2322a35a' fill-opacity='.45'/%3E%3C/svg%3E">
 <style>
 :root {
@@ -222,7 +222,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
   <section class="hero">
     <h1>ditto <span>· did the data survive?</span></h1>
     <p class="lead">
-      ditto compares two MongoDB collections and tells you how similar they are, with a
+      ditto compares two MongoDB collections, or two OpenSearch indices, and tells you how similar they are, with a
       <span class="chip green">GREEN</span> <span class="chip yellow">YELLOW</span> <span class="chip red">RED</span>
       verdict and the metrics behind it. It works on raw BSON, so it knows nothing about your
       documents and works with any schema.
@@ -240,7 +240,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
     </div>
     <div class="meta">
       <a class="central" href="https://central.sonatype.com/artifact/dev.jbaby.ditto/ditto-core" aria-label="Maven Central, latest version"><span>Maven Central</span><span class="ver" id="central-version">v0.5.0</span></a>
-      <span>Java 21+</span><span>Spring Boot 4.1</span><span>MongoDB 4.4+</span>
+      <span>Java 21+</span><span>Spring Boot 4.1</span><span>MongoDB 4.4+</span><span>OpenSearch 2.19+</span>
       <span>Zero configuration to start</span><span>Library + CLI</span><span>Streaming, constant memory</span><span>Learns from history</span><span>MIT licensed</span>
     </div>
   </section>
@@ -302,13 +302,14 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
 
   <section id="start">
     <h2>Get started</h2>
-    <p class="lead">Embed the library in a Spring Boot application, or run the CLI against any MongoDB.</p>
+    <p class="lead">Embed the library in a Spring Boot application, or run the CLI against any MongoDB or OpenSearch.</p>
 
     <div class="tabs" data-tabs>
       <div class="tablist" role="tablist">
         <button role="tab" aria-selected="true" aria-controls="tab-lib" id="t-lib">Spring Boot library</button>
         <button role="tab" aria-selected="false" aria-controls="tab-cli" id="t-cli" tabindex="-1">Command line</button>
         <button role="tab" aria-selected="false" aria-controls="tab-play" id="t-play" tabindex="-1">Local playground</button>
+        <button role="tab" aria-selected="false" aria-controls="tab-os" id="t-os" tabindex="-1">OpenSearch</button>
       </div>
 
       <div class="tabpanel" role="tabpanel" id="tab-lib" aria-labelledby="t-lib">
@@ -405,6 +406,40 @@ java -jar ditto-cli/target/ditto-cli.jar --db=ditto --collection=demo --ignore=m
         <p>Available changes: <code>modify</code>, <code>drop-field</code>, <code>add-field</code>, <code>set-null</code>,
           <code>int-to-double</code>, <code>to-string</code>, <code>shuffle-arrays</code>, <code>delete-docs</code>,
           <code>add-docs</code>. See <a href="#generate">the generator reference</a>.</p>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="tab-os" aria-labelledby="t-os" hidden>
+        <p>The same comparison for two OpenSearch indices: same verdict, metrics, hints and report. A document is its
+          <code>_source</code>, and <code>_id</code> is its key. New in 0.6.0.</p>
+        <ol class="steps">
+          <li>
+            <p><strong>Add the dependency.</strong> ditto uses your application's <code>OpenSearchClient</code>
+              (opensearch-java) with whatever transport it has, AWS SigV4 included. Without one, set
+              <code>ditto.opensearch.uris</code> and ditto creates a client.</p>
+            <div class="code"><span class="label">pom.xml</span><pre>&lt;dependency&gt;
+  &lt;groupId&gt;dev.jbaby.ditto&lt;/groupId&gt;
+  &lt;artifactId&gt;ditto-opensearch&lt;/artifactId&gt;
+  &lt;version&gt;0.6.0&lt;/version&gt;
+&lt;/dependency&gt;</pre></div>
+          </li>
+          <li>
+            <p><strong>Inject <code>IndexComparator</code> and compare.</strong></p>
+            <div class="code"><span class="label">Java</span><pre>ComparisonReport report = comparator.compareWithBackup("products");  <span class="c">// products_backup → products</span></pre></div>
+          </li>
+          <li>
+            <p><strong>Or use the CLI</strong> with <code>--opensearch</code>; <code>--index</code> works like
+              <code>--collection</code>. Locally:</p>
+            <div class="code"><pre>docker compose up -d opensearch
+SEED_ARGS="--docs=50000 --changes=modify:price:0.03,delete-docs:0.005,add-docs:0.005" \
+  docker compose run --rm seed-opensearch
+
+java -jar ditto-cli/target/ditto-cli.jar --opensearch=http://localhost:9200 --index=demo \
+  --ignore=meta.syncedAt</pre></div>
+          </li>
+        </ol>
+        <div class="note"><p>Refresh both indices after writing: only refreshed documents are visible. A key field
+          other than <code>_id</code> must be a keyword or integer field. See the
+          <a href="https://github.com/danielbartl/ditto#comparing-opensearch-indices">README</a> for the details.</p></div>
       </div>
     </div>
   </section>
@@ -677,7 +712,8 @@ void onComparison(ComparisonCompletedEvent event) {
         </table></div>
       </div>
     </details>
-    <p>The connection itself uses Spring Boot's <code>spring.mongodb.*</code> properties.</p>
+    <p>The connection itself uses Spring Boot's <code>spring.mongodb.*</code> properties; for OpenSearch, your
+      <code>OpenSearchClient</code> or <code>ditto.opensearch.uris</code>.</p>
   </section>
 
   <section id="report">

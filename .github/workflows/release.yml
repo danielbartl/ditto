@@ -27,7 +27,7 @@ jobs:
       - name: Set version from tag
         run: ./mvnw -B -ntp versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false
 
-      - name: Build, test and deploy ditto-core to GitHub Packages
+      - name: Build, test and deploy the libraries to GitHub Packages
         run: ./mvnw -B -ntp -Prelease -Dgpg.skip deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
