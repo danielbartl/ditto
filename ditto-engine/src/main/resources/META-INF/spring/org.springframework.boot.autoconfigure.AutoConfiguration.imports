@@ -1,0 +1,3 @@
+dev.jbaby.ditto.comparator.autoconfigure.ComparatorEngineAutoConfiguration
+dev.jbaby.ditto.comparator.autoconfigure.ComparatorMetricsAutoConfiguration
+dev.jbaby.ditto.comparator.autoconfigure.ComparatorEndpointAutoConfiguration

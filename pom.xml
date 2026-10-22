@@ -55,6 +55,7 @@
     </distributionManagement>
 
     <modules>
+        <module>ditto-engine</module>
         <module>ditto-core</module>
         <module>ditto-cli</module>
     </modules>
@@ -73,6 +74,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>dev.jbaby.ditto</groupId>
+                <artifactId>ditto-engine</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>dev.jbaby.ditto</groupId>
                 <artifactId>ditto-core</artifactId>

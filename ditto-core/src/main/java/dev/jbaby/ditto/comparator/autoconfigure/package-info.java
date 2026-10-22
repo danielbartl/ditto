@@ -1,5 +1,5 @@
 /**
- * Spring Boot auto-configuration and configuration properties.
+ * Spring Boot auto-configuration for MongoDB.
  */
 @NullMarked
 package dev.jbaby.ditto.comparator.autoconfigure;

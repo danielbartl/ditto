@@ -20,7 +20,7 @@ class ComparatorAutoConfigurationTest {
     // creating a MongoClient does not connect, so no server is needed here
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(MongoAutoConfiguration.class, DataMongoAutoConfiguration.class,
-                    ComparatorAutoConfiguration.class))
+                    ComparatorEngineAutoConfiguration.class, ComparatorAutoConfiguration.class))
             .withPropertyValues("spring.mongodb.uri=mongodb://localhost:1/app");
 
     @Test

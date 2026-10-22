@@ -10,7 +10,7 @@ import dev.jbaby.ditto.comparator.api.ComparisonReport;
 
 /**
  * Where reports are stored, e.g. to derive thresholds from historical runs or to look up the report of a batch job.
- * Implemented for MongoDB ({@link ReportRepository}) and OpenSearch.
+ * Implemented for MongoDB ({@code ReportRepository}) and OpenSearch.
  */
 public interface ReportStore {
 

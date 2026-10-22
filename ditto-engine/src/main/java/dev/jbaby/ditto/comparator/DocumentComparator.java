@@ -8,8 +8,8 @@ import dev.jbaby.ditto.comparator.api.ComparisonRequest;
 import dev.jbaby.ditto.comparator.api.ProgressListener;
 
 /**
- * Compares two sets of documents in one store and judges how similar they are: {@link CollectionComparator} for
- * MongoDB collections, {@code IndexComparator} (module ditto-opensearch) for OpenSearch indices. Names are collection
+ * Compares two sets of documents in one store and judges how similar they are: {@code CollectionComparator}
+ * (ditto-core) for MongoDB collections, {@code IndexComparator} (ditto-opensearch) for OpenSearch indices. Names are collection
  * or index names.
  * <p>
  * Blocking; runs on the calling thread and honours thread interruption. Thread-safe: concurrent comparisons are

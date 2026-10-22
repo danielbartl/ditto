@@ -1,5 +1,5 @@
 /**
- * Reading the collections: FULL merge-join and SAMPLE lookups, cursors, progress.
+ * Reading MongoDB collections: raw BSON cursors, $sample, $in lookups and the checks before reading.
  * <p>Internal: not part of the public API, may change in any release.
  */
 @NullMarked

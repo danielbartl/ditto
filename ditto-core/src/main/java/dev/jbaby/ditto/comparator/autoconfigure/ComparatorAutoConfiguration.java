@@ -14,49 +14,24 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 
 import dev.jbaby.ditto.comparator.CollectionComparator;
-import dev.jbaby.ditto.comparator.canonical.CanonicalEncoder;
 import dev.jbaby.ditto.comparator.canonical.Hasher;
 import dev.jbaby.ditto.comparator.history.ReportHistory;
 import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
 import dev.jbaby.ditto.comparator.report.ReportAssembler;
-import dev.jbaby.ditto.comparator.report.ReportHtml;
 import dev.jbaby.ditto.comparator.report.ReportJson;
 import dev.jbaby.ditto.comparator.report.ReportRepository;
 import dev.jbaby.ditto.comparator.verdict.VerdictEvaluator;
 
 /**
- * Registers a {@link CollectionComparator} for the application's MongoDB connection. Every bean backs off if the
- * application defines its own.
+ * Registers a {@link CollectionComparator} for the application's MongoDB connection, and with
+ * {@code ditto.persistence.enabled=true} a {@link ReportRepository}. Every bean backs off if the application defines
+ * its own.
  */
-@AutoConfiguration(after = DataMongoAutoConfiguration.class)
+@AutoConfiguration(after = {DataMongoAutoConfiguration.class, ComparatorEngineAutoConfiguration.class})
 @ConditionalOnClass(MongoDatabaseFactory.class)
 @ConditionalOnBean(MongoDatabaseFactory.class)
 @EnableConfigurationProperties(ComparatorProperties.class)
 public class ComparatorAutoConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean
-    public Hasher comparatorHasher() {
-        return new Hasher(new CanonicalEncoder());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public VerdictEvaluator comparatorVerdictEvaluator() {
-        return new VerdictEvaluator();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public ReportJson comparatorReportJson() {
-        return new ReportJson();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public ReportHtml comparatorReportHtml(ReportJson reportJson) {
-        return new ReportHtml(reportJson);
-    }
 
     @Bean
     @ConditionalOnMissingBean
