@@ -1,1 +1,1 @@
-dev.jbaby.ditto.mongo.autoconfigure.ComparatorAutoConfiguration
+dev.jbaby.ditto.mongo.autoconfigure.MongoComparatorAutoConfiguration

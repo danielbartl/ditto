@@ -18,7 +18,7 @@ import dev.jbaby.ditto.comparator.autoconfigure.ComparatorProperties;
 import dev.jbaby.ditto.comparator.report.ReportJson;
 import dev.jbaby.ditto.comparator.report.ReportStore;
 import dev.jbaby.ditto.mongo.CollectionComparator;
-import dev.jbaby.ditto.mongo.report.ReportRepository;
+import dev.jbaby.ditto.mongo.report.MongoReportRepository;
 import dev.jbaby.ditto.opensearch.IndexComparator;
 import dev.jbaby.ditto.opensearch.client.OpenSearchHttp;
 import dev.jbaby.ditto.opensearch.report.OpenSearchReportRepository;
@@ -68,8 +68,8 @@ public class Target {
         var persistence = properties.getPersistence();
         return isOpenSearch()
                 ? OpenSearchReportRepository.readOnly(openSearch.getObject(), persistence.getCollection(), json)
-                : ReportRepository.readOnly(mongo.getObject(), persistence.getDatabase(), persistence.getCollection(),
-                json);
+                : MongoReportRepository.readOnly(mongo.getObject(), persistence.getDatabase(),
+                        persistence.getCollection(), json);
     }
 
     /** Where {@link #reports()} reads, for messages. */

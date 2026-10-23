@@ -6,7 +6,7 @@ package dev.jbaby.ditto.comparator.autoconfigure;
  */
 final class ComparatorEngineNames {
 
-    static final String MONGODB = "dev.jbaby.ditto.mongo.autoconfigure.ComparatorAutoConfiguration";
+    static final String MONGODB = "dev.jbaby.ditto.mongo.autoconfigure.MongoComparatorAutoConfiguration";
     static final String OPENSEARCH = "dev.jbaby.ditto.opensearch.autoconfigure.OpenSearchComparatorAutoConfiguration";
 
     private ComparatorEngineNames() {

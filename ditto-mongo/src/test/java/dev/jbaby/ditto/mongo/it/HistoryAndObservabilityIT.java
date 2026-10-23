@@ -34,7 +34,7 @@ import dev.jbaby.ditto.comparator.api.ThresholdSource;
 import dev.jbaby.ditto.comparator.api.Thresholds;
 import dev.jbaby.ditto.comparator.observability.ComparisonsEndpoint;
 import dev.jbaby.ditto.mongo.CollectionComparator;
-import dev.jbaby.ditto.mongo.report.ReportRepository;
+import dev.jbaby.ditto.mongo.report.MongoReportRepository;
 import dev.jbaby.ditto.mongo.support.Collections;
 import dev.jbaby.ditto.mongo.support.TestApplication;
 
@@ -89,7 +89,7 @@ class HistoryAndObservabilityIT {
     ComparisonsEndpoint endpoint;
 
     @Autowired
-    ReportRepository repository;
+    MongoReportRepository repository;
 
     @BeforeEach
     void clean() {

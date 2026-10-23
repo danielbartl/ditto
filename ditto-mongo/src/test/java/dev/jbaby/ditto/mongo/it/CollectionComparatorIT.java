@@ -17,7 +17,7 @@ import dev.jbaby.ditto.comparator.api.Level;
 import dev.jbaby.ditto.comparator.api.Rate;
 import dev.jbaby.ditto.comparator.report.ReportJson;
 import dev.jbaby.ditto.mongo.CollectionComparator;
-import dev.jbaby.ditto.mongo.report.ReportRepository;
+import dev.jbaby.ditto.mongo.report.MongoReportRepository;
 import dev.jbaby.ditto.mongo.support.Collections;
 import dev.jbaby.ditto.mongo.support.TestApplication;
 
@@ -33,7 +33,7 @@ class CollectionComparatorIT {
     CollectionComparator comparator;
 
     @Autowired
-    ReportRepository repository;
+    MongoReportRepository repository;
 
     @Autowired
     ReportJson json;

@@ -24,7 +24,7 @@ import dev.jbaby.ditto.comparator.report.ReportJson;
 import dev.jbaby.ditto.mongo.support.Collections;
 import dev.jbaby.ditto.mongo.support.MongoContainer;
 
-class ReportRepositoryIT {
+class MongoReportRepositoryIT {
 
     private static final String DATABASE = "report_repository_it";
     private static final String COLLECTION = "reports";
@@ -41,10 +41,10 @@ class ReportRepositoryIT {
     void createsQueryIndexesOnFirstUse() {
         repository(null).findRecent(null, 1);
 
-        assertThat(indexNames()).contains(ReportRepository.HISTORY_INDEX, ReportRepository.RECENT_INDEX,
-                        ReportRepository.LABELS_INDEX)
-                .doesNotContain(ReportRepository.RETENTION_INDEX);
-        assertThat(index(ReportRepository.HISTORY_INDEX).get("key", Document.class))
+        assertThat(indexNames()).contains(MongoReportRepository.HISTORY_INDEX, MongoReportRepository.RECENT_INDEX,
+                        MongoReportRepository.LABELS_INDEX)
+                .doesNotContain(MongoReportRepository.RETENTION_INDEX);
+        assertThat(index(MongoReportRepository.HISTORY_INDEX).get("key", Document.class))
                 .isEqualTo(Document.parse("{baseline: 1, candidate: 1, createdAt: -1}"));
     }
 
@@ -61,24 +61,24 @@ class ReportRepositoryIT {
         var labels = reports().find(Filters.eq("labels.batchJobId", "4711")).sort(Sorts.descending("createdAt"))
                 .limit(50).explain();
 
-        assertThat(history.toJson()).contains(ReportRepository.HISTORY_INDEX).doesNotContain("COLLSCAN");
-        assertThat(labels.toJson()).contains(ReportRepository.LABELS_INDEX).doesNotContain("COLLSCAN");
-        assertThat(recent.toJson()).contains(ReportRepository.RECENT_INDEX).doesNotContain("COLLSCAN");
+        assertThat(history.toJson()).contains(MongoReportRepository.HISTORY_INDEX).doesNotContain("COLLSCAN");
+        assertThat(labels.toJson()).contains(MongoReportRepository.LABELS_INDEX).doesNotContain("COLLSCAN");
+        assertThat(recent.toJson()).contains(MongoReportRepository.RECENT_INDEX).doesNotContain("COLLSCAN");
     }
 
     @Test
     void retentionCreatesChangesAndDropsTheTtlIndex() {
         repository(Duration.ofDays(30)).findRecent(null, 1);
-        assertThat(index(ReportRepository.RETENTION_INDEX).get("expireAfterSeconds", Number.class).longValue())
+        assertThat(index(MongoReportRepository.RETENTION_INDEX).get("expireAfterSeconds", Number.class).longValue())
                 .isEqualTo(Duration.ofDays(30).toSeconds());
 
         repository(Duration.ofDays(7)).findRecent(null, 1);
-        assertThat(index(ReportRepository.RETENTION_INDEX).get("expireAfterSeconds", Number.class).longValue())
+        assertThat(index(MongoReportRepository.RETENTION_INDEX).get("expireAfterSeconds", Number.class).longValue())
                 .as("changed in place").isEqualTo(Duration.ofDays(7).toSeconds());
 
         repository(Duration.ofDays(7)).findRecent(null, 1);
         repository(null).findRecent(null, 1);
-        assertThat(indexNames()).as("no retention keeps reports").doesNotContain(ReportRepository.RETENTION_INDEX);
+        assertThat(indexNames()).as("no retention keeps reports").doesNotContain(MongoReportRepository.RETENTION_INDEX);
     }
 
     @Test
@@ -90,17 +90,17 @@ class ReportRepositoryIT {
         repository(Duration.ofDays(30)).save(report);
         List<String> indexes = indexNames();
 
-        ReportRepository readOnly = ReportRepository.readOnly(factory, null, COLLECTION, new ReportJson());
+        MongoReportRepository readOnly = MongoReportRepository.readOnly(factory, null, COLLECTION, new ReportJson());
 
         assertThat(readOnly.findById(report.id())).contains(report);
         assertThat(readOnly.findRecent(null, 10)).containsExactly(report);
         assertThat(indexNames()).as("the retention is kept").isEqualTo(indexes)
-                .contains(ReportRepository.RETENTION_INDEX);
+                .contains(MongoReportRepository.RETENTION_INDEX);
         assertThatThrownBy(() -> readOnly.save(report)).isInstanceOf(UnsupportedOperationException.class);
     }
 
-    private ReportRepository repository(@Nullable Duration retention) {
-        return new ReportRepository(factory, null, COLLECTION, retention, new ReportJson());
+    private MongoReportRepository repository(@Nullable Duration retention) {
+        return new MongoReportRepository(factory, null, COLLECTION, retention, new ReportJson());
     }
 
     private MongoCollection<Document> reports() {

@@ -406,17 +406,17 @@ Releases are published to **Maven Central**:
 
 Gradle: `implementation("dev.jbaby.ditto:ditto-mongo:0.6.0")`.
 
-Up to 0.5.0 the artifact was called `ditto-core`, and `CollectionComparator`, `ReportRepository` and
-`ComparatorAutoConfiguration` were in `dev.jbaby.ditto.comparator`; they are now in `dev.jbaby.ditto.mongo`. A
-Maven build that still asks for `ditto-core` from 0.6.0 on gets `ditto-mongo`, with a warning to change the
-artifactId.
+Up to 0.5.0 the artifact was called `ditto-core`, with the classes in `dev.jbaby.ditto.comparator`. They are now
+in `dev.jbaby.ditto.mongo`, and two were renamed to match their OpenSearch counterparts: `ReportRepository` is
+`MongoReportRepository` and `ComparatorAutoConfiguration` is `MongoComparatorAutoConfiguration`. A Maven build
+that still asks for `ditto-core` from 0.6.0 on gets `ditto-mongo`, with a warning to change the artifactId.
 
 The same versions are also on GitHub Packages (`https://maven.pkg.github.com/danielbartl/ditto`), which needs a
 GitHub token with the `read:packages` scope even for public packages. To try an unreleased change, build it yourself
 with `./mvnw install -DskipTests`, which installs the current `-SNAPSHOT` into your local repository.
 
 The host needs Spring Boot 4 with a configured MongoDB (`spring.mongodb.*`). The auto-configuration
-`ComparatorAutoConfiguration` registers a `CollectionComparator` that uses the host's `MongoDatabaseFactory`. Every
+`MongoComparatorAutoConfiguration` registers a `CollectionComparator` that uses the host's `MongoDatabaseFactory`. Every
 bean is `@ConditionalOnMissingBean`, so you can replace any of them.
 
 ### Call it
@@ -479,7 +479,7 @@ Set `ditto.persistence.enabled=true` and every report is stored in `ditto.persis
 Each stored document is the report JSON with these top-level fields added: `_id` (the report id), `createdAt` (a
 date), `baseline` and `candidate` (`db.collection`).
 
-`ReportRepository.findRecent(candidate, limit)` reads reports back. You can also query directly, for example to
+`MongoReportRepository.findRecent(candidate, limit)` reads reports back. You can also query directly, for example to
 derive thresholds from historical runs:
 
 ```js
@@ -1055,7 +1055,7 @@ The public API is:
   `DocumentComparator` interface they share, and everything in `dev.jbaby.ditto.comparator.api`;
 - the `ditto.*` configuration properties (`ComparatorProperties`, `OpenSearchComparatorProperties`) and the
   auto-configuration class names;
-- `ReportJson`, `ReportHtml`, `ReportStore`, `ReportRepository` and `OpenSearchReportRepository`;
+- `ReportJson`, `ReportHtml`, `ReportStore`, `MongoReportRepository` and `OpenSearchReportRepository`;
 - the report JSON format (versioned by its `schemaVersion`), the CLI options and exit codes, the Micrometer meter
   names and the `comparisons` Actuator endpoint.
 
@@ -1113,8 +1113,8 @@ ditto-opensearch `dev.jbaby.ditto.opensearch`):
 |                    | `autoconfigure`  | `ComparatorProperties`, shared beans, metrics and endpoint                          |
 | `ditto-mongo`      | (root)           | `CollectionComparator`, the MongoDB facade                                          |
 |                    | `scan`, `key`    | `MongoCollectionSource`, `MongoDocumentStore`, `Preflight`, `KeyInspector`          |
-|                    | `report`         | `ReportRepository`                                                                  |
-|                    | `autoconfigure`  | `ComparatorAutoConfiguration`                                                       |
+|                    | `report`         | `MongoReportRepository`                                                             |
+|                    | `autoconfigure`  | `MongoComparatorAutoConfiguration`                                                  |
 | `ditto-opensearch` | (root)           | `IndexComparator`, the OpenSearch facade                                            |
 |                    | `scan`, `client` | `OpenSearchIndexSource`, `OpenSearchPreflight`, `SourceParser`, `SearchPage`        |
 |                    | `report`         | `OpenSearchReportRepository`                                                        |

@@ -23,7 +23,7 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
     `generate` against OpenSearch; `--index` works like `--collection`. docker-compose has an `opensearch` service and
     a `seed-opensearch` profile.
 - `DocumentComparator`, the interface of `CollectionComparator` and `IndexComparator`, and `ReportStore`, the
-  interface of `ReportRepository` and `OpenSearchReportRepository`.
+  interface of `MongoReportRepository` and `OpenSearchReportRepository`.
 - Reports record where both sides live: `run.settings.store` is `MONGODB` or `OPENSEARCH` (missing in older reports,
   which read as `MONGODB`). The report viewer shows it and also opens reports stored in OpenSearch.
 - The hint to ignore a technical timestamp also recognises ISO-8601 date-time strings, not only BSON dates.
@@ -32,10 +32,11 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 - **The MongoDB library is now `dev.jbaby.ditto:ditto-mongo`** (was `ditto-core`), and its classes moved from
   `dev.jbaby.ditto.comparator` to `dev.jbaby.ditto.mongo`, next to `dev.jbaby.ditto.opensearch`. Change the artifactId
-  and these imports; the class names stay the same:
+  and these imports; two classes were also renamed to match their OpenSearch counterparts:
   - `dev.jbaby.ditto.mongo.CollectionComparator`
-  - `dev.jbaby.ditto.mongo.report.ReportRepository`
-  - `dev.jbaby.ditto.mongo.autoconfigure.ComparatorAutoConfiguration` (e.g. in `spring.autoconfigure.exclude`)
+  - `dev.jbaby.ditto.mongo.report.MongoReportRepository` (was `ReportRepository`)
+  - `dev.jbaby.ditto.mongo.autoconfigure.MongoComparatorAutoConfiguration` (was `ComparatorAutoConfiguration`, e.g. in
+    `spring.autoconfigure.exclude`)
 
   Everything store-neutral (`api`, `ComparatorProperties`, `ReportJson`, `ReportHtml`, ...) stays in
   `dev.jbaby.ditto.comparator`. Log levels set for `dev.jbaby.ditto.comparator` no longer cover the MongoDB classes;

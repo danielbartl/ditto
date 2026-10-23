@@ -17,14 +17,14 @@ import dev.jbaby.ditto.comparator.observability.ComparisonMetrics;
 import dev.jbaby.ditto.comparator.observability.ComparisonsEndpoint;
 import dev.jbaby.ditto.comparator.verdict.VerdictEvaluator;
 import dev.jbaby.ditto.mongo.CollectionComparator;
-import dev.jbaby.ditto.mongo.report.ReportRepository;
+import dev.jbaby.ditto.mongo.report.MongoReportRepository;
 
-class ComparatorAutoConfigurationTest {
+class MongoComparatorAutoConfigurationTest {
 
     // creating a MongoClient does not connect, so no server is needed here
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(MongoAutoConfiguration.class, DataMongoAutoConfiguration.class,
-                    ComparatorEngineAutoConfiguration.class, ComparatorAutoConfiguration.class))
+                    ComparatorEngineAutoConfiguration.class, MongoComparatorAutoConfiguration.class))
             .withPropertyValues("spring.mongodb.uri=mongodb://localhost:1/app");
 
     @Test
@@ -32,20 +32,20 @@ class ComparatorAutoConfigurationTest {
         runner.run(context -> {
             assertThat(context).hasSingleBean(CollectionComparator.class);
             assertThat(context).hasSingleBean(ComparatorProperties.class);
-            assertThat(context).doesNotHaveBean(ReportRepository.class);
+            assertThat(context).doesNotHaveBean(MongoReportRepository.class);
         });
     }
 
     @Test
     void registersRepositoryWhenPersistenceIsEnabled() {
         runner.withPropertyValues("ditto.persistence.enabled=true")
-                .run(context -> assertThat(context).hasSingleBean(ReportRepository.class));
+                .run(context -> assertThat(context).hasSingleBean(MongoReportRepository.class));
     }
 
     @Test
     void rejectsRetentionBelowOneSecond() {
         runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.retention=365d")
-                .run(context -> assertThat(context).hasSingleBean(ReportRepository.class));
+                .run(context -> assertThat(context).hasSingleBean(MongoReportRepository.class));
         runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.retention=0s")
                 .run(context -> assertThat(context).getFailure().rootCause()
                         .hasMessageContaining("retention must be at least one second"));
@@ -95,7 +95,7 @@ class ComparatorAutoConfigurationTest {
     @Test
     void staysAwayWithoutMongo() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(ComparatorAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(MongoComparatorAutoConfiguration.class))
                 .run(context -> assertThat(context).doesNotHaveBean(CollectionComparator.class));
     }
 }
