@@ -80,17 +80,30 @@ public final class ComparisonEngine {
     }
 
     public ComparisonReport compare(ComparisonRequest request, ProgressListener listener) {
-        ComparisonSettings settings = properties.settingsFor(request, store.kind(), store.defaultDatabase());
         Map<String, String> labels = properties.labelsFor(request);
+        String database;
+        try {
+            database = store.defaultDatabase();
+        } catch (RuntimeException e) {
+            // e.g. OpenSearch is unreachable and can't name its cluster: the event names the store instead
+            throw failed(properties.settingsFor(request, store.kind(), store.kind().name().toLowerCase(Locale.ROOT)),
+                    labels, e);
+        }
+        ComparisonSettings settings = properties.settingsFor(request, store.kind(), database);
         try {
             ComparisonReport report = run(settings, labels, request.thresholds() != null, listener);
             events.publishEvent(new ComparisonCompletedEvent(report));
             return report;
         } catch (RuntimeException e) {
-            RuntimeException thrown = store.translate(e, settings);
-            events.publishEvent(new ComparisonFailedEvent(settings, thrown, labels));
-            throw thrown;
+            throw failed(settings, labels, e);
         }
+    }
+
+    /** Publishes the failure and returns what to throw. */
+    private RuntimeException failed(ComparisonSettings settings, Map<String, String> labels, RuntimeException e) {
+        RuntimeException thrown = store.translate(e, settings);
+        events.publishEvent(new ComparisonFailedEvent(settings, thrown, labels));
+        return thrown;
     }
 
     private ComparisonReport run(ComparisonSettings requested, Map<String, String> labels,
