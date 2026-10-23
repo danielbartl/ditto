@@ -1089,11 +1089,8 @@ The collections are read with ordinary queries, not a snapshot. Compare after th
   but they show up in the report under an ambiguous path.
 - **Swapped values**: if values move between elements of an order-insensitive array, e.g. two items swap their
   prices, the change is reported as the array path (`items[]`), not as the individual fields.
-- **Duplicate keys in SAMPLE mode**: duplicate keys are only detected on the looked-up side. FULL mode detects them
-  on both sides.
-- **Duplicate keys in OpenSearch**: FULL mode reports a duplicate custom key when a lookup finds it twice or one scroll
-  page holds it twice. Two baseline documents with the same key, in different pages and without counterpart in the
-  candidate, are counted as two removed documents instead.
+- **Duplicate keys in SAMPLE mode**: a duplicate key is found if it is among the sampled keys, on either side. A
+  duplicate that no sample draws goes unnoticed; FULL mode finds every one.
 - **Estimated counts**: SAMPLE mode extrapolates with `estimatedDocumentCount()` (collection metadata), which can be
   slightly off after an unclean shutdown.
 - **Changing the encoding**: the canonical byte encoding is pinned by a unit test. Changing it changes all content
