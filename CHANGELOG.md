@@ -69,7 +69,8 @@ The details follow below.
 
 - **Persistence writes files by default**, no longer to the compared MongoDB database. To keep storing reports in
   MongoDB, e.g. to keep the history that learned thresholds use, set `ditto.persistence.storage=database`. Otherwise
-  put `ditto.persistence.directory` on persistent storage (in a container: a volume).
+  put `ditto.persistence.directory` on persistent storage (in a container: a volume). If
+  `ditto.persistence.collection` or `.database` is set while reports go to files, ditto logs a warning at startup.
 - **The MongoDB library is now `dev.jbaby.ditto:ditto-mongo`** (was `ditto-core`), and its classes moved from
   `dev.jbaby.ditto.comparator` to `dev.jbaby.ditto.mongo`, next to `dev.jbaby.ditto.opensearch`. Change the artifactId
   and these imports; two classes were also renamed to match their OpenSearch counterparts:

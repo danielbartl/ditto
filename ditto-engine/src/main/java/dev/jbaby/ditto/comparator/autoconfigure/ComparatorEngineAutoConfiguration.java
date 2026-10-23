@@ -1,5 +1,7 @@
 package dev.jbaby.ditto.comparator.autoconfigure;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -21,6 +23,8 @@ import dev.jbaby.ditto.comparator.verdict.VerdictEvaluator;
 @AutoConfiguration
 @EnableConfigurationProperties(ComparatorProperties.class)
 public class ComparatorEngineAutoConfiguration {
+
+    private static final Logger log = LoggerFactory.getLogger(ComparatorEngineAutoConfiguration.class);
 
     @Bean
     @ConditionalOnMissingBean
@@ -53,6 +57,14 @@ public class ComparatorEngineAutoConfiguration {
     @ConditionalOnProperty(prefix = "ditto.persistence", name = "storage", havingValue = "file", matchIfMissing = true)
     public FileReportStore comparatorFileReportStore(ComparatorProperties properties, ReportJson reportJson) {
         var persistence = properties.getPersistence();
-        return new FileReportStore(persistence.getDirectory(), persistence.getRetention(), reportJson);
+        var store = new FileReportStore(persistence.getDirectory(), persistence.getRetention(), reportJson);
+        if (persistence.getDatabase() != null
+                || !persistence.getCollection().equals(new ComparatorProperties.Persistence().getCollection())) {
+            // up to 0.5.0 reports went to the database, so this is likely an upgraded configuration
+            log.warn("ditto.persistence.collection and .database have no effect: reports are stored as files in {}."
+                    + " To store them in the database as before 0.6.0, set ditto.persistence.storage=database",
+                    store.directory());
+        }
+        return store;
     }
 }
