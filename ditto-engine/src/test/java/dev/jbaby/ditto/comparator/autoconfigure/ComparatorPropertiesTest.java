@@ -3,6 +3,7 @@ package dev.jbaby.ditto.comparator.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -130,6 +131,19 @@ class ComparatorPropertiesTest {
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> properties.settingsFor(ComparisonRequest.of("a", "b"), "db"));
+    }
+
+    @Test
+    void reportsAreStoredAsFilesUnlessTheDatabaseIsChosen() {
+        var defaults = new ComparatorProperties().getPersistence();
+        var database = bind(Map.of("ditto.persistence.storage", "database",
+                "ditto.persistence.directory", "/var/lib/ditto")).getPersistence();
+
+        assertThat(defaults.isEnabled()).isFalse();
+        assertThat(defaults.getStorage()).isEqualTo(ComparatorProperties.Persistence.Storage.FILE);
+        assertThat(defaults.getDirectory()).isEqualTo(Path.of("ditto-reports"));
+        assertThat(database.getStorage()).isEqualTo(ComparatorProperties.Persistence.Storage.DATABASE);
+        assertThat(database.getDirectory()).isEqualTo(Path.of("/var/lib/ditto"));
     }
 
     private static ComparatorProperties bind(Map<String, String> values) {

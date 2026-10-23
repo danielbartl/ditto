@@ -1,5 +1,6 @@
 package dev.jbaby.ditto.comparator.autoconfigure;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -222,18 +223,31 @@ public class ComparatorProperties {
 
     public static class Persistence {
 
-        /** Store every report in MongoDB. */
+        /** Store every report, by default as a JSON file in {@code directory}. */
         private boolean enabled = false;
 
-        /** Collection the reports are stored in. */
+        /**
+         * Where reports are stored: {@code file} (a JSON file per report in {@code directory}) or {@code database}
+         * (in {@code collection} of the compared MongoDB database or OpenSearch cluster).
+         */
+        private Storage storage = Storage.FILE;
+
+        /**
+         * Directory of the report files ({@code storage=file}), relative to the working directory unless absolute.
+         * Created on the first save.
+         */
+        private Path directory = Path.of("ditto-reports");
+
+        /** Collection (OpenSearch: index) the reports are stored in with {@code storage=database}. */
         private String collection = "comparison_reports";
 
-        /** Database the reports are stored in; the default database if not set. */
+        /** Database the reports are stored in with {@code storage=database}; the default database if not set. */
         private @Nullable String database;
 
         /**
-         * How long reports are kept, e.g. {@code 365d}. MongoDB deletes older reports through a TTL index. Not set:
-         * reports are kept forever.
+         * How long reports are kept, e.g. {@code 365d}. Older report files are deleted after each save, MongoDB
+         * deletes older reports through a TTL index and OpenSearch through a delete-by-query after each save. Not
+         * set: reports are kept forever.
          */
         private @Nullable Duration retention;
 
@@ -243,6 +257,22 @@ public class ComparatorProperties {
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
+        }
+
+        public Storage getStorage() {
+            return storage;
+        }
+
+        public void setStorage(Storage storage) {
+            this.storage = storage;
+        }
+
+        public Path getDirectory() {
+            return directory;
+        }
+
+        public void setDirectory(Path directory) {
+            this.directory = directory;
         }
 
         public String getCollection() {
@@ -267,6 +297,13 @@ public class ComparatorProperties {
 
         public void setRetention(@Nullable Duration retention) {
             this.retention = retention;
+        }
+
+        public enum Storage {
+            /** A JSON file per report in {@code ditto.persistence.directory}. */
+            FILE,
+            /** The compared MongoDB database or OpenSearch cluster. */
+            DATABASE
         }
     }
 
