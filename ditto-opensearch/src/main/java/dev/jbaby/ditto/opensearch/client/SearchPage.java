@@ -12,7 +12,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * One page of a search or scroll response, read by streaming: the hits' ids, the exact bytes of their
- * {@code _source} (not parsed, not copied) and the values of one requested field.
+ * {@code _source} (not parsed, not copied) and the values of one requested field. A page that misses documents
+ * because shards failed or the search timed out is rejected.
  *
  * @param scrollId id for the next scroll page, {@code null} if not scrolling
  * @param hits     the hits of this page
@@ -31,11 +32,14 @@ public record SearchPage(@Nullable String scrollId, List<Hit> hits, long total) 
     /**
      * @param response the response body
      * @param field    the field whose values to read from each hit's {@code fields}, {@code null} for none
+     * @throws dev.jbaby.ditto.opensearch.OpenSearchAccessException if shards failed or the search timed out
      */
     public static SearchPage read(JsonMapper mapper, byte[] response, @Nullable String field) {
         String scrollId = null;
         List<Hit> hits = new ArrayList<>();
         long total = -1;
+        boolean timedOut = false;
+        Shards shards = Shards.NONE;
         try (JsonParser parser = mapper.createParser(response)) {
             parser.nextToken();
             while (parser.nextToken() == JsonToken.PROPERTY_NAME) {
@@ -43,6 +47,10 @@ public record SearchPage(@Nullable String scrollId, List<Hit> hits, long total) 
                 parser.nextToken();
                 if (name.equals("_scroll_id")) {
                     scrollId = parser.getString();
+                } else if (name.equals("timed_out")) {
+                    timedOut = parser.currentToken() == JsonToken.VALUE_TRUE;
+                } else if (name.equals("_shards") && parser.currentToken() == JsonToken.START_OBJECT) {
+                    shards = Shards.read(parser);
                 } else if (name.equals("hits") && parser.currentToken() == JsonToken.START_OBJECT) {
                     while (parser.nextToken() == JsonToken.PROPERTY_NAME) {
                         String hitsField = parser.currentName();
@@ -62,6 +70,7 @@ public record SearchPage(@Nullable String scrollId, List<Hit> hits, long total) 
                 }
             }
         }
+        shards.requireComplete("Search", timedOut);
         return new SearchPage(scrollId, hits, total);
     }
 

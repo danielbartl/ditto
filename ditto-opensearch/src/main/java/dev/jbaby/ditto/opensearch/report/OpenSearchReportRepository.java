@@ -23,6 +23,7 @@ import dev.jbaby.ditto.comparator.report.ReportJson;
 import dev.jbaby.ditto.comparator.report.ReportStore;
 import dev.jbaby.ditto.opensearch.OpenSearchAccessException;
 import dev.jbaby.ditto.opensearch.client.OpenSearchHttp;
+import dev.jbaby.ditto.opensearch.client.Shards;
 
 /**
  * Stores reports in an OpenSearch index (default {@code comparison_reports}), e.g. to derive thresholds from
@@ -30,9 +31,10 @@ import dev.jbaby.ditto.opensearch.client.OpenSearchHttp;
  * {@code baseline} and {@code candidate} ({@code cluster.index}), {@code verdict} and {@code labels} (e.g.
  * {@code labels.batchJobId}), and the report itself in {@code report}, which is stored but not indexed, so the report
  * format never changes the index mapping.
- * <p>Before saving it creates the index with that mapping if it does not exist. With a retention, each save deletes reports older than the
- * retention ({@code _delete_by_query}); OpenSearch has no expiry of its own. If the index can't be created (e.g.
- * missing privileges), a warning is logged and saving is still attempted.
+ * <p>Before saving it creates the index with that mapping if it does not exist. With a retention, each save deletes
+ * reports older than the retention ({@code _delete_by_query}); OpenSearch has no expiry of its own. If the index can't
+ * be created (e.g. missing privileges), a warning is logged and saving is still attempted. Reading fails rather than
+ * return the reports of only some shards.
  * <p>A {@linkplain #readOnly read-only} repository only reads: it neither stores reports nor creates the index or
  * deletes anything.
  */
@@ -150,7 +152,7 @@ public final class OpenSearchReportRepository implements ReportStore {
         body.put("size", pageSize);
         body.putArray("sort").add("_doc");
         OpenSearchHttp.Reply reply = http.execute("POST", "/" + index + "/_search",
-                Map.of("scroll", SCROLL_KEEP_ALIVE), body);
+                Map.of("scroll", SCROLL_KEEP_ALIVE, "allow_partial_search_results", "false"), body);
         if (reply.status() == 404) {
             return;
         }
@@ -160,7 +162,7 @@ public final class OpenSearchReportRepository implements ReportStore {
         JsonNode page = http.tree(reply.body());
         String scrollId = page.path("_scroll_id").asString();
         try {
-            while (!page.path("hits").path("hits").isEmpty()) {
+            while (!complete(page).path("hits").path("hits").isEmpty()) {
                 for (JsonNode hit : page.path("hits").path("hits")) {
                     ComparisonReport report;
                     try {
@@ -201,7 +203,8 @@ public final class OpenSearchReportRepository implements ReportStore {
         filters.forEach(filter::add);
         ArrayNode mustNot = bool.putArray("must_not");
         excluded.forEach(mustNot::add);
-        OpenSearchHttp.Reply reply = http.execute("POST", "/" + index + "/_search", Map.of(), body);
+        OpenSearchHttp.Reply reply = http.execute("POST", "/" + index + "/_search",
+                Map.of("allow_partial_search_results", "false"), body);
         if (reply.status() == 404) {
             return List.of();
         }
@@ -209,7 +212,7 @@ public final class OpenSearchReportRepository implements ReportStore {
             throw http.error("POST", "/" + index + "/_search", reply);
         }
         List<ComparisonReport> reports = new ArrayList<>();
-        for (JsonNode hit : http.tree(reply.body()).path("hits").path("hits")) {
+        for (JsonNode hit : complete(http.tree(reply.body())).path("hits").path("hits")) {
             try {
                 reports.add(toReport(hit.path("_source")));
             } catch (RuntimeException e) {
@@ -221,6 +224,12 @@ public final class OpenSearchReportRepository implements ReportStore {
             }
         }
         return reports;
+    }
+
+    /** The response, unless shards failed: a partial result would miss reports. */
+    private JsonNode complete(JsonNode response) {
+        Shards.of(response).requireComplete("Reading the reports in " + index, response.path("timed_out").asBoolean());
+        return response;
     }
 
     private ComparisonReport toReport(JsonNode source) {

@@ -47,6 +47,9 @@ public final class OpenSearchIndexSource implements DocumentSource {
     private static final int SAMPLE_PAGE_SIZE = 1000;
     /** OpenSearch's default {@code index.max_result_window}. */
     private static final int MAX_RESULT_WINDOW = 10_000;
+    /** An error instead of the hits of the shards that answered: a partial result would miss documents. */
+    private static final String ALLOW_PARTIAL = "allow_partial_search_results";
+    private static final Map<String, String> COMPLETE = Map.of(ALLOW_PARTIAL, "false");
     private static final SourceDocument KEY_ONLY = new SourceDocument() {
         @Override
         public BsonDocument decode() {
@@ -192,7 +195,7 @@ public final class OpenSearchIndexSource implements DocumentSource {
     }
 
     private SearchPage search(ObjectNode body) {
-        byte[] response = http.require("POST", "/" + ref.collection() + "/_search", Map.of(), body);
+        byte[] response = http.require("POST", "/" + ref.collection() + "/_search", COMPLETE, body);
         return SearchPage.read(http.mapper(), response, key.isId() ? null : key.lookupField());
     }
 
@@ -266,8 +269,8 @@ public final class OpenSearchIndexSource implements DocumentSource {
         private void fetch() {
             byte[] response;
             if (scrollId == null) {
-                response = http.require("POST", "/" + ref.collection() + "/_search", Map.of("scroll", keepAlive),
-                        firstRequest);
+                response = http.require("POST", "/" + ref.collection() + "/_search",
+                        Map.of("scroll", keepAlive, ALLOW_PARTIAL, "false"), firstRequest);
             } else {
                 ObjectNode next = http.object();
                 next.put("scroll", keepAlive);

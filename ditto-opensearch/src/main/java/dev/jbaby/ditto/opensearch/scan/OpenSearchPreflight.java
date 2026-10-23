@@ -14,6 +14,7 @@ import dev.jbaby.ditto.comparator.api.CollectionRef;
 import dev.jbaby.ditto.comparator.api.ComparisonException;
 import dev.jbaby.ditto.comparator.scan.PreflightResult;
 import dev.jbaby.ditto.opensearch.client.OpenSearchHttp;
+import dev.jbaby.ditto.opensearch.client.Shards;
 
 /**
  * Checks before reading two OpenSearch indices: both exist and are single indices (an alias must point to exactly
@@ -133,7 +134,9 @@ public final class OpenSearchPreflight {
             body = http.object();
             body.set("query", query);
         }
-        return http.tree(http.require("POST", "/" + index + "/_count", Map.of(), body)).path("count").asLong();
+        JsonNode response = http.tree(http.require("POST", "/" + index + "/_count", Map.of(), body));
+        Shards.of(response).requireComplete("Counting the documents of " + index, false);
+        return response.path("count").asLong();
     }
 
     private @Nullable String refreshInterval(String index) {
