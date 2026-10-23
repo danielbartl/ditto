@@ -64,6 +64,8 @@ public final class OpenSearchIndexSource implements DocumentSource {
 
     private final String side;
     private final CollectionRef ref;
+    /** {@code /<index>}, encoded. */
+    private final String path;
     private final KeyField key;
     private final OpenSearchHttp http;
     private final SourceParser parser;
@@ -77,6 +79,7 @@ public final class OpenSearchIndexSource implements DocumentSource {
                                  SourceParser parser, Duration scrollKeepAlive) {
         this.side = side;
         this.ref = ref;
+        this.path = "/" + OpenSearchHttp.segment(ref.collection());
         this.key = key;
         this.http = http;
         this.parser = parser;
@@ -195,7 +198,7 @@ public final class OpenSearchIndexSource implements DocumentSource {
     }
 
     private SearchPage search(ObjectNode body) {
-        byte[] response = http.require("POST", "/" + ref.collection() + "/_search", COMPLETE, body);
+        byte[] response = http.require("POST", path + "/_search", COMPLETE, body);
         return SearchPage.read(http.mapper(), response, key.isId() ? null : key.lookupField());
     }
 
@@ -269,7 +272,7 @@ public final class OpenSearchIndexSource implements DocumentSource {
         private void fetch() {
             byte[] response;
             if (scrollId == null) {
-                response = http.require("POST", "/" + ref.collection() + "/_search",
+                response = http.require("POST", path + "/_search",
                         Map.of("scroll", keepAlive, ALLOW_PARTIAL, "false"), firstRequest);
             } else {
                 ObjectNode next = http.object();

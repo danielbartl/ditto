@@ -64,6 +64,24 @@ class OpenSearchReportRepositoryIT {
     }
 
     @Test
+    void anIdCannotReachAnotherEndpoint() {
+        Indices.delete("id_reports");
+        var repository = new OpenSearchReportRepository(client, "id_reports", null, JSON);
+        ComparisonReport report = report("a-1");
+        repository.save(report);
+
+        assertThat(repository.findById("a-1")).isPresent();
+        // e.g. from /actuator/comparisons/{id}: always one id, never more path, a query or a fragment
+        assertThat(repository.findById("../../_cluster/settings")).isEmpty();
+        assertThat(repository.findById("../_search")).isEmpty();
+        assertThat(repository.findById("a-1?q=x#y")).isEmpty();
+        assertThat(repository.findById("100%")).isEmpty();
+        assertThat(repository.findById("..")).isEmpty();
+        assertThat(repository.findById(".")).isEmpty();
+        assertThat(repository.findById("")).isEmpty();
+    }
+
+    @Test
     void forEachFindsNothingWithoutTheIndex() {
         Indices.delete("no_reports");
         List<ComparisonReport> seen = new ArrayList<>();

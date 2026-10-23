@@ -47,6 +47,8 @@ public final class OpenSearchReportRepository implements ReportStore {
 
     private final OpenSearchHttp http;
     private final String index;
+    /** {@code /<index>}, encoded. */
+    private final String path;
     private final @Nullable Duration retention;
     private final ReportJson json;
     private final boolean readOnly;
@@ -68,6 +70,7 @@ public final class OpenSearchReportRepository implements ReportStore {
         }
         this.http = http;
         this.index = index;
+        this.path = "/" + OpenSearchHttp.segment(index);
         this.retention = retention;
         this.json = json;
         this.readOnly = readOnly;
@@ -94,18 +97,24 @@ public final class OpenSearchReportRepository implements ReportStore {
         report.labels().forEach(labels::put);
         document.set("report", http.tree(json.write(report).getBytes(StandardCharsets.UTF_8)));
         // visible to the next comparison's history right away
-        http.require("PUT", "/" + index + "/_doc/" + report.id(), Map.of("refresh", "wait_for"), document);
+        http.require("PUT", path + "/_doc/" + OpenSearchHttp.segment(report.id()), Map.of("refresh", "wait_for"),
+                document);
         applyRetention();
     }
 
     @Override
     public Optional<ComparisonReport> findById(String id) {
-        OpenSearchHttp.Reply reply = http.execute("GET", "/" + index + "/_doc/" + id, Map.of(), null);
+        if (id.isEmpty() || id.equals(".") || id.equals("..")) {
+            // no report id, and as a path segment it would address the index itself
+            return Optional.empty();
+        }
+        String document = path + "/_doc/" + OpenSearchHttp.segment(id);
+        OpenSearchHttp.Reply reply = http.execute("GET", document, Map.of(), null);
         if (reply.status() == 404) {
             return Optional.empty();
         }
         if (!reply.ok()) {
-            throw http.error("GET", "/" + index + "/_doc/" + id, reply);
+            throw http.error("GET", document, reply);
         }
         return Optional.of(toReport(http.tree(reply.body()).path("_source")));
     }
@@ -151,13 +160,13 @@ public final class OpenSearchReportRepository implements ReportStore {
         ObjectNode body = http.object();
         body.put("size", pageSize);
         body.putArray("sort").add("_doc");
-        OpenSearchHttp.Reply reply = http.execute("POST", "/" + index + "/_search",
+        OpenSearchHttp.Reply reply = http.execute("POST", path + "/_search",
                 Map.of("scroll", SCROLL_KEEP_ALIVE, "allow_partial_search_results", "false"), body);
         if (reply.status() == 404) {
             return;
         }
         if (!reply.ok()) {
-            throw http.error("POST", "/" + index + "/_search", reply);
+            throw http.error("POST", path + "/_search", reply);
         }
         JsonNode page = http.tree(reply.body());
         String scrollId = page.path("_scroll_id").asString();
@@ -203,13 +212,13 @@ public final class OpenSearchReportRepository implements ReportStore {
         filters.forEach(filter::add);
         ArrayNode mustNot = bool.putArray("must_not");
         excluded.forEach(mustNot::add);
-        OpenSearchHttp.Reply reply = http.execute("POST", "/" + index + "/_search",
+        OpenSearchHttp.Reply reply = http.execute("POST", path + "/_search",
                 Map.of("allow_partial_search_results", "false"), body);
         if (reply.status() == 404) {
             return List.of();
         }
         if (!reply.ok()) {
-            throw http.error("POST", "/" + index + "/_search", reply);
+            throw http.error("POST", path + "/_search", reply);
         }
         List<ComparisonReport> reports = new ArrayList<>();
         for (JsonNode hit : complete(http.tree(reply.body())).path("hits").path("hits")) {
@@ -242,13 +251,13 @@ public final class OpenSearchReportRepository implements ReportStore {
      */
     private void ensureIndex() {
         try {
-            if (http.execute("HEAD", "/" + index, Map.of(), null).ok()) {
+            if (http.execute("HEAD", path, Map.of(), null).ok()) {
                 return;
             }
-            OpenSearchHttp.Reply reply = http.execute("PUT", "/" + index, Map.of(), indexDefinition());
+            OpenSearchHttp.Reply reply = http.execute("PUT", path, Map.of(), indexDefinition());
             if (!reply.ok() && !new String(reply.body(), StandardCharsets.UTF_8)
                     .contains("resource_already_exists_exception")) {
-                throw http.error("PUT", "/" + index, reply);
+                throw http.error("PUT", path, reply);
             }
         } catch (OpenSearchAccessException e) {
             if (!warned) {
@@ -287,7 +296,7 @@ public final class OpenSearchReportRepository implements ReportStore {
         body.putObject("query").putObject("range").putObject("createdAt").put("lt", "now-" + retention.toSeconds()
                 + "s");
         try {
-            http.require("POST", "/" + index + "/_delete_by_query", Map.of("conflicts", "proceed"), body);
+            http.require("POST", path + "/_delete_by_query", Map.of("conflicts", "proceed"), body);
         } catch (OpenSearchAccessException e) {
             // the report itself is stored; old ones are deleted with the next save
             log.warn("Deleting reports older than {} from {} failed: {}", retention, index, e.getMessage());

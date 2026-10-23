@@ -11,6 +11,7 @@ import org.opensearch.client.opensearch.generic.OpenSearchGenericClient;
 import org.opensearch.client.opensearch.generic.Request;
 import org.opensearch.client.opensearch.generic.Requests;
 import org.opensearch.client.opensearch.generic.Response;
+import org.opensearch.client.util.PathEncoder;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -46,6 +47,14 @@ public final class OpenSearchHttp {
         public boolean ok() {
             return status >= 200 && status < 300;
         }
+    }
+
+    /**
+     * A path segment, e.g. an index name or a document id, percent-encoded as opensearch-java encodes the paths of its
+     * own requests, so a {@code /}, {@code ?} or {@code #} in it can't change the endpoint.
+     */
+    public static String segment(String value) {
+        return PathEncoder.encode(value);
     }
 
     /**

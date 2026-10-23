@@ -61,12 +61,12 @@ public final class OpenSearchPreflight {
         if (index.isBlank() || NOT_A_NAME.matcher(index).find() || index.startsWith("_")) {
             throw new ComparisonException("The " + side + " '" + index + "' is not the name of an index or alias");
         }
-        OpenSearchHttp.Reply reply = http.execute("GET", "/" + index + "/_mapping", Map.of(), null);
+        OpenSearchHttp.Reply reply = http.execute("GET", path(index) + "/_mapping", Map.of(), null);
         if (reply.status() == 404) {
             throw new ComparisonException("The " + side + " index " + index + " does not exist");
         }
         if (!reply.ok()) {
-            throw http.error("GET", "/" + index + "/_mapping", reply);
+            throw http.error("GET", path(index) + "/_mapping", reply);
         }
         JsonNode indices = http.tree(reply.body());
         if (indices.size() != 1) {
@@ -134,13 +134,18 @@ public final class OpenSearchPreflight {
             body = http.object();
             body.set("query", query);
         }
-        JsonNode response = http.tree(http.require("POST", "/" + index + "/_count", Map.of(), body));
+        JsonNode response = http.tree(http.require("POST", path(index) + "/_count", Map.of(), body));
         Shards.of(response).requireComplete("Counting the documents of " + index, false);
         return response.path("count").asLong();
     }
 
+    /** {@code /<index>}, encoded. */
+    private static String path(String index) {
+        return "/" + OpenSearchHttp.segment(index);
+    }
+
     private @Nullable String refreshInterval(String index) {
-        JsonNode settings = http.tree(http.require("GET", "/" + index + "/_settings/index.refresh_interval",
+        JsonNode settings = http.tree(http.require("GET", path(index) + "/_settings/index.refresh_interval",
                 Map.of(), null));
         for (var entry : settings.properties()) {
             JsonNode interval = entry.getValue().path("settings").path("index").path("refresh_interval");
