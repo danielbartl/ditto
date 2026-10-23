@@ -99,6 +99,21 @@ class MongoReportRepositoryIT {
         assertThatThrownBy(() -> readOnly.save(report)).isInstanceOf(UnsupportedOperationException.class);
     }
 
+    @Test
+    void forEachReadsEveryReportAndSkipsUnreadableOnes() throws IOException {
+        ComparisonReport report;
+        try (var in = getClass().getResourceAsStream("/reports/report-v0.1.0.json")) {
+            report = new ReportJson().read(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        repository(null).save(report);
+        reports().insertOne(new Document("_id", "broken").append("verdict", 42));
+        List<ComparisonReport> seen = new ArrayList<>();
+
+        MongoReportRepository.readOnly(factory, null, COLLECTION, new ReportJson()).forEach(seen::add);
+
+        assertThat(seen).containsExactly(report);
+    }
+
     private MongoReportRepository repository(@Nullable Duration retention) {
         return new MongoReportRepository(factory, null, COLLECTION, retention, new ReportJson());
     }

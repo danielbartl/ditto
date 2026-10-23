@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -19,6 +20,7 @@ import org.springframework.data.mongodb.MongoDatabaseFactory;
 
 import com.mongodb.MongoException;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
@@ -181,6 +183,24 @@ public final class MongoReportRepository implements ReportStore {
             }
         });
         return reports;
+    }
+
+    @Override
+    public void forEach(Consumer<? super ComparisonReport> action) {
+        try (MongoCursor<Document> documents = collection().find().iterator()) {
+            while (documents.hasNext()) {
+                Document document = documents.next();
+                ComparisonReport report;
+                try {
+                    report = toReport(document);
+                } catch (RuntimeException e) {
+                    log.warn("Skipping unreadable report {} in {}: {}", document.get("_id"), collection,
+                            e.getMessage());
+                    continue;
+                }
+                action.accept(report);
+            }
+        }
     }
 
     private ComparisonReport toReport(Document stored) {

@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -163,6 +164,17 @@ public final class FileReportStore implements ReportStore {
                 && (includeRed || summary.verdict() != Level.RED), limit);
     }
 
+    /** Most recent first. */
+    @Override
+    public void forEach(Consumer<? super ComparisonReport> action) {
+        for (ReportFile file : list()) {
+            ComparisonReport report = load(file);
+            if (report != null) {
+                action.accept(report);
+            }
+        }
+    }
+
     /** The reports the filter accepts, most recent first. */
     private List<ComparisonReport> find(Predicate<Summary> filter, int limit) {
         List<ComparisonReport> reports = new ArrayList<>();
@@ -174,23 +186,27 @@ public final class FileReportStore implements ReportStore {
             if (known == UNREADABLE || (known != null && !filter.test(known))) {
                 continue;
             }
-            ComparisonReport report;
-            try {
-                report = read(file.path());
-            } catch (NoSuchFileException e) {
-                continue;
-            } catch (IOException | RuntimeException e) {
-                summaries.put(file.name(), UNREADABLE);
-                log.warn("Skipping unreadable report file {}: {}", file.path(), e.getMessage());
-                continue;
-            }
-            Summary summary = Summary.of(report);
-            summaries.put(file.name(), summary);
-            if (filter.test(summary)) {
+            ComparisonReport report = load(file);
+            if (report != null && filter.test(Summary.of(report))) {
                 reports.add(report);
             }
         }
         return reports;
+    }
+
+    /** The report in the file, {@code null} if it is unreadable or was deleted since the listing. */
+    private @Nullable ComparisonReport load(ReportFile file) {
+        try {
+            ComparisonReport report = read(file.path());
+            summaries.put(file.name(), Summary.of(report));
+            return report;
+        } catch (NoSuchFileException e) {
+            return null;
+        } catch (IOException | RuntimeException e) {
+            summaries.put(file.name(), UNREADABLE);
+            log.warn("Skipping unreadable report file {}: {}", file.path(), e.getMessage());
+            return null;
+        }
     }
 
     private ComparisonReport read(Path file) throws IOException {

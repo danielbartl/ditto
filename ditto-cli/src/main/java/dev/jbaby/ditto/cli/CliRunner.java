@@ -1,5 +1,6 @@
 package dev.jbaby.ditto.cli;
 
+import java.io.UncheckedIOException;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -26,13 +27,16 @@ public class CliRunner implements ApplicationRunner {
     private final CompareCommand compare;
     private final GenerateCommand generate;
     private final ReportCommand report;
+    private final CopyReportsCommand copyReports;
     private final CliConsole console;
     private int exitCode = ExitCodes.ERROR;
 
-    public CliRunner(CompareCommand compare, GenerateCommand generate, ReportCommand report, CliConsole console) {
+    public CliRunner(CompareCommand compare, GenerateCommand generate, ReportCommand report,
+                     CopyReportsCommand copyReports, CliConsole console) {
         this.compare = compare;
         this.generate = generate;
         this.report = report;
+        this.copyReports = copyReports;
         this.console = console;
     }
 
@@ -45,6 +49,7 @@ public class CliRunner implements ApplicationRunner {
                 case "compare" -> compare.run();
                 case "generate" -> generate.run();
                 case "report" -> report.run();
+                case "copy-reports" -> copyReports.run();
                 default -> throw new CliUsageException("Unknown command '" + command + "'");
             };
         } catch (CliUsageException e) {
@@ -52,7 +57,7 @@ public class CliRunner implements ApplicationRunner {
             console.err().println("Run with --help for usage.");
             exitCode = ExitCodes.ERROR;
         } catch (ComparisonException | DataAccessException | MongoException | OpenSearchAccessException
-                 | IllegalArgumentException e) {
+                 | IllegalArgumentException | UncheckedIOException e) {
             console.err().println("Error: " + e.getMessage());
             exitCode = ExitCodes.ERROR;
         } catch (RuntimeException e) {

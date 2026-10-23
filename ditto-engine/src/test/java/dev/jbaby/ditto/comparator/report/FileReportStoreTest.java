@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -143,6 +144,20 @@ class FileReportStoreTest {
         assertThat(store.findRecent(null, 10)).containsExactly(report);
         assertThat(store.findHistory("ditto.demo_backup", "ditto.products", true, 10)).containsExactly(report);
         assertThatThrownBy(() -> store.findById("broken")).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void forEachReadsEveryReportNewestFirst() throws IOException {
+        var store = new FileReportStore(directory, null, JSON);
+        ComparisonReport older = report("e1", NOW.minusSeconds(20), "products", Level.GREEN, Map.of());
+        ComparisonReport newer = report("e2", NOW.minusSeconds(10), "orders", Level.RED, Map.of());
+        Stream.of(older, newer).forEach(store::save);
+        Files.writeString(directory.resolve("2999-01-01T00-00-00.000Z_broken.json"), "{");
+        List<ComparisonReport> seen = new ArrayList<>();
+
+        store.forEach(seen::add);
+
+        assertThat(seen).containsExactly(newer, older);
     }
 
     @Test

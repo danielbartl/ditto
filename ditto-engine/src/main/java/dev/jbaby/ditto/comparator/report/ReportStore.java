@@ -3,6 +3,7 @@ package dev.jbaby.ditto.comparator.report;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
@@ -45,4 +46,10 @@ public interface ReportStore {
      * @param limit      maximum number of reports
      */
     List<ComparisonReport> findHistory(String baseline, String candidate, boolean includeRed, int limit);
+
+    /**
+     * Passes every stored report to the action, in no particular order, e.g. to copy them into another store.
+     * Unreadable reports are skipped with a warning.
+     */
+    void forEach(Consumer<? super ComparisonReport> action);
 }

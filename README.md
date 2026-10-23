@@ -267,6 +267,7 @@ How the three path options use this syntax:
 ```
 java -jar ditto-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
 java -jar ditto-cli.jar report [--id=<id> | --label=<key>=<value> | --collection=<collection>] [--html=<file>]
+java -jar ditto-cli.jar copy-reports [--report-dir=<dir>]
 java -jar ditto-cli.jar generate [options]
 java -jar ditto-cli.jar --help
 ```
@@ -354,6 +355,21 @@ collection's indexes or retention.
 # the report of batch job 4711 as a page
 java -jar ditto-cli.jar report --uri="$MONGO_URI" --db=shop --label=batchJobId=4711 --html=report.html
 ```
+
+### copy-reports
+
+`copy-reports` copies the reports stored in the database into the report directory. Use it to keep the history that
+[learned thresholds](#thresholds-learned-from-history) need when you switch from storing reports in MongoDB (the only
+storage up to 0.5.0) to [report files](#persisting-reports):
+
+```bash
+java -jar ditto-cli.jar copy-reports --uri="$MONGO_URI" --db=shop --report-dir=/var/lib/ditto/reports
+```
+
+It reads `ditto.persistence.database` and `ditto.persistence.collection` (default `comparison_reports`; with
+`--opensearch`, the index of that name) and changes nothing there. Each report becomes one file, named as the
+application names it, so running it again just replaces the files with the same reports. It exits with 0, or 3 on
+errors.
 
 ### generate
 
@@ -504,7 +520,8 @@ If storing a report fails, the failure is logged and the report is still returne
 
 With `ditto.persistence.storage=database`, reports are stored in the compared MongoDB instead: in the collection
 `ditto.persistence.collection` (default `comparison_reports`) of `ditto.persistence.database` (default: the default
-database). Up to 0.5.0, this was the only storage.
+database). Up to 0.5.0, this was the only storage. To switch to report files and keep the history, copy the stored
+reports once with [`copy-reports`](#copy-reports).
 
 Each stored document is the report JSON with these top-level fields added: `_id` (the report id), `createdAt` (a
 date), `baseline` and `candidate` (`db.collection`).

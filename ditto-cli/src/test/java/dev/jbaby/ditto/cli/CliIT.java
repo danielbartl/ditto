@@ -164,6 +164,29 @@ class CliIT {
     }
 
     @Test
+    void copyReportsCopiesTheDatabaseIntoTheReportDirectory(@TempDir Path tmp) throws Exception {
+        String database = "--ditto.persistence.storage=database";
+        String collection = "--ditto.persistence.collection=copy_it_reports";
+        String files = "--report-dir=" + tmp;
+        run("generate", "--docs=300", "--baseline=copy_backup", "--candidate=copy");
+        ComparisonReport first = new ReportJson().read(run("--collection=copy", "--ignore=meta.syncedAt",
+                "--persist", database, collection).out());
+        ComparisonReport second = new ReportJson().read(run("--collection=copy", "--ignore=meta.syncedAt",
+                "--persist", database, collection, "--label=batchJobId=copy-2").out());
+
+        Result copied = run("copy-reports", collection, files);
+
+        assertThat(copied.code()).isEqualTo(ExitCodes.OK);
+        assertThat(copied.err()).contains("Copied 2 reports from cli_it.copy_it_reports to " + tmp);
+        assertThat(new ReportJson().read(run("report", "--id=" + first.id(), files).out())).isEqualTo(first);
+        assertThat(new ReportJson().read(run("report", "--label=batchJobId=copy-2", files).out())).isEqualTo(second);
+        assertThat(run("copy-reports", collection, files).err()).as("repeatable").contains("Copied 2 reports");
+        try (var listing = Files.list(tmp)) {
+            assertThat(listing).hasSize(2);
+        }
+    }
+
+    @Test
     void errorsExitWithThree() {
         assertThat(run().err()).contains("Missing collections: --collection=<name>");
         assertThat(run("--collection=x", "--baseline=y").err()).contains("either --collection or --baseline");

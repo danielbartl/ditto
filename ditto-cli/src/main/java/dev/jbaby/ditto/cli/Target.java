@@ -2,6 +2,7 @@ package dev.jbaby.ditto.cli;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 
 import org.jspecify.annotations.Nullable;
 import org.opensearch.client.opensearch.OpenSearchClient;
@@ -67,24 +68,38 @@ public class Target {
 
     /** The configured report files, collection or index, read-only. */
     public ReportStore reports() {
+        return isFileStorage() ? FileReportStore.readOnly(reportDirectory(), json) : databaseReports();
+    }
+
+    /** Where {@link #reports()} reads, for messages. */
+    public String reportLocation() {
+        return isFileStorage() ? "directory " + reportDirectory().toAbsolutePath().normalize()
+                : databaseReportLocation();
+    }
+
+    /** The report collection or index in the database, read-only, whatever {@code ditto.persistence.storage} says. */
+    public ReportStore databaseReports() {
         var persistence = properties.getPersistence();
-        if (persistence.getStorage() == Storage.FILE) {
-            return FileReportStore.readOnly(persistence.getDirectory(), json);
-        }
         return isOpenSearch()
                 ? OpenSearchReportRepository.readOnly(openSearch.getObject(), persistence.getCollection(), json)
                 : MongoReportRepository.readOnly(mongo.getObject(), persistence.getDatabase(),
                         persistence.getCollection(), json);
     }
 
-    /** Where {@link #reports()} reads, for messages. */
-    public String reportLocation() {
+    /** Where {@link #databaseReports()} reads, for messages. */
+    public String databaseReportLocation() {
         var persistence = properties.getPersistence();
-        if (persistence.getStorage() == Storage.FILE) {
-            return "directory " + persistence.getDirectory().toAbsolutePath().normalize();
-        }
         return isOpenSearch() ? "index " + persistence.getCollection()
                 : qualify(persistence.getDatabase(), persistence.getCollection());
+    }
+
+    /** {@code ditto.persistence.directory}, set by {@code --report-dir}. */
+    public Path reportDirectory() {
+        return properties.getPersistence().getDirectory();
+    }
+
+    private boolean isFileStorage() {
+        return properties.getPersistence().getStorage() == Storage.FILE;
     }
 
     /**

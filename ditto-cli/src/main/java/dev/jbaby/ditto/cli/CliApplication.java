@@ -12,12 +12,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
- * {@code java -jar ditto-cli.jar [compare|report|generate] --option=value ...}
+ * {@code java -jar ditto-cli.jar [compare|report|copy-reports|generate] --option=value ...}
  * <p>
  * Works on MongoDB by default; {@code --opensearch=<url>} switches to OpenSearch and leaves MongoDB unconnected.
  * <p>
  * Exit codes: 0 GREEN, 1 YELLOW, 2 RED, 3 error (including usage errors); for {@code report} those of the stored
- * report. {@code generate} exits with 0 or 3.
+ * report. {@code copy-reports} and {@code generate} exit with 0 or 3.
  */
 @SpringBootApplication
 public class CliApplication {

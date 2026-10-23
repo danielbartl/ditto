@@ -9,6 +9,7 @@ final class Usage {
             Usage: java -jar ditto-cli.jar [compare] --collection=<collection> [options]
                    java -jar ditto-cli.jar [compare] --baseline=<collection> --candidate=<collection> [options]
                    java -jar ditto-cli.jar report [--id=<id> | --label=<key>=<value> | --collection=<collection>]
+                   java -jar ditto-cli.jar copy-reports [--report-dir=<dir>]
                    java -jar ditto-cli.jar generate [options]
             OpenSearch: add --opensearch=<url>; collections are then indices (--index works as --collection)
 
@@ -59,6 +60,11 @@ final class Usage {
               reads the report files in --report-dir (default ./ditto-reports), or with
               --ditto.persistence.storage=database ditto.persistence.database / .collection (default
               comparison_reports; with --opensearch the index of that name); changes nothing
+
+            copy-reports (copies the reports stored in the database into --report-dir)
+              reads ditto.persistence.database / .collection (default comparison_reports; with --opensearch
+              the index of that name) and changes nothing there; writes a file per report into --report-dir
+              (default ./ditto-reports), e.g. to keep the history when switching to report files
 
             generate (writes a baseline collection, or index, and a modified copy)
               --baseline=<collection>       default demo_backup

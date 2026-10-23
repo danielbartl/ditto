@@ -70,6 +70,10 @@ class OpenSearchCliIT {
         assertThat(run("report", "--id=nope", database).err()).contains("No stored report with id nope in index"
                 + " comparison_reports");
 
+        String files = "--report-dir=" + tmp.resolve("copied");
+        assertThat(run("copy-reports", files).err()).contains("Copied 1 report from index comparison_reports");
+        assertThat(new ReportJson().read(run("report", "--id=" + report.id(), files).out())).isEqualTo(report);
+
         // sku identifies the same documents as _id
         Result byKey = run("--index=os", "--key=sku", "--ignore=meta.syncedAt", "--wildcard=attributes.*");
         assertThat(byKey.code()).isEqualTo(compared.code());

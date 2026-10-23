@@ -17,7 +17,9 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
     deletes older files after each save.
   - MongoDB and OpenSearch comparisons share the directory, so learned thresholds, labels and the Actuator endpoint
     work the same for both.
-  - CLI: `--persist` writes to `--report-dir` (default `./ditto-reports`), and `report` reads from there.
+  - CLI: `--persist` writes to `--report-dir` (default `./ditto-reports`), and `report` reads from there. The new
+    command `copy-reports` copies the reports stored in MongoDB or OpenSearch into the directory, to keep the history
+    when switching to files.
 - **OpenSearch**: the new module `ditto-opensearch` compares two OpenSearch indices with the same metrics, verdict,
   hints and report as two collections. Inject `IndexComparator`, e.g. `compareWithBackup("products")`.
   - It uses the application's `OpenSearchClient` (opensearch-java) through its generic raw-JSON API, so any transport
@@ -33,7 +35,8 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
     `generate` against OpenSearch; `--index` works like `--collection`. docker-compose has an `opensearch` service and
     a `seed-opensearch` profile.
 - `DocumentComparator`, the interface of `CollectionComparator` and `IndexComparator`, and `ReportStore`, the
-  interface of `MongoReportRepository` and `OpenSearchReportRepository`.
+  interface of `FileReportStore`, `MongoReportRepository` and `OpenSearchReportRepository`. `ReportStore.forEach`
+  reads every stored report.
 - Reports record where both sides live: `run.settings.store` is `MONGODB` or `OPENSEARCH` (missing in older reports,
   which read as `MONGODB`). The report viewer shows it and also opens reports stored in OpenSearch.
 - The hint to ignore a technical timestamp also recognises ISO-8601 date-time strings, not only BSON dates.

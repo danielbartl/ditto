@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 import org.opensearch.client.opensearch.OpenSearchClient;
@@ -38,6 +39,9 @@ import dev.jbaby.ditto.opensearch.client.OpenSearchHttp;
 public final class OpenSearchReportRepository implements ReportStore {
 
     private static final Logger log = LoggerFactory.getLogger(OpenSearchReportRepository.class);
+    /** Reports per scroll page of {@link #forEach}. */
+    private static final int PAGE_SIZE = 100;
+    private static final String SCROLL_KEEP_ALIVE = "2m";
 
     private final OpenSearchHttp http;
     private final String index;
@@ -133,6 +137,57 @@ public final class OpenSearchReportRepository implements ReportStore {
         ObjectNode red = http.object();
         red.putObject("term").put("verdict", "RED");
         return search(List.of(onBaseline, onCandidate), includeRed ? List.of() : List.of(red), limit, true);
+    }
+
+    /** Scrolls through the index; an index that does not exist yet holds no reports. */
+    @Override
+    public void forEach(Consumer<? super ComparisonReport> action) {
+        forEach(action, PAGE_SIZE);
+    }
+
+    void forEach(Consumer<? super ComparisonReport> action, int pageSize) {
+        ObjectNode body = http.object();
+        body.put("size", pageSize);
+        body.putArray("sort").add("_doc");
+        OpenSearchHttp.Reply reply = http.execute("POST", "/" + index + "/_search",
+                Map.of("scroll", SCROLL_KEEP_ALIVE), body);
+        if (reply.status() == 404) {
+            return;
+        }
+        if (!reply.ok()) {
+            throw http.error("POST", "/" + index + "/_search", reply);
+        }
+        JsonNode page = http.tree(reply.body());
+        String scrollId = page.path("_scroll_id").asString();
+        try {
+            while (!page.path("hits").path("hits").isEmpty()) {
+                for (JsonNode hit : page.path("hits").path("hits")) {
+                    ComparisonReport report;
+                    try {
+                        report = toReport(hit.path("_source"));
+                    } catch (RuntimeException e) {
+                        log.warn("Skipping unreadable report {} in {}: {}", hit.path("_id").asString(), index,
+                                e.getMessage());
+                        continue;
+                    }
+                    action.accept(report);
+                }
+                ObjectNode next = http.object();
+                next.put("scroll", SCROLL_KEEP_ALIVE);
+                next.put("scroll_id", scrollId);
+                page = http.tree(http.require("POST", "/_search/scroll", Map.of(), next));
+                scrollId = page.path("_scroll_id").asString();
+            }
+        } finally {
+            ObjectNode clear = http.object();
+            clear.putArray("scroll_id").add(scrollId);
+            try {
+                http.execute("DELETE", "/_search/scroll", Map.of(), clear);
+            } catch (OpenSearchAccessException e) {
+                // the scroll expires on its own after the keep-alive
+                log.debug("Clearing a scroll of {} failed: {}", index, e.getMessage());
+            }
+        }
     }
 
     /** Most recent first; an index that does not exist yet holds no reports. */
