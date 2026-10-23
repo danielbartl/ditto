@@ -16,7 +16,8 @@ concurrency:
 jobs:
   build:
     name: Build and test (Java ${{ matrix.java }})
-    runs-on: ubuntu-latest
+    # not ubuntu-latest (26.04): mongo:8.0 refuses to start on its kernels (SERVER-121912, SERVER-136848)
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -48,7 +49,7 @@ jobs:
 
   opensearch-2:
     name: OpenSearch 2.19 integration tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       OPENSEARCH_IMAGE: opensearchproject/opensearch:2.19.7

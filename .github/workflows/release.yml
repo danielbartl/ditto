@@ -8,7 +8,7 @@ on:
 jobs:
   github:
     name: GitHub Packages and Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: write
@@ -43,7 +43,7 @@ jobs:
   central:
     name: Maven Central
     needs: github
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
