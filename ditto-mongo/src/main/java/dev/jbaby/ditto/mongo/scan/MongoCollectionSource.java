@@ -109,6 +109,14 @@ public record MongoCollectionSource(String side, CollectionRef ref, MongoDatabas
         return sample;
     }
 
+    /** {@code _id} has a unique index in every collection; other key fields are checked. */
+    @Override
+    public void requireUniqueKeys(String keyField, List<BsonValue> keys) {
+        if (!"_id".equals(keyField)) {
+            DocumentSource.super.requireUniqueKeys(keyField, keys);
+        }
+    }
+
     /** Documents with the given keys ({@code $in}), by key. */
     @Override
     public Map<BsonValue, SourceDocument> findByKeys(String keyField, List<BsonValue> keys, boolean keysOnly) {

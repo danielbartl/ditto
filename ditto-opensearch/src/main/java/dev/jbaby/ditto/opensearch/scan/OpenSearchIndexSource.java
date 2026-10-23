@@ -171,6 +171,14 @@ public final class OpenSearchIndexSource implements DocumentSource {
         return found;
     }
 
+    /** {@code _id} is unique within an index, and an alias names exactly one; other key fields are checked. */
+    @Override
+    public void requireUniqueKeys(String keyField, List<BsonValue> keys) {
+        if (!key.isId()) {
+            DocumentSource.super.requireUniqueKeys(keyField, keys);
+        }
+    }
+
     private ComparisonException duplicate(BsonValue duplicate) {
         return new ComparisonException("Duplicate key " + KeyRef.of(duplicate).value() + " in " + this
                 + ": the key field must be unique");

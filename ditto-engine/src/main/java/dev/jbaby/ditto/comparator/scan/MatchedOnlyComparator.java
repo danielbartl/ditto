@@ -33,9 +33,11 @@ public final class MatchedOnlyComparator {
     public ScanResult compare(DocumentSource baseline, DocumentSource candidate, ComparisonSettings settings,
                               boolean readBaseline, @Nullable Integer sampleSize, ScanAccumulator accumulator,
                               ProgressReporter progress) {
-        Lookup lookup = new Lookup(readBaseline ? candidate : baseline, settings.keyField(), readBaseline,
-                settings.tuning().sampleLookupBatchSize(), accumulator, progress);
         DocumentSource read = readBaseline ? baseline : candidate;
+        // a key-ordered scan finds duplicates itself; a sample or another scan order needs the read keys checked
+        boolean checkRead = sampleSize != null || !read.keyOrdered();
+        Lookup lookup = new Lookup(read, checkRead, readBaseline ? candidate : baseline, settings.keyField(),
+                readBaseline, settings.tuning().sampleLookupBatchSize(), accumulator, progress);
         if (sampleSize == null) {
             ComparisonSettings.Tuning tuning = settings.tuning();
             // detects duplicate keys, which only a key-ordered scan can do on the fly
@@ -61,6 +63,8 @@ public final class MatchedOnlyComparator {
     /** Collects documents of the read side and compares them batch by batch with their counterparts. */
     private static final class Lookup {
 
+        private final DocumentSource read;
+        private final boolean checkRead;
         private final DocumentSource other;
         private final String keyField;
         private final boolean readBaseline;
@@ -69,8 +73,10 @@ public final class MatchedOnlyComparator {
         private final ProgressReporter progress;
         private final List<Map.Entry<BsonValue, SourceDocument>> batch;
 
-        Lookup(DocumentSource other, String keyField, boolean readBaseline, int batchSize,
-               ScanAccumulator accumulator, ProgressReporter progress) {
+        Lookup(DocumentSource read, boolean checkRead, DocumentSource other, String keyField, boolean readBaseline,
+               int batchSize, ScanAccumulator accumulator, ProgressReporter progress) {
+            this.read = read;
+            this.checkRead = checkRead;
             this.other = other;
             this.keyField = keyField;
             this.readBaseline = readBaseline;
@@ -91,8 +97,11 @@ public final class MatchedOnlyComparator {
             if (batch.isEmpty()) {
                 return;
             }
-            Map<BsonValue, SourceDocument> counterparts =
-                    other.findByKeys(keyField, batch.stream().map(Map.Entry::getKey).toList(), false);
+            List<BsonValue> keys = batch.stream().map(Map.Entry::getKey).toList();
+            if (checkRead) {
+                read.requireUniqueKeys(keyField, keys);
+            }
+            Map<BsonValue, SourceDocument> counterparts = other.findByKeys(keyField, keys, false);
             for (Map.Entry<BsonValue, SourceDocument> entry : batch) {
                 BsonValue key = entry.getKey();
                 SourceDocument document = entry.getValue();

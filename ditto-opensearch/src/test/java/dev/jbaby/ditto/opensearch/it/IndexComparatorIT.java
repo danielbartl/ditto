@@ -227,6 +227,23 @@ class IndexComparatorIT {
     }
 
     @Test
+    void aDuplicateKeyMissingOnTheOtherSideIsRejected() {
+        String mapping = "{properties: {sku: {type: 'keyword'}}}";
+        // k0 twice, 600 documents apart, so in different lookup batches; the candidate lacks it
+        List<String> baseline = new ArrayList<>(documents(600, i -> "{sku: 'k" + i + "'}"));
+        baseline.add("{sku: 'k0'}");
+        Indices.create("dup_far_a", mapping, 1, baseline);
+        Indices.create("dup_far_b", mapping, 1, documents(600, i -> "{sku: 'k" + (i == 0 ? 600 : i) + "'}"));
+
+        assertThatThrownBy(() -> comparator.compare(ComparisonRequest.builder("dup_far_a", "dup_far_b")
+                .keyField("sku").fullScan().build()))
+                .isInstanceOf(ComparisonException.class).hasMessageContaining("must be unique");
+        assertThatThrownBy(() -> comparator.compare(ComparisonRequest.builder("dup_far_a", "dup_far_b")
+                .keyField("sku").sample(1000).build()))
+                .isInstanceOf(ComparisonException.class).hasMessageContaining("must be unique");
+    }
+
+    @Test
     void sameIdWithDifferentRoutingIsADuplicate() {
         Indices.create("route_a", "{}", 5, documents(5, i -> "{_id: 'same', _routing: 'r" + i + "', v: " + i + "}"));
         Indices.create("route_b", "{_id: 'same', v: 1}");

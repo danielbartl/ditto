@@ -39,6 +39,7 @@ public final class LookupJoinComparator {
                  batch = nextBatch(cursor, baseline, lookupBatchSize)) {
                 Map<BsonValue, SourceDocument> counterparts =
                         candidate.findByKeys(keyField, List.copyOf(batch.keySet()), false);
+                List<BsonValue> removed = new ArrayList<>();
                 batch.forEach((key, document) -> {
                     progress.baselineRead();
                     SourceDocument match = counterparts.get(key);
@@ -46,9 +47,12 @@ public final class LookupJoinComparator {
                         progress.candidateRead();
                         accumulator.matched(key, document, match);
                     } else {
+                        removed.add(key);
                         accumulator.removed(key, document);
                     }
                 });
+                // a matched key is looked up in the baseline below, which finds its duplicates; a removed one isn't
+                baseline.requireUniqueKeys(keyField, removed);
             }
         }
 

@@ -48,6 +48,19 @@ public interface DocumentSource {
      */
     Map<BsonValue, SourceDocument> findByKeys(String keyField, List<BsonValue> keys, boolean keysOnly);
 
+    /**
+     * Fails if one of these keys, read from this source, belongs to more than one of its documents. Needed wherever
+     * keys come from reading a side that a key-ordered scan doesn't check, e.g. a sample. Looks the keys up once more,
+     * keys only; a source whose keys can't repeat (e.g. a document id) skips that.
+     *
+     * @throws ComparisonException if a key occurs twice
+     */
+    default void requireUniqueKeys(String keyField, List<BsonValue> keys) {
+        if (!keys.isEmpty()) {
+            findByKeys(keyField, keys, true);
+        }
+    }
+
     /** Up to {@code size} random documents, decoded, for a look at the structure. */
     List<BsonDocument> randomDocuments(int size);
 }

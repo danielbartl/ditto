@@ -30,6 +30,7 @@ public final class SampleComparator {
 
         NavigableMap<BsonValue, SourceDocument> baselineSample = baseline.randomByKey(keyField, sampleSize);
         for (List<Map.Entry<BsonValue, SourceDocument>> batch : batches(baselineSample, batchSize)) {
+            baseline.requireUniqueKeys(keyField, keys(batch));
             Map<BsonValue, SourceDocument> counterparts = candidate.findByKeys(keyField, keys(batch), false);
             for (Map.Entry<BsonValue, SourceDocument> entry : batch) {
                 SourceDocument match = counterparts.get(entry.getKey());
@@ -45,6 +46,7 @@ public final class SampleComparator {
 
         NavigableMap<BsonValue, SourceDocument> candidateSample = candidate.randomByKey(keyField, sampleSize);
         for (List<Map.Entry<BsonValue, SourceDocument>> batch : batches(candidateSample, batchSize)) {
+            candidate.requireUniqueKeys(keyField, keys(batch));
             Map<BsonValue, SourceDocument> existing = baseline.findByKeys(keyField, keys(batch), true);
             for (Map.Entry<BsonValue, SourceDocument> entry : batch) {
                 progress.candidateRead();
