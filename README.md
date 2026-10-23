@@ -427,7 +427,8 @@ Gradle: `implementation("dev.jbaby.ditto:ditto-mongo:0.6.0")`.
 Up to 0.5.0 the artifact was called `ditto-core`, with the classes in `dev.jbaby.ditto.comparator`. They are now
 in `dev.jbaby.ditto.mongo`, and two were renamed to match their OpenSearch counterparts: `ReportRepository` is
 `MongoReportRepository` and `ComparatorAutoConfiguration` is `MongoComparatorAutoConfiguration`. A Maven build
-that still asks for `ditto-core` from 0.6.0 on gets `ditto-mongo`, with a warning to change the artifactId.
+that still asks for `ditto-core` from 0.6.0 on gets `ditto-mongo`, with a warning to change the artifactId. The
+[upgrade checklist](CHANGELOG.md#upgrading-from-050) lists every step, including stored reports.
 
 The same versions are also on GitHub Packages (`https://maven.pkg.github.com/danielbartl/ditto`), which needs a
 GitHub token with the `read:packages` scope even for public packages. To try an unreleased change, build it yourself

@@ -6,6 +6,30 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ## [Unreleased]
 
+### Upgrading from 0.5.0
+
+1. **Dependency**: `dev.jbaby.ditto:ditto-core` is now `dev.jbaby.ditto:ditto-mongo`. A Maven build that keeps
+   `ditto-core` gets `ditto-mongo` with a warning.
+2. **Imports**: the MongoDB classes moved to `dev.jbaby.ditto.mongo`, and two were renamed:
+   - `dev.jbaby.ditto.comparator.CollectionComparator` → `dev.jbaby.ditto.mongo.CollectionComparator`
+   - `dev.jbaby.ditto.comparator.report.ReportRepository` → `dev.jbaby.ditto.mongo.report.MongoReportRepository`
+   - `dev.jbaby.ditto.comparator.autoconfigure.ComparatorAutoConfiguration` →
+     `dev.jbaby.ditto.mongo.autoconfigure.MongoComparatorAutoConfiguration`
+
+   The auto-configuration's name also appears in `spring.autoconfigure.exclude` and in tests that list
+   auto-configurations. Those tests also need the new `ComparatorEngineAutoConfiguration`. Everything else, such as
+   `api`, `ComparatorProperties` and `ReportJson`, keeps its package.
+3. **Stored reports** (only with `ditto.persistence.enabled=true`): reports now go to files in `./ditto-reports`
+   instead of MongoDB. Choose one:
+   - Keep MongoDB: set `ditto.persistence.storage=database`. In the CLI, add `--ditto.persistence.storage=database` to
+     `--persist` and `report`.
+   - Switch to files: set `ditto.persistence.directory` to persistent storage (in a container: a volume), and copy the
+     existing history once with `java -jar ditto-cli.jar copy-reports --uri=... --db=... --report-dir=<directory>`.
+     Otherwise the learned thresholds start over.
+4. **Logging**: levels set for `dev.jbaby.ditto.comparator` no longer cover the MongoDB classes; use `dev.jbaby.ditto`.
+
+The details follow below.
+
 ### Added
 
 - **Reports as files**: with `ditto.persistence.enabled=true`, reports are now stored as JSON files in
