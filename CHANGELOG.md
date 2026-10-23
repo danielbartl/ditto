@@ -97,6 +97,8 @@ The details follow below.
 
 ### Fixed
 
+- SAMPLE mode with a custom key field did not notice duplicate keys on the sampled side; it now rejects them, as FULL
+  mode does.
 - The report viewer rejected pasted reports that weren't plain JSON. It now also reads a terminal copy of the CLI's
   output (log and summary lines around the JSON) and a stored report as `mongosh` prints it (unquoted keys, single
   quotes, `ISODate(...)`), and shows a stored report's `_id` as its id.
