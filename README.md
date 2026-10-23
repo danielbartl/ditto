@@ -406,7 +406,8 @@ Releases are published to **Maven Central**:
 
 Gradle: `implementation("dev.jbaby.ditto:ditto-mongo:0.6.0")`.
 
-Up to 0.5.0 the artifact was called `ditto-core`; only the name changed, not the packages or classes.
+Up to 0.5.0 the artifact was called `ditto-core`; only the name changed, not the packages or classes. A Maven build
+that still asks for `ditto-core` from 0.6.0 on gets `ditto-mongo`, with a warning to change the artifactId.
 
 The same versions are also on GitHub Packages (`https://maven.pkg.github.com/danielbartl/ditto`), which needs a
 GitHub token with the `read:packages` scope even for public packages. To try an unreleased change, build it yourself
@@ -1124,8 +1125,8 @@ Rename the `[Unreleased]` section of the [changelog](CHANGELOG.md) to the new ve
 
 1. Takes the version from the tag. `master` stays on `-SNAPSHOT`.
 2. Runs the full build.
-3. Deploys the parent POM and the libraries `ditto-engine`, `ditto-mongo` and `ditto-opensearch` (with sources and
-   javadoc) to GitHub Packages.
+3. Deploys the parent POM, the libraries `ditto-engine`, `ditto-mongo` and `ditto-opensearch` (with sources and
+   javadoc) and the `ditto-core` relocation POM to GitHub Packages.
 4. Creates a GitHub Release with `ditto-cli.jar` attached.
 5. Signs the parent POM and the libraries and publishes them to Maven Central.
 

@@ -31,7 +31,8 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 ### Changed
 
 - **The MongoDB library is now `dev.jbaby.ditto:ditto-mongo`** (was `ditto-core`). Change the artifactId in your build;
-  package and class names stay the same.
+  package and class names stay the same. `ditto-core` is still published as a relocation POM, so a Maven build that
+  asks for `ditto-core` gets `ditto-mongo` of the same version, with a warning.
 - The store-neutral part of ditto is now the module `ditto-engine`, which `ditto-mongo` and `ditto-opensearch` depend
   on. `ditto-engine` needs only the `bson` library, not the MongoDB driver.
 - The shared beans (`Hasher`, `VerdictEvaluator`, `ReportJson`, `ReportHtml`) and `ComparatorProperties` are

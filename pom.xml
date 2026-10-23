@@ -57,6 +57,7 @@
     <modules>
         <module>ditto-engine</module>
         <module>ditto-mongo</module>
+        <module>ditto-core-relocation</module>
         <module>ditto-opensearch</module>
         <module>ditto-cli</module>
     </modules>
