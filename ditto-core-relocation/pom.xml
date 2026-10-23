@@ -19,7 +19,7 @@
     <distributionManagement>
         <relocation>
             <artifactId>ditto-mongo</artifactId>
-            <message>ditto-core is now ditto-mongo (same packages and classes); change the artifactId</message>
+            <message>ditto-core is now ditto-mongo, and its classes moved to the package dev.jbaby.ditto.mongo</message>
         </relocation>
     </distributionManagement>
 </project>

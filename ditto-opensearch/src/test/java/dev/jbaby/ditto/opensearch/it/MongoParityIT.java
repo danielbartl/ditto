@@ -17,12 +17,12 @@ import org.testcontainers.mongodb.MongoDBContainer;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 
-import dev.jbaby.ditto.comparator.CollectionComparator;
 import dev.jbaby.ditto.comparator.api.ComparisonReport;
 import dev.jbaby.ditto.comparator.api.ComparisonReport.PathChange;
 import dev.jbaby.ditto.comparator.api.ComparisonReport.RuleResult;
 import dev.jbaby.ditto.comparator.api.Hint;
 import dev.jbaby.ditto.comparator.api.Store;
+import dev.jbaby.ditto.mongo.CollectionComparator;
 import dev.jbaby.ditto.opensearch.IndexComparator;
 import dev.jbaby.ditto.opensearch.support.Indices;
 import dev.jbaby.ditto.opensearch.support.TestApplication;

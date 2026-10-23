@@ -406,8 +406,10 @@ Releases are published to **Maven Central**:
 
 Gradle: `implementation("dev.jbaby.ditto:ditto-mongo:0.6.0")`.
 
-Up to 0.5.0 the artifact was called `ditto-core`; only the name changed, not the packages or classes. A Maven build
-that still asks for `ditto-core` from 0.6.0 on gets `ditto-mongo`, with a warning to change the artifactId.
+Up to 0.5.0 the artifact was called `ditto-core`, and `CollectionComparator`, `ReportRepository` and
+`ComparatorAutoConfiguration` were in `dev.jbaby.ditto.comparator`; they are now in `dev.jbaby.ditto.mongo`. A
+Maven build that still asks for `ditto-core` from 0.6.0 on gets `ditto-mongo`, with a warning to change the
+artifactId.
 
 The same versions are also on GitHub Packages (`https://maven.pkg.github.com/danielbartl/ditto`), which needs a
 GitHub token with the `read:packages` scope even for public packages. To try an unreleased change, build it yourself
@@ -1058,8 +1060,8 @@ The public API is:
   names and the `comparisons` Actuator endpoint.
 
 All other packages (`canonical`, `engine`, `flatten`, `history`, `key`, `metrics`, `observability`, `path`, `scan`,
-`structure`, `verdict`, and in ditto-opensearch `client` and `scan`) and the remaining classes in `report` are
-internal, even where they are `public` Java types. They may change in any release.
+`structure`, `verdict`, in ditto-mongo `key` and `scan`, and in ditto-opensearch `client` and `scan`) and the
+remaining classes in `report` are internal, even where they are `public` Java types. They may change in any release.
 
 **Report format.** Every report carries a `schemaVersion` (currently 1). Adding fields does not raise it: readers
 should ignore fields they don't know, as `ReportJson` does. Renaming, removing or changing the meaning of a field
@@ -1091,8 +1093,8 @@ OpenSearch image with `-Dditto.opensearch.image=...`, e.g. `opensearchproject/op
 - `MongoParityIT`: the same documents in MongoDB and OpenSearch give the same report.
 - `CliIT`, `OpenSearchCliIT`: exit codes, stdout JSON, generate → compare → report.
 
-Package layout (`dev.jbaby.ditto.comparator`, split across the modules; ditto-opensearch uses
-`dev.jbaby.ditto.opensearch`):
+Package layout (ditto-engine uses `dev.jbaby.ditto.comparator`, ditto-mongo `dev.jbaby.ditto.mongo` and
+ditto-opensearch `dev.jbaby.ditto.opensearch`):
 
 | Module             | Package          | Responsibility                                                                     |
 |--------------------|------------------|------------------------------------------------------------------------------------|

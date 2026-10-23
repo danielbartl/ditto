@@ -30,8 +30,16 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ### Changed
 
-- **The MongoDB library is now `dev.jbaby.ditto:ditto-mongo`** (was `ditto-core`). Change the artifactId in your build;
-  package and class names stay the same. `ditto-core` is still published as a relocation POM, so a Maven build that
+- **The MongoDB library is now `dev.jbaby.ditto:ditto-mongo`** (was `ditto-core`), and its classes moved from
+  `dev.jbaby.ditto.comparator` to `dev.jbaby.ditto.mongo`, next to `dev.jbaby.ditto.opensearch`. Change the artifactId
+  and these imports; the class names stay the same:
+  - `dev.jbaby.ditto.mongo.CollectionComparator`
+  - `dev.jbaby.ditto.mongo.report.ReportRepository`
+  - `dev.jbaby.ditto.mongo.autoconfigure.ComparatorAutoConfiguration` (e.g. in `spring.autoconfigure.exclude`)
+
+  Everything store-neutral (`api`, `ComparatorProperties`, `ReportJson`, `ReportHtml`, ...) stays in
+  `dev.jbaby.ditto.comparator`. Log levels set for `dev.jbaby.ditto.comparator` no longer cover the MongoDB classes;
+  `dev.jbaby.ditto` covers all of ditto. `ditto-core` is still published as a relocation POM, so a Maven build that
   asks for `ditto-core` gets `ditto-mongo` of the same version, with a warning.
 - The store-neutral part of ditto is now the module `ditto-engine`, which `ditto-mongo` and `ditto-opensearch` depend
   on. `ditto-engine` needs only the `bson` library, not the MongoDB driver.
@@ -41,7 +49,9 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 - The `comparisons` Actuator endpoint needs a single `ReportStore` bean. With persistence for both MongoDB and
   OpenSearch, define it yourself.
 - Internal: the constructor of `CollectionComparator` changed, the orchestration moved to `ComparisonEngine`, and
-  `CollectionHandle` and `Preflight.Result` became `MongoCollectionSource` and `PreflightResult`.
+  `CollectionHandle` and `Preflight.Result` became `MongoCollectionSource` and `PreflightResult`. The MongoDB parts of
+  `key` and `scan` (`KeyInspector`, `Preflight`, `MongoCollectionSource`, `MongoDocumentStore`) moved to
+  `dev.jbaby.ditto.mongo`.
 
 ### Fixed
 

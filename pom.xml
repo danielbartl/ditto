@@ -149,11 +149,11 @@
                             <groups>
                                 <group>
                                     <title>Public API</title>
-                                    <packages>dev.jbaby.ditto.comparator:dev.jbaby.ditto.comparator.api:dev.jbaby.ditto.comparator.autoconfigure:dev.jbaby.ditto.comparator.report</packages>
+                                    <packages>dev.jbaby.ditto.comparator:dev.jbaby.ditto.comparator.api:dev.jbaby.ditto.comparator.autoconfigure:dev.jbaby.ditto.comparator.report:dev.jbaby.ditto.mongo:dev.jbaby.ditto.mongo.autoconfigure:dev.jbaby.ditto.mongo.report:dev.jbaby.ditto.opensearch:dev.jbaby.ditto.opensearch.autoconfigure:dev.jbaby.ditto.opensearch.report</packages>
                                 </group>
                                 <group>
                                     <title>Internal (may change in any release)</title>
-                                    <packages>dev.jbaby.ditto.comparator.*</packages>
+                                    <packages>dev.jbaby.ditto.comparator.*:dev.jbaby.ditto.mongo.*:dev.jbaby.ditto.opensearch.*</packages>
                                 </group>
                             </groups>
                         </configuration>
