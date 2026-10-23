@@ -2,6 +2,8 @@ package dev.jbaby.ditto.mongo.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.file.Path;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration;
@@ -15,6 +17,7 @@ import dev.jbaby.ditto.comparator.autoconfigure.ComparatorProperties;
 import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
 import dev.jbaby.ditto.comparator.observability.ComparisonMetrics;
 import dev.jbaby.ditto.comparator.observability.ComparisonsEndpoint;
+import dev.jbaby.ditto.comparator.report.FileReportStore;
 import dev.jbaby.ditto.comparator.verdict.VerdictEvaluator;
 import dev.jbaby.ditto.mongo.CollectionComparator;
 import dev.jbaby.ditto.mongo.report.MongoReportRepository;
@@ -33,22 +36,45 @@ class MongoComparatorAutoConfigurationTest {
             assertThat(context).hasSingleBean(CollectionComparator.class);
             assertThat(context).hasSingleBean(ComparatorProperties.class);
             assertThat(context).doesNotHaveBean(MongoReportRepository.class);
+            assertThat(context).doesNotHaveBean(FileReportStore.class);
         });
     }
 
     @Test
-    void registersRepositoryWhenPersistenceIsEnabled() {
+    void storesReportFilesWhenPersistenceIsEnabled() {
         runner.withPropertyValues("ditto.persistence.enabled=true")
-                .run(context -> assertThat(context).hasSingleBean(MongoReportRepository.class));
+                .run(context -> {
+                    assertThat(context.getBean(FileReportStore.class).directory())
+                            .isEqualTo(Path.of("ditto-reports").toAbsolutePath());
+                    assertThat(context).doesNotHaveBean(MongoReportRepository.class);
+                });
+        runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.directory=/var/lib/ditto")
+                .run(context -> assertThat(context.getBean(FileReportStore.class).directory())
+                        .isEqualTo(Path.of("/var/lib/ditto")));
+    }
+
+    @Test
+    void storesReportsInMongoWithDatabaseStorage() {
+        for (String storage : new String[] {"database", "DATABASE"}) {
+            runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.storage=" + storage)
+                    .run(context -> {
+                        assertThat(context).hasSingleBean(MongoReportRepository.class);
+                        assertThat(context).doesNotHaveBean(FileReportStore.class);
+                    });
+        }
     }
 
     @Test
     void rejectsRetentionBelowOneSecond() {
-        runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.retention=365d")
-                .run(context -> assertThat(context).hasSingleBean(MongoReportRepository.class));
-        runner.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.retention=0s")
-                .run(context -> assertThat(context).getFailure().rootCause()
-                        .hasMessageContaining("retention must be at least one second"));
+        for (String storage : new String[] {"file", "database"}) {
+            var persistence = runner.withPropertyValues("ditto.persistence.enabled=true",
+                    "ditto.persistence.storage=" + storage);
+            persistence.withPropertyValues("ditto.persistence.retention=365d")
+                    .run(context -> assertThat(context).hasNotFailed());
+            persistence.withPropertyValues("ditto.persistence.retention=0s")
+                    .run(context -> assertThat(context).getFailure().rootCause()
+                            .hasMessageContaining("retention must be at least one second"));
+        }
     }
 
     @Test
@@ -80,6 +106,9 @@ class MongoComparatorAutoConfigurationTest {
                 .run(context -> assertThat(context).getFailure().rootCause()
                         .hasMessageContaining("set ditto.persistence.enabled=true"));
         runner.withPropertyValues("ditto.adaptive-thresholds.enabled=true", "ditto.persistence.enabled=true")
+                .run(context -> assertThat(context).hasSingleBean(ThresholdAdvisor.class));
+        runner.withPropertyValues("ditto.adaptive-thresholds.enabled=true", "ditto.persistence.enabled=true",
+                        "ditto.persistence.storage=database")
                 .run(context -> assertThat(context).hasSingleBean(ThresholdAdvisor.class));
     }
 

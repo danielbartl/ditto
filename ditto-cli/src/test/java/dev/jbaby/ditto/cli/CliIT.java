@@ -123,26 +123,44 @@ class CliIT {
 
     @Test
     void reportReadsAStoredReport(@TempDir Path tmp) throws Exception {
+        String reports = "--report-dir=" + tmp.resolve("reports");
         run("generate", "--docs=300", "--baseline=stored_backup", "--candidate=stored");
         Result compared = run("--collection=stored", "--ignore=meta.syncedAt", "--persist",
-                "--label=batchJobId=report-it");
+                "--label=batchJobId=report-it", reports);
         assertThat(compared.code()).isEqualTo(ExitCodes.GREEN);
         ComparisonReport stored = new ReportJson().read(compared.out());
+        try (var files = Files.list(tmp.resolve("reports"))) {
+            assertThat(files.map(file -> file.getFileName().toString()))
+                    .singleElement().asString().endsWith("_" + stored.id() + ".json");
+        }
 
-        Result byLabel = run("report", "--label=batchJobId=report-it", "--html=" + tmp.resolve("stored.html"));
+        Result byLabel = run("report", "--label=batchJobId=report-it", "--html=" + tmp.resolve("stored.html"),
+                reports);
         assertThat(byLabel.code()).isEqualTo(ExitCodes.GREEN);
         assertThat(new ReportJson().read(byLabel.out())).isEqualTo(stored);
         assertThat(byLabel.err()).contains("Report " + stored.id()).contains("Verdict GREEN");
         assertThat(Files.readString(tmp.resolve("stored.html"))).contains(stored.id());
-        assertThat(new ReportJson().read(run("report", "--id=" + stored.id()).out())).isEqualTo(stored);
-        assertThat(new ReportJson().read(run("report", "--collection=stored").out())).isEqualTo(stored);
-        assertThat(new ReportJson().read(run("report").out())).isEqualTo(stored);
+        assertThat(new ReportJson().read(run("report", "--id=" + stored.id(), reports).out())).isEqualTo(stored);
+        assertThat(new ReportJson().read(run("report", "--collection=stored", reports).out())).isEqualTo(stored);
+        assertThat(new ReportJson().read(run("report", reports).out())).isEqualTo(stored);
 
-        Result missing = run("report", "--id=nope");
+        Result missing = run("report", "--id=nope", reports);
         assertThat(missing.code()).isEqualTo(ExitCodes.ERROR);
-        assertThat(missing.err()).contains("No stored report with id nope in cli_it.comparison_reports");
-        assertThat(run("report", "--collection=other").err()).contains("for candidate cli_it.other");
-        assertThat(run("report", "--id=x", "--label=a=1").err()).contains("by one of --id, --label");
+        assertThat(missing.err()).contains("No stored report with id nope in directory " + tmp.resolve("reports"));
+        assertThat(run("report", "--collection=other", reports).err()).contains("for candidate cli_it.other");
+        assertThat(run("report", "--id=x", "--label=a=1", reports).err()).contains("by one of --id, --label");
+    }
+
+    @Test
+    void reportReadsTheDatabaseWithDatabaseStorage() {
+        String database = "--ditto.persistence.storage=database";
+        run("generate", "--docs=300", "--baseline=indb_backup", "--candidate=indb");
+        Result compared = run("--collection=indb", "--ignore=meta.syncedAt", "--persist", database);
+        ComparisonReport stored = new ReportJson().read(compared.out());
+
+        assertThat(new ReportJson().read(run("report", "--collection=indb", database).out())).isEqualTo(stored);
+        assertThat(run("report", "--id=nope", database).err())
+                .contains("No stored report with id nope in cli_it.comparison_reports");
     }
 
     @Test

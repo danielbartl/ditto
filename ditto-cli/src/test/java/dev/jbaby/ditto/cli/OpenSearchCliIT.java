@@ -51,8 +51,10 @@ class OpenSearchCliIT {
         assertThat(unconfigured.code()).isEqualTo(ExitCodes.RED);
         assertThat(unconfigured.err()).contains("--ignore=meta.syncedAt");
 
+        // reports in the cluster, so this covers the report index
+        String database = "--ditto.persistence.storage=database";
         Result compared = run("--index=os", "--ignore=meta.syncedAt", "--wildcard=attributes.*", "--persist",
-                "--label=batchJobId=os-1", "--html=" + tmp.resolve("os.html"));
+                "--label=batchJobId=os-1", "--html=" + tmp.resolve("os.html"), database);
         assertThat(compared.code()).isEqualTo(ExitCodes.YELLOW);
         ComparisonReport report = new ReportJson().read(compared.out());
         assertThat(report.run().settings().store()).isEqualTo(Store.OPENSEARCH);
@@ -62,9 +64,10 @@ class OpenSearchCliIT {
         assertThat(report.keys().added()).isPositive();
         assertThat(Files.readString(tmp.resolve("os.html"))).contains(report.id());
 
-        assertThat(new ReportJson().read(run("report", "--label=batchJobId=os-1").out())).isEqualTo(report);
-        assertThat(new ReportJson().read(run("report", "--index=os").out())).isEqualTo(report);
-        assertThat(run("report", "--id=nope").err()).contains("No stored report with id nope in index"
+        assertThat(new ReportJson().read(run("report", "--label=batchJobId=os-1", database).out()))
+                .isEqualTo(report);
+        assertThat(new ReportJson().read(run("report", "--index=os", database).out())).isEqualTo(report);
+        assertThat(run("report", "--id=nope", database).err()).contains("No stored report with id nope in index"
                 + " comparison_reports");
 
         // sku identifies the same documents as _id

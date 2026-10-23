@@ -3,14 +3,19 @@ package dev.jbaby.ditto.mongo.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.bson.BsonDocument;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.endpoint.InvalidEndpointRequestException;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,26 +38,30 @@ import dev.jbaby.ditto.comparator.api.Level;
 import dev.jbaby.ditto.comparator.api.ThresholdSource;
 import dev.jbaby.ditto.comparator.api.Thresholds;
 import dev.jbaby.ditto.comparator.observability.ComparisonsEndpoint;
+import dev.jbaby.ditto.comparator.report.FileReportStore;
 import dev.jbaby.ditto.mongo.CollectionComparator;
-import dev.jbaby.ditto.mongo.report.MongoReportRepository;
 import dev.jbaby.ditto.mongo.support.Collections;
 import dev.jbaby.ditto.mongo.support.TestApplication;
 
 /**
- * Thresholds learned from history, events, Micrometer metrics and the Actuator endpoint, in a host-like context.
+ * Thresholds learned from history, events, Micrometer metrics and the Actuator endpoint, in a host-like context that
+ * stores its reports as files (the default).
  */
 @SpringBootTest(classes = TestApplication.class, properties = {
         "ditto.persistence.enabled=true",
-        "ditto.persistence.collection=history_it_reports",
         "ditto.adaptive-thresholds.min-history=3",
         "ditto.labels.environment=it",
         "management.endpoints.web.exposure.include=comparisons"})
 @Import(HistoryAndObservabilityIT.Listeners.class)
 class HistoryAndObservabilityIT {
 
+    @TempDir
+    static Path reports;
+
     @DynamicPropertySource
     static void mongo(DynamicPropertyRegistry registry) {
         TestApplication.mongoProperties(registry);
+        registry.add("ditto.persistence.directory", () -> reports.toString());
     }
 
     @TestConfiguration
@@ -89,11 +98,15 @@ class HistoryAndObservabilityIT {
     ComparisonsEndpoint endpoint;
 
     @Autowired
-    MongoReportRepository repository;
+    FileReportStore repository;
 
     @BeforeEach
-    void clean() {
-        Collections.database(TestApplication.DATABASE).getCollection("history_it_reports").drop();
+    void clean() throws IOException {
+        try (Stream<Path> files = Files.list(reports)) {
+            for (Path file : files.toList()) {
+                Files.delete(file);
+            }
+        }
         listeners.events.clear();
     }
 

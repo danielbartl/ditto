@@ -16,16 +16,19 @@ import dev.jbaby.ditto.comparator.autoconfigure.ComparatorProperties;
 import dev.jbaby.ditto.comparator.canonical.Hasher;
 import dev.jbaby.ditto.comparator.history.ReportHistory;
 import dev.jbaby.ditto.comparator.history.ThresholdAdvisor;
+import dev.jbaby.ditto.comparator.report.FileReportStore;
 import dev.jbaby.ditto.comparator.report.ReportAssembler;
 import dev.jbaby.ditto.comparator.report.ReportJson;
+import dev.jbaby.ditto.comparator.report.ReportStore;
 import dev.jbaby.ditto.comparator.verdict.VerdictEvaluator;
 import dev.jbaby.ditto.opensearch.IndexComparator;
 import dev.jbaby.ditto.opensearch.report.OpenSearchReportRepository;
 
 /**
- * Registers an {@link IndexComparator} for the application's {@link OpenSearchClient}, and with
- * {@code ditto.persistence.enabled=true} an {@link OpenSearchReportRepository} in the same cluster. Every bean backs
- * off if the application defines its own.
+ * Registers an {@link IndexComparator} for the application's {@link OpenSearchClient}. With
+ * {@code ditto.persistence.enabled=true} it stores reports in the {@link FileReportStore}, or with
+ * {@code ditto.persistence.storage=database} in an {@link OpenSearchReportRepository} in the same cluster. Every bean
+ * backs off if the application defines its own.
  */
 @AutoConfiguration(after = {ComparatorEngineAutoConfiguration.class, DittoOpenSearchClientAutoConfiguration.class},
         afterName = {"org.opensearch.spring.boot.autoconfigure.OpenSearchClientAutoConfiguration",
@@ -38,6 +41,7 @@ public class OpenSearchComparatorAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "ditto.persistence", name = "enabled", havingValue = "true")
+    @ConditionalOnProperty(prefix = "ditto.persistence", name = "storage", havingValue = "database")
     public OpenSearchReportRepository openSearchReportRepository(OpenSearchClient client,
                                                                  ComparatorProperties properties,
                                                                  ReportJson reportJson) {
@@ -56,14 +60,17 @@ public class OpenSearchComparatorAutoConfiguration {
                                            OpenSearchComparatorProperties openSearch, Hasher hasher,
                                            VerdictEvaluator verdictEvaluator,
                                            ObjectProvider<OpenSearchReportRepository> repository,
+                                           ObjectProvider<FileReportStore> files,
                                            ApplicationEventPublisher events) {
-        OpenSearchReportRepository reports = repository.getIfAvailable();
+        OpenSearchReportRepository openSearchReports = repository.getIfAvailable();
+        ReportStore reports = openSearchReports != null ? openSearchReports : files.getIfAvailable();
         Boolean adaptive = properties.getAdaptiveThresholds().getEnabled();
         ThresholdAdvisor advisor = null;
         if (adaptive != null ? adaptive : properties.getPersistence().isEnabled()) {
             if (reports == null) {
                 throw new IllegalStateException("ditto.adaptive-thresholds.enabled=true needs stored reports:"
-                        + " set ditto.persistence.enabled=true (or define an OpenSearchReportRepository bean)");
+                        + " set ditto.persistence.enabled=true (or define a FileReportStore or"
+                        + " OpenSearchReportRepository bean)");
             }
             advisor = new ThresholdAdvisor(ReportHistory.of(reports), properties.getAdaptiveThresholds().toSettings());
         }

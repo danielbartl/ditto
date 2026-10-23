@@ -8,11 +8,19 @@ import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.transport.OpenSearchTransport;
 import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration;
+import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import dev.jbaby.ditto.comparator.autoconfigure.ComparatorEndpointAutoConfiguration;
 import dev.jbaby.ditto.comparator.autoconfigure.ComparatorEngineAutoConfiguration;
 import dev.jbaby.ditto.comparator.autoconfigure.ComparatorMetricsAutoConfiguration;
 import dev.jbaby.ditto.comparator.observability.ComparisonMetrics;
+import dev.jbaby.ditto.comparator.observability.ComparisonsEndpoint;
+import dev.jbaby.ditto.comparator.report.FileReportStore;
+import dev.jbaby.ditto.mongo.CollectionComparator;
+import dev.jbaby.ditto.mongo.autoconfigure.MongoComparatorAutoConfiguration;
+import dev.jbaby.ditto.mongo.report.MongoReportRepository;
 import dev.jbaby.ditto.opensearch.IndexComparator;
 import dev.jbaby.ditto.opensearch.report.OpenSearchReportRepository;
 
@@ -58,15 +66,49 @@ class OpenSearchComparatorAutoConfigurationTest {
     }
 
     @Test
-    void registersRepositoryWhenPersistenceIsEnabled() {
+    void storesReportFilesOrInTheClusterWhenPersistenceIsEnabled() {
         var withClient = runner.withPropertyValues("ditto.opensearch.uris=http://localhost:1");
 
-        withClient.run(context -> assertThat(context).doesNotHaveBean(OpenSearchReportRepository.class));
+        withClient.run(context -> {
+            assertThat(context).doesNotHaveBean(OpenSearchReportRepository.class);
+            assertThat(context).doesNotHaveBean(FileReportStore.class);
+        });
         withClient.withPropertyValues("ditto.persistence.enabled=true")
                 .run(context -> {
-                    assertThat(context).hasSingleBean(OpenSearchReportRepository.class);
+                    assertThat(context).hasSingleBean(FileReportStore.class);
+                    assertThat(context).doesNotHaveBean(OpenSearchReportRepository.class);
                     assertThat(context).hasSingleBean(IndexComparator.class);
                 });
+        withClient.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.storage=database")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(OpenSearchReportRepository.class);
+                    assertThat(context).doesNotHaveBean(FileReportStore.class);
+                    assertThat(context).hasSingleBean(IndexComparator.class);
+                });
+    }
+
+    @Test
+    void mongoAndOpenSearchShareTheReportFiles() {
+        // creating the clients does not connect
+        var both = runner.withConfiguration(AutoConfigurations.of(MongoAutoConfiguration.class,
+                        DataMongoAutoConfiguration.class, MongoComparatorAutoConfiguration.class,
+                        ComparatorEndpointAutoConfiguration.class))
+                .withPropertyValues("ditto.opensearch.uris=http://localhost:1",
+                        "spring.mongodb.uri=mongodb://localhost:1/app",
+                        "management.endpoints.web.exposure.include=comparisons");
+
+        both.withPropertyValues("ditto.persistence.enabled=true").run(context -> {
+            assertThat(context).hasSingleBean(CollectionComparator.class);
+            assertThat(context).hasSingleBean(IndexComparator.class);
+            assertThat(context).hasSingleBean(FileReportStore.class);
+            assertThat(context).hasSingleBean(ComparisonsEndpoint.class);
+        });
+        // a store per database: the endpoint can't choose
+        both.withPropertyValues("ditto.persistence.enabled=true", "ditto.persistence.storage=database").run(context -> {
+            assertThat(context).hasSingleBean(MongoReportRepository.class);
+            assertThat(context).hasSingleBean(OpenSearchReportRepository.class);
+            assertThat(context).doesNotHaveBean(ComparisonsEndpoint.class);
+        });
     }
 
     @Test

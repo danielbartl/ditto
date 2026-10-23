@@ -15,6 +15,8 @@ import dev.jbaby.ditto.cli.generator.OpenSearchSink;
 import dev.jbaby.ditto.comparator.DocumentComparator;
 import dev.jbaby.ditto.comparator.api.CollectionRef;
 import dev.jbaby.ditto.comparator.autoconfigure.ComparatorProperties;
+import dev.jbaby.ditto.comparator.autoconfigure.ComparatorProperties.Persistence.Storage;
+import dev.jbaby.ditto.comparator.report.FileReportStore;
 import dev.jbaby.ditto.comparator.report.ReportJson;
 import dev.jbaby.ditto.comparator.report.ReportStore;
 import dev.jbaby.ditto.mongo.CollectionComparator;
@@ -63,9 +65,12 @@ public class Target {
         return isOpenSearch() ? indices.getObject() : collections.getObject();
     }
 
-    /** The configured report collection or index, read-only. */
+    /** The configured report files, collection or index, read-only. */
     public ReportStore reports() {
         var persistence = properties.getPersistence();
+        if (persistence.getStorage() == Storage.FILE) {
+            return FileReportStore.readOnly(persistence.getDirectory(), json);
+        }
         return isOpenSearch()
                 ? OpenSearchReportRepository.readOnly(openSearch.getObject(), persistence.getCollection(), json)
                 : MongoReportRepository.readOnly(mongo.getObject(), persistence.getDatabase(),
@@ -75,6 +80,9 @@ public class Target {
     /** Where {@link #reports()} reads, for messages. */
     public String reportLocation() {
         var persistence = properties.getPersistence();
+        if (persistence.getStorage() == Storage.FILE) {
+            return "directory " + persistence.getDirectory().toAbsolutePath().normalize();
+        }
         return isOpenSearch() ? "index " + persistence.getCollection()
                 : qualify(persistence.getDatabase(), persistence.getCollection());
     }

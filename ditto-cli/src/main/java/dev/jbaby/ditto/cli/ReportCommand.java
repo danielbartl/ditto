@@ -20,7 +20,7 @@ import dev.jbaby.ditto.comparator.report.ReportStore;
 /**
  * {@code report}: reads a stored report ({@code ditto.persistence.*}), prints it as JSON and maps its verdict to the
  * exit code, like {@code compare}. It selects the report by id, by labels or by candidate collection (or index), or
- * takes the most recent one. Reading never changes the report collection or index, not even its indexes.
+ * takes the most recent one. Reading never changes the report files, collection or index, not even its indexes.
  */
 @Component
 public class ReportCommand {

@@ -42,7 +42,9 @@ final class Usage {
               --verdict-basis=conservative|point   which value of estimated rates the verdict uses
               --label=<key>=<value>         label stored with the report, e.g. --label=batchJobId=4711;
                                             repeatable
-              --persist                     store the report (ditto.persistence.*)
+              --persist                     store the report as a file in --report-dir (ditto.persistence.*;
+                                            --ditto.persistence.storage=database: in the compared database)
+              --report-dir=<dir>            directory of the stored reports, default ./ditto-reports
               --out=<file>                  also write the report to a file
               --html=<file>                 also write the report as a self-contained HTML page
               --ditto.<property>=...        any library property, e.g.
@@ -54,8 +56,9 @@ final class Usage {
               --collection=<collection>     the newest report for this candidate (also --candidate, --candidate-db)
                                             without a selection: the newest report
               --out=<file>, --html=<file>   also write the report as JSON or as a self-contained HTML page
-              reads ditto.persistence.database / .collection (default comparison_reports; with --opensearch
-              the index of that name); changes nothing
+              reads the report files in --report-dir (default ./ditto-reports), or with
+              --ditto.persistence.storage=database ditto.persistence.database / .collection (default
+              comparison_reports; with --opensearch the index of that name); changes nothing
 
             generate (writes a baseline collection, or index, and a modified copy)
               --baseline=<collection>       default demo_backup

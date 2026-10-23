@@ -12,9 +12,10 @@ import dev.jbaby.ditto.comparator.report.ReportStore;
 
 /**
  * Actuator endpoint {@code comparisons} listing stored reports, if Actuator is on the classpath and persistence is
- * enabled (for one store; with several, define the endpoint yourself).
+ * enabled: with the report files, or with one database store (with several, define the endpoint yourself).
  */
-@AutoConfiguration(afterName = {ComparatorEngineNames.MONGODB, ComparatorEngineNames.OPENSEARCH})
+@AutoConfiguration(after = ComparatorEngineAutoConfiguration.class,
+        afterName = {ComparatorEngineNames.MONGODB, ComparatorEngineNames.OPENSEARCH})
 @ConditionalOnClass(name = "org.springframework.boot.actuate.endpoint.annotation.Endpoint")
 @ConditionalOnSingleCandidate(ReportStore.class)
 public class ComparatorEndpointAutoConfiguration {

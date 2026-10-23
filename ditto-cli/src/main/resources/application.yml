@@ -12,6 +12,7 @@ spring:
 ditto:
   persistence:
     enabled: ${persist:false}
+    directory: ${report-dir:ditto-reports}
 
 logging:
   level:

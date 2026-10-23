@@ -21,7 +21,8 @@ import dev.jbaby.ditto.mongo.report.MongoReportRepository;
 import dev.jbaby.ditto.mongo.support.Collections;
 import dev.jbaby.ditto.mongo.support.TestApplication;
 
-@SpringBootTest(classes = TestApplication.class, properties = "ditto.persistence.enabled=true")
+@SpringBootTest(classes = TestApplication.class, properties = {"ditto.persistence.enabled=true",
+        "ditto.persistence.storage=database"})
 class CollectionComparatorIT {
 
     @DynamicPropertySource

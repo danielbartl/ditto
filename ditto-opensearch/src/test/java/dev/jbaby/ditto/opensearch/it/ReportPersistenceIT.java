@@ -25,7 +25,8 @@ import dev.jbaby.ditto.opensearch.support.Indices;
 import dev.jbaby.ditto.opensearch.support.TestApplication;
 
 @SpringBootTest(classes = TestApplication.class, properties = {TestApplication.WITHOUT_MONGO,
-        "ditto.persistence.enabled=true", "ditto.persistence.collection=it_reports",
+        "ditto.persistence.enabled=true", "ditto.persistence.storage=database",
+        "ditto.persistence.collection=it_reports",
         "ditto.adaptive-thresholds.min-history=2", "management.endpoints.web.exposure.include=comparisons"})
 class ReportPersistenceIT {
 
