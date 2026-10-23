@@ -239,7 +239,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
       <a class="btn" href="viewer.html">Report viewer</a>
     </div>
     <div class="meta">
-      <a class="central" href="https://central.sonatype.com/artifact/dev.jbaby.ditto/ditto-core" aria-label="Maven Central, latest version"><span>Maven Central</span><span class="ver" id="central-version">v0.5.0</span></a>
+      <a class="central" href="https://central.sonatype.com/namespace/dev.jbaby.ditto" aria-label="Maven Central, latest version"><span>Maven Central</span><span class="ver" id="central-version">v0.5.0</span></a>
       <span>Java 21+</span><span>Spring Boot 4.1</span><span>MongoDB 4.4+</span><span>OpenSearch 2.19+</span>
       <span>Zero configuration to start</span><span>Library + CLI</span><span>Streaming, constant memory</span><span>Learns from history</span><span>MIT licensed</span>
     </div>
@@ -319,10 +319,11 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
               MongoDB configured (<code>spring.mongodb.*</code>). Auto-configuration does the rest.</p>
             <div class="code"><span class="label">pom.xml</span><pre>&lt;dependency&gt;
   &lt;groupId&gt;dev.jbaby.ditto&lt;/groupId&gt;
-  &lt;artifactId&gt;ditto-core&lt;/artifactId&gt;
-  &lt;version&gt;0.5.0&lt;/version&gt;
+  &lt;artifactId&gt;ditto-mongo&lt;/artifactId&gt;
+  &lt;version&gt;0.6.0&lt;/version&gt;
 &lt;/dependency&gt;</pre></div>
-            <p>Gradle: <code>implementation("dev.jbaby.ditto:ditto-core:0.5.0")</code>.</p>
+            <p>Gradle: <code>implementation("dev.jbaby.ditto:ditto-mongo:0.6.0")</code>. Up to 0.5.0 the artifact was
+              called <code>ditto-core</code>.</p>
           </li>
           <li>
             <p><strong>Inject <code>CollectionComparator</code> and compare.</strong> No configuration needed:</p>
@@ -834,7 +835,7 @@ void onComparison(ComparisonCompletedEvent event) {
 (function () {
   var ver = document.getElementById('central-version');
   if (!ver || !window.fetch) return;
-  fetch('https://img.shields.io/maven-central/v/dev.jbaby.ditto/ditto-core.json')
+  fetch('https://img.shields.io/maven-central/v/dev.jbaby.ditto/ditto-parent.json')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) { if (d && /^v\d+\.\d+\.\d+$/.test(d.value)) ver.textContent = d.value; })
     .catch(function () {});

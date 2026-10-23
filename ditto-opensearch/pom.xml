@@ -55,7 +55,7 @@
         <!-- the parity test compares the same data in MongoDB -->
         <dependency>
             <groupId>dev.jbaby.ditto</groupId>
-            <artifactId>ditto-core</artifactId>
+            <artifactId>ditto-mongo</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

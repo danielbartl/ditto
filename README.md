@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/danielbartl/ditto/actions/workflows/ci.yml/badge.svg)](https://github.com/danielbartl/ditto/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/danielbartl/ditto)](https://github.com/danielbartl/ditto/releases/latest)
-[![Maven Central](https://img.shields.io/maven-central/v/dev.jbaby.ditto/ditto-core)](https://central.sonatype.com/artifact/dev.jbaby.ditto/ditto-core)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.jbaby.ditto/ditto-parent)](https://central.sonatype.com/namespace/dev.jbaby.ditto)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ditto compares two MongoDB collections, or two OpenSearch indices, that have the same or a very similar document
@@ -21,7 +21,7 @@ precision, so both stores get the same metrics, verdict and report.
 
 | Module             | What it is                                                                                       |
 |--------------------|--------------------------------------------------------------------------------------------------|
-| `ditto-core`       | The library for MongoDB. Spring Boot auto-configuration: add the dependency, inject `CollectionComparator`. |
+| `ditto-mongo`      | The library for MongoDB. Spring Boot auto-configuration: add the dependency, inject `CollectionComparator`. |
 | `ditto-opensearch` | The library for OpenSearch: add the dependency, inject `IndexComparator`. See [OpenSearch](#comparing-opensearch-indices). |
 | `ditto-engine`     | The store-neutral engine both libraries build on. It comes with them; you don't add it yourself.   |
 | `ditto-cli`        | A runnable jar: compares two collections or indices, prints the report as JSON, exits 0/1/2/3.     |
@@ -399,12 +399,14 @@ Releases are published to **Maven Central**:
 ```xml
 <dependency>
     <groupId>dev.jbaby.ditto</groupId>
-    <artifactId>ditto-core</artifactId>
-    <version>0.5.0</version>
+    <artifactId>ditto-mongo</artifactId>
+    <version>0.6.0</version>
 </dependency>
 ```
 
-Gradle: `implementation("dev.jbaby.ditto:ditto-core:0.5.0")`.
+Gradle: `implementation("dev.jbaby.ditto:ditto-mongo:0.6.0")`.
+
+Up to 0.5.0 the artifact was called `ditto-core`; only the name changed, not the packages or classes.
 
 The same versions are also on GitHub Packages (`https://maven.pkg.github.com/danielbartl/ditto`), which needs a
 GitHub token with the `read:packages` scope even for public packages. To try an unreleased change, build it yourself
@@ -591,7 +593,7 @@ stored reports. Expose it like any endpoint, with `management.endpoints.web.expo
   with commas: `label=batchJobId:4711,environment:test`.
 - `GET /actuator/comparisons/{id}` returns one full report. The [report viewer](#viewing-a-report) can display it.
 
-Micrometer and Actuator are optional dependencies of `ditto-core`. They are only used if the host application
+Micrometer and Actuator are optional dependencies of ditto. They are only used if the host application
 already has them.
 
 ---
@@ -1106,7 +1108,7 @@ Package layout (`dev.jbaby.ditto.comparator`, split across the modules; ditto-op
 |                    | `verdict`        | `Rule` (sealed), `VerdictEvaluator`                                                 |
 |                    | `report`         | `ReportAssembler`, `HintAdvisor`, `ReportJson`, `ReportHtml` and the viewer, `ReportStore` |
 |                    | `autoconfigure`  | `ComparatorProperties`, shared beans, metrics and endpoint                          |
-| `ditto-core`       | (root)           | `CollectionComparator`, the MongoDB facade                                          |
+| `ditto-mongo`      | (root)           | `CollectionComparator`, the MongoDB facade                                          |
 |                    | `scan`, `key`    | `MongoCollectionSource`, `MongoDocumentStore`, `Preflight`, `KeyInspector`          |
 |                    | `report`         | `ReportRepository`                                                                  |
 |                    | `autoconfigure`  | `ComparatorAutoConfiguration`                                                       |
@@ -1122,7 +1124,7 @@ Rename the `[Unreleased]` section of the [changelog](CHANGELOG.md) to the new ve
 
 1. Takes the version from the tag. `master` stays on `-SNAPSHOT`.
 2. Runs the full build.
-3. Deploys the parent POM and the libraries `ditto-engine`, `ditto-core` and `ditto-opensearch` (with sources and
+3. Deploys the parent POM and the libraries `ditto-engine`, `ditto-mongo` and `ditto-opensearch` (with sources and
    javadoc) to GitHub Packages.
 4. Creates a GitHub Release with `ditto-cli.jar` attached.
 5. Signs the parent POM and the libraries and publishes them to Maven Central.

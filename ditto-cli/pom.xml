@@ -12,7 +12,7 @@
 
     <artifactId>ditto-cli</artifactId>
     <name>ditto-cli</name>
-    <description>Command line runner for ditto-core, plus a test-data generator</description>
+    <description>Command line runner for ditto (MongoDB and OpenSearch), plus a test-data generator</description>
 
     <properties>
         <!-- an application, not a library: released as a jar on GitHub Releases, not to a Maven repository -->
@@ -22,7 +22,7 @@
     <dependencies>
         <dependency>
             <groupId>dev.jbaby.ditto</groupId>
-            <artifactId>ditto-core</artifactId>
+            <artifactId>ditto-mongo</artifactId>
         </dependency>
         <dependency>
             <groupId>dev.jbaby.ditto</groupId>

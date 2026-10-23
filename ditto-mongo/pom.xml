@@ -10,8 +10,8 @@
         <version>0.6.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>ditto-core</artifactId>
-    <name>ditto-core</name>
+    <artifactId>ditto-mongo</artifactId>
+    <name>ditto-mongo</name>
     <description>MongoDB collection comparison library with Spring Boot auto-configuration</description>
 
     <dependencies>

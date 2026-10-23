@@ -56,7 +56,7 @@
 
     <modules>
         <module>ditto-engine</module>
-        <module>ditto-core</module>
+        <module>ditto-mongo</module>
         <module>ditto-opensearch</module>
         <module>ditto-cli</module>
     </modules>
@@ -83,7 +83,7 @@
             </dependency>
             <dependency>
                 <groupId>dev.jbaby.ditto</groupId>
-                <artifactId>ditto-core</artifactId>
+                <artifactId>ditto-mongo</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

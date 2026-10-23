@@ -30,9 +30,10 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ### Changed
 
-- The store-neutral part of ditto is now the module `ditto-engine`, which `ditto-core` and `ditto-opensearch` depend
-  on. The coordinates of `ditto-core` and all package and class names stay the same, so nothing changes for MongoDB
-  users. `ditto-engine` needs only the `bson` library, not the MongoDB driver.
+- **The MongoDB library is now `dev.jbaby.ditto:ditto-mongo`** (was `ditto-core`). Change the artifactId in your build;
+  package and class names stay the same.
+- The store-neutral part of ditto is now the module `ditto-engine`, which `ditto-mongo` and `ditto-opensearch` depend
+  on. `ditto-engine` needs only the `bson` library, not the MongoDB driver.
 - The shared beans (`Hasher`, `VerdictEvaluator`, `ReportJson`, `ReportHtml`) and `ComparatorProperties` are
   registered by the new `ComparatorEngineAutoConfiguration`; tests that list auto-configurations explicitly need to
   add it.
