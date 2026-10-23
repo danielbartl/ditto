@@ -130,7 +130,11 @@ public class CompareCommand {
     /** {@code --collection}, or for OpenSearch {@code --index} (both are accepted there). */
     static @Nullable String name(CliOptions options, Target target) {
         String collection = options.string("collection");
-        String index = target.isOpenSearch() ? options.string("index") : null;
+        String index = options.string("index");
+        if (index != null && !target.isOpenSearch()) {
+            // ignoring it would compare, or read the report of, something else
+            throw new CliUsageException("--index needs --opensearch=<url>; for MongoDB use --collection");
+        }
         if (collection != null && index != null) {
             throw new CliUsageException("Use either --index or --collection, not both");
         }
