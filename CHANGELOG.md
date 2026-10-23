@@ -8,6 +8,16 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ### Added
 
+- **Reports as files**: with `ditto.persistence.enabled=true`, reports are now stored as JSON files in
+  `ditto.persistence.directory` (default `ditto-reports`, relative to the working directory), so ditto writes nothing
+  into the compared databases.
+  - A file is the report JSON, named `<finishedAt>_<id>.json`. It is written under a temporary name and renamed, and
+    never changed afterwards, so instances sharing a volume and the CLI can use the same directory at the same time.
+  - `FileReportStore` (a bean) reads reports back by id, candidate, labels and history. `ditto.persistence.retention`
+    deletes older files after each save.
+  - MongoDB and OpenSearch comparisons share the directory, so learned thresholds, labels and the Actuator endpoint
+    work the same for both.
+  - CLI: `--persist` writes to `--report-dir` (default `./ditto-reports`), and `report` reads from there.
 - **OpenSearch**: the new module `ditto-opensearch` compares two OpenSearch indices with the same metrics, verdict,
   hints and report as two collections. Inject `IndexComparator`, e.g. `compareWithBackup("products")`.
   - It uses the application's `OpenSearchClient` (opensearch-java) through its generic raw-JSON API, so any transport
@@ -17,8 +27,8 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
   - Before reading it checks that both names are single indices (or aliases of one), that `_source` is stored, and
     that the key field (`_id`, a keyword or integer field, or a keyword subfield) is present everywhere. It warns if
     refreshing is switched off.
-  - With `ditto.persistence.enabled=true`, reports are stored in an OpenSearch index (`OpenSearchReportRepository`),
-    for history-derived thresholds, labels lookup, the `report` CLI command and the Actuator endpoint.
+  - With `ditto.persistence.storage=database`, reports can be stored in an OpenSearch index
+    (`OpenSearchReportRepository`) instead of files.
   - CLI: `--opensearch=<url>` (with `--opensearch-user` and `DITTO_OPENSEARCH_PASSWORD`) runs `compare`, `report` and
     `generate` against OpenSearch; `--index` works like `--collection`. docker-compose has an `opensearch` service and
     a `seed-opensearch` profile.
@@ -30,6 +40,9 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 
 ### Changed
 
+- **Persistence writes files by default**, no longer to the compared MongoDB database. To keep storing reports in
+  MongoDB, e.g. to keep the history that learned thresholds use, set `ditto.persistence.storage=database`. Otherwise
+  put `ditto.persistence.directory` on persistent storage (in a container: a volume).
 - **The MongoDB library is now `dev.jbaby.ditto:ditto-mongo`** (was `ditto-core`), and its classes moved from
   `dev.jbaby.ditto.comparator` to `dev.jbaby.ditto.mongo`, next to `dev.jbaby.ditto.opensearch`. Change the artifactId
   and these imports; two classes were also renamed to match their OpenSearch counterparts:
@@ -47,8 +60,8 @@ project uses [semantic versioning](https://semver.org): before 1.0, a minor rele
 - The shared beans (`Hasher`, `VerdictEvaluator`, `ReportJson`, `ReportHtml`) and `ComparatorProperties` are
   registered by the new `ComparatorEngineAutoConfiguration`; tests that list auto-configurations explicitly need to
   add it.
-- The `comparisons` Actuator endpoint needs a single `ReportStore` bean. With persistence for both MongoDB and
-  OpenSearch, define it yourself.
+- The `comparisons` Actuator endpoint needs a single `ReportStore` bean. With `storage=database` for both MongoDB
+  and OpenSearch, define it yourself.
 - Internal: the constructor of `CollectionComparator` changed, the orchestration moved to `ComparisonEngine`, and
   `CollectionHandle` and `Preflight.Result` became `MongoCollectionSource` and `PreflightResult`. The MongoDB parts of
   `key` and `scan` (`KeyInspector`, `Preflight`, `MongoCollectionSource`, `MongoDocumentStore`) moved to

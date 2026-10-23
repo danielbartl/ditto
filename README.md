@@ -310,7 +310,8 @@ ready-made options go to **stderr**, so `> report.json` and pipes into `jq` work
 | `--mixed-key-types=reject\|compare` | See [mixed key types](#keys-and-sort-order)                            |
 | `--verdict-basis=conservative\|point` | SAMPLE mode only, see [SAMPLE mode](#sample-mode)                    |
 | `--label=<key>=<value>`         | A [label](#labels-finding-the-report-of-a-job) stored with the report, e.g. `--label=batchJobId=4711`. Repeatable |
-| `--persist`                     | Also store the report in MongoDB                                           |
+| `--persist`                     | Also store the report, as a file in `--report-dir`, see [persisting reports](#persisting-reports) |
+| `--report-dir=<dir>`            | Directory of the stored reports, default `./ditto-reports`                 |
 | `--out=<file>`                  | Also write the report to a file                                            |
 | `--html=<file>`                 | Also write the report as a self-contained HTML page, see [viewing a report](#viewing-a-report) |
 | `--ditto.<property>=...`        | Any [library property](#configuration-reference), e.g. `--ditto.thresholds.key-similarity.green=0.995` |
@@ -344,8 +345,9 @@ stderr, and the report's verdict as exit code (3 if no report matches). It selec
 | `--collection=<collection>`     | The newest report for this candidate (or `--candidate`, with `--candidate-db`) |
 | none                            | The newest report                                                           |
 
-`--out=<file>` and `--html=<file>` write it to files as well. It reads `ditto.persistence.database` and
-`ditto.persistence.collection` (default `comparison_reports`), and changes nothing: not the reports, and not the
+`--out=<file>` and `--html=<file>` write it to files as well. It reads the report files in `--report-dir` (default
+`./ditto-reports`), or with `--ditto.persistence.storage=database` the collection `ditto.persistence.collection`
+(default `comparison_reports`) of `ditto.persistence.database`. It changes nothing: not the reports, and not the
 collection's indexes or retention.
 
 ```bash
@@ -473,8 +475,36 @@ Notes on the API:
 
 ### Persisting reports
 
-Set `ditto.persistence.enabled=true` and every report is stored in `ditto.persistence.collection` (default
-`comparison_reports`).
+Set `ditto.persistence.enabled=true` and every report is stored. By default, ditto writes each report as a JSON file
+to `ditto.persistence.directory`, so nothing is written into your databases:
+
+```yaml
+ditto:
+  persistence:
+    enabled: true
+    directory: /var/lib/ditto/reports   # default: ditto-reports in the working directory
+    retention: 365d                     # optional: older report files are deleted after each save
+```
+
+- A file holds the report JSON, the same as the CLI prints and the [viewer](#viewing-a-report) opens. It is named
+  `<finishedAt>_<id>.json`, e.g. `2026-10-23T08-15-02.311Z_647fc74d-d99a-4c98-95b8-c4f88264229f.json`, so listing
+  the directory sorts the reports by time.
+- ditto creates the directory on the first save and logs where it is.
+- **Keep the directory on persistent storage.** In a container, mount a volume. Otherwise the reports, and the history
+  that [learned thresholds](#thresholds-learned-from-history) need, are gone after a restart.
+- **Several instances** can share the directory on a shared volume, and the CLI can read it while the application is
+  running. Each report is written to a temporary file and then renamed, and never changed afterwards. Instances that
+  each have their own directory learn only from their own reports.
+- The `FileReportStore` bean reads reports back with `findById`, `findRecent(candidate, limit)`, `findByLabels` and
+  `findHistory`. It reads each file once to learn what it filters on, and ignores other files in the directory.
+
+If storing a report fails, the failure is logged and the report is still returned.
+
+### Storing reports in MongoDB
+
+With `ditto.persistence.storage=database`, reports are stored in the compared MongoDB instead: in the collection
+`ditto.persistence.collection` (default `comparison_reports`) of `ditto.persistence.database` (default: the default
+database). Up to 0.5.0, this was the only storage.
 
 Each stored document is the report JSON with these top-level fields added: `_id` (the report id), `createdAt` (a
 date), `baseline` and `candidate` (`db.collection`).
@@ -487,8 +517,6 @@ db.comparison_reports.find({candidate: "shop.products"}, {verdict: 1, "keys.keyS
   .sort({createdAt: -1}).limit(30)
 ```
 
-If storing a report fails, the failure is logged and the report is still returned.
-
 On first use, ditto creates three indexes on the report collection (`ditto_history`, `ditto_recent` and
 `ditto_labels`), so reading the history stays fast as reports accumulate. Reports are kept forever unless you set a **retention**:
 
@@ -496,6 +524,7 @@ On first use, ditto creates three indexes on the report collection (`ditto_histo
 ditto:
   persistence:
     enabled: true
+    storage: database
     retention: 365d        # MongoDB deletes older reports through a TTL index on createdAt
 ```
 
@@ -513,8 +542,8 @@ ComparisonReport report = comparator.compare(comparator.backupRequest("products"
         .label("batchJobId", jobId)
         .build());
 
-// later, e.g. from the job's detail page
-List<ComparisonReport> reports = reportRepository.findByLabels(Map.of("batchJobId", jobId), 10);
+// later, e.g. from the job's detail page; reportStore is the ReportStore bean (FileReportStore by default)
+List<ComparisonReport> reports = reportStore.findByLabels(Map.of("batchJobId", jobId), 10);
 ```
 
 ```bash
@@ -523,7 +552,7 @@ java -jar ditto-cli.jar --collection=products --label=batchJobId=4711 --label=tr
 
 - Labels that belong on every report, like the environment, go in the configuration: `ditto.labels.environment=test`.
   Request labels are added to these, and replace a configured label with the same key.
-- The report holds them as `labels`, sorted by key. In MongoDB they are a subdocument, so you can also query
+- The report holds them as `labels`, sorted by key. Stored in MongoDB they are a subdocument, so you can also query
   `db.comparison_reports.find({"labels.batchJobId": "4711"})`. The `ditto_labels` index serves such queries.
 - Keys may contain letters, digits, `_` and `-` (at most 64 characters), because they become field names. Values are
   any string up to 512 characters. A report can have up to 32 labels.
@@ -589,7 +618,9 @@ the form `db.collection`.
 | `ditto.comparison.max.path.change.rate`  | gauge   | Latest highest change rate of an unexpected path                  |
 
 **Actuator.** If Actuator is on the classpath and persistence is enabled, the read-only `comparisons` endpoint lists
-stored reports. Expose it like any endpoint, with `management.endpoints.web.exposure.include=comparisons`.
+stored reports. Expose it like any endpoint, with `management.endpoints.web.exposure.include=comparisons`. It serves
+one report store: the report files, which hold the reports of MongoDB and OpenSearch comparisons alike, or the
+database store.
 
 - `GET /actuator/comparisons` returns summaries of the 50 most recent reports.
 - `GET /actuator/comparisons?label=batchJobId:4711` returns only reports with that label. Separate several labels
@@ -690,15 +721,20 @@ with both MongoDB and OpenSearch gets both comparators.
 
 ### Persisting reports in OpenSearch
 
-`ditto.persistence.enabled=true` stores reports in the index `ditto.persistence.collection` (default
-`comparison_reports`) of the same cluster. ditto creates the index with an explicit mapping if it doesn't exist:
+`ditto.persistence.enabled=true` stores the reports of OpenSearch comparisons as files too, see
+[persisting reports](#persisting-reports). An application that compares MongoDB collections and OpenSearch indices
+keeps all its reports in the one directory.
+
+With `ditto.persistence.storage=database`, reports go to the index `ditto.persistence.collection` (default
+`comparison_reports`) of the compared cluster instead. ditto creates the index with an explicit mapping if it doesn't exist:
 `createdAt`, `baseline`, `candidate`, `verdict` and `labels.*` are indexed, and the report itself is stored but not
 indexed. `ditto.persistence.retention` deletes older reports with a `_delete_by_query` after each save.
 
-History-derived thresholds, the CLI command `report` and the `comparisons` Actuator endpoint work as with MongoDB.
-`OpenSearchReportRepository` offers `findById`, `findRecent`, `findByLabels` and `findHistory`, and
-`OpenSearchReportRepository.readOnly(...)` only reads. If both MongoDB and OpenSearch store reports, each comparator
-keeps its own; the Actuator endpoint then isn't registered automatically, as it serves one report store.
+History-derived thresholds, the CLI command `report` and the `comparisons` Actuator endpoint work with either
+storage. `OpenSearchReportRepository` offers `findById`, `findRecent`, `findByLabels` and `findHistory`, and
+`OpenSearchReportRepository.readOnly(...)` only reads. If both MongoDB and OpenSearch store reports in their databases,
+each comparator keeps its own; the Actuator endpoint then isn't registered automatically, as it serves one report
+store.
 
 ### OpenSearch properties
 
@@ -727,7 +763,7 @@ hints tell you which ones your data needs.
 | `expected-change-paths`                    | –                    | Fields that are supposed to change (prices, counters); not counted against the verdict |
 | `key-field`                                | `_id`                | Top-level key field. Must be unique on both sides                               |
 | `mode`                                     | `AUTO`               | `AUTO`, `FULL` or `SAMPLE`                                                      |
-| `persistence.enabled`                      | `false`              | Store reports. This also turns on thresholds learned from history               |
+| `persistence.enabled`                      | `false`              | Store reports, as files in `persistence.directory` by default. This also turns on thresholds learned from history |
 | `thresholds.key-similarity.green/yellow`   | `0.99` / `0.97`      | GREEN if ≥ green, YELLOW if ≥ yellow, else RED                                  |
 | `thresholds.unchanged-rate.green/yellow`   | `0.95` / `0.85`      | GREEN if ≥ green, YELLOW if ≥ yellow, else RED                                  |
 | `thresholds.max-path-change-rate.green/yellow` | `0.05` / `0.20`  | GREEN if < green, YELLOW if < yellow, else RED                                  |
@@ -766,9 +802,11 @@ These are rarely needed. The defaults fit most data.
 | `adaptive-thresholds.yellow-sigma`         | `3.0`                | YELLOW bound distance from the mean, in standard deviations                     |
 | `adaptive-thresholds.min-spread`           | `0.005`              | Lower limit for the standard deviation                                          |
 | **Persistence**                            |                      |                                                                                 |
-| `persistence.collection`                   | `comparison_reports` | Report collection (OpenSearch: report index)                                    |
-| `persistence.database`                     | default database     | Report database (MongoDB only)                                                  |
-| `persistence.retention`                    | –                    | How long reports are kept, e.g. `365d` (MongoDB: TTL index; OpenSearch: deleted on save); forever if not set |
+| `persistence.storage`                      | `file`               | `file`: a JSON file per report; `database`: in the compared MongoDB database or OpenSearch cluster |
+| `persistence.directory`                    | `ditto-reports`      | Directory of the report files, relative to the working directory unless absolute |
+| `persistence.collection`                   | `comparison_reports` | Report collection with `storage=database` (OpenSearch: report index)            |
+| `persistence.database`                     | default database     | Report database with `storage=database` (MongoDB only)                          |
+| `persistence.retention`                    | –                    | How long reports are kept, e.g. `365d` (files and OpenSearch: deleted on save; MongoDB: TTL index); forever if not set |
 | `labels.<key>`                             | –                    | [Labels](#labels-finding-the-report-of-a-job) stored with every report, e.g. `labels.environment=test` |
 | **Report and resources**                   |                      |                                                                                 |
 | `max-examples`                             | `20`                 | Example keys per category and per changed path                                  |
@@ -968,7 +1006,8 @@ Points to consider:
   - Copying the backup back with `$out` / `$merge`. This keeps the backup for analysis.
 - **Make sure the next scheduled sync can't overwrite the backup before verification and rollback are done.** Use a
   JobRunr mutex/label, or chain the jobs.
-- **Persist reports** (`ditto.persistence.enabled=true`). Put the report id in alerts, so people can open the
+- **Persist reports** (`ditto.persistence.enabled=true`), with `ditto.persistence.directory` on a volume that every
+  instance running the job shares, so the history is complete. Put the report id in alerts, so people can open the
   report with its example keys. Label the comparison with the job id, `.label("jobId", jobContext.getJobId()
   .toString())`, so the report can be found from the job. With `ditto.adaptive-thresholds.enabled=true`, ditto tunes the thresholds to your
   normal churn by itself.
@@ -1055,7 +1094,8 @@ The public API is:
   `DocumentComparator` interface they share, and everything in `dev.jbaby.ditto.comparator.api`;
 - the `ditto.*` configuration properties (`ComparatorProperties`, `OpenSearchComparatorProperties`) and the
   auto-configuration class names;
-- `ReportJson`, `ReportHtml`, `ReportStore`, `MongoReportRepository` and `OpenSearchReportRepository`;
+- `ReportJson`, `ReportHtml`, `ReportStore`, `FileReportStore`, `MongoReportRepository` and
+  `OpenSearchReportRepository`;
 - the report JSON format (versioned by its `schemaVersion`), the CLI options and exit codes, the Micrometer meter
   names and the `comparisons` Actuator endpoint.
 
@@ -1109,7 +1149,7 @@ ditto-opensearch `dev.jbaby.ditto.opensearch`):
 |                    | `metrics`        | `ScanAccumulator`, `PathChangeStats`, `ExampleCollector`, `Wilson`                  |
 |                    | `structure`      | `StructureProfiler`, `StructureDiff`, `MapDetector`                                 |
 |                    | `verdict`        | `Rule` (sealed), `VerdictEvaluator`                                                 |
-|                    | `report`         | `ReportAssembler`, `HintAdvisor`, `ReportJson`, `ReportHtml` and the viewer, `ReportStore` |
+|                    | `report`         | `ReportAssembler`, `HintAdvisor`, `ReportJson`, `ReportHtml` and the viewer, `ReportStore`, `FileReportStore` |
 |                    | `autoconfigure`  | `ComparatorProperties`, shared beans, metrics and endpoint                          |
 | `ditto-mongo`      | (root)           | `CollectionComparator`, the MongoDB facade                                          |
 |                    | `scan`, `key`    | `MongoCollectionSource`, `MongoDocumentStore`, `Preflight`, `KeyInspector`          |

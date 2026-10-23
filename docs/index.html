@@ -598,7 +598,7 @@ esac</pre></div>
           last runs of the same comparison:</p>
         <div class="code"><span class="label">application.yml</span><pre>ditto:
   persistence:
-    enabled: true                     <span class="c"># stores reports in comparison_reports</span>
+    enabled: true                     <span class="c"># stores every report as a JSON file in ./ditto-reports</span>
   adaptive-thresholds:
     enabled: true                     <span class="c"># after 5 runs: GREEN within 2σ, YELLOW within 3σ of the mean</span></pre></div>
         <p>ditto uses the last 20 non-RED runs, so a broken run doesn't lower the bar for the next one. The report says
@@ -647,7 +647,7 @@ void onComparison(ComparisonCompletedEvent event) {
       <tr><td><code>expected-change-paths</code></td><td><code>expectedChangePaths</code></td><td class="def">–</td><td>Fields that are supposed to change (prices, counters): reported, not counted against the verdict</td></tr>
       <tr><td><code>key-field</code></td><td><code>keyField</code></td><td class="def">_id</td><td>Top-level field matching documents. Must be unique on both sides</td></tr>
       <tr><td><code>mode</code></td><td><code>fullScan()</code> / <code>sample(n)</code></td><td class="def">AUTO</td><td><code>AUTO</code>, <code>FULL</code> or <code>SAMPLE</code></td></tr>
-      <tr><td><code>persistence.enabled</code></td><td>–</td><td class="def">false</td><td>Store every report; also switches on thresholds learned from history</td></tr>
+      <tr><td><code>persistence.enabled</code></td><td>–</td><td class="def">false</td><td>Store every report, as a JSON file by default; also switches on thresholds learned from history</td></tr>
       <tr><td><code>thresholds.key-similarity.green / .yellow</code></td><td rowspan="3"><code>thresholds</code></td><td class="def">0.99 / 0.97</td><td><span class="chip green">GREEN</span> if ≥ green, <span class="chip yellow">YELLOW</span> if ≥ yellow, else <span class="chip red">RED</span></td></tr>
       <tr><td><code>thresholds.unchanged-rate.green / .yellow</code></td><td class="def">0.95 / 0.85</td><td>Same: higher is better</td></tr>
       <tr><td><code>thresholds.max-path-change-rate.green / .yellow</code></td><td class="def">0.05 / 0.20</td><td><span class="chip green">GREEN</span> if &lt; green, <span class="chip yellow">YELLOW</span> if &lt; yellow, else <span class="chip red">RED</span></td></tr>
@@ -700,8 +700,10 @@ void onComparison(ComparisonCompletedEvent event) {
         <h3>Report, persistence and resources</h3>
         <div class="table"><table>
           <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
-          <tr><td><code>persistence.collection</code> / <code>.database</code></td><td class="def">comparison_reports / default</td><td>Where reports are stored</td></tr>
-          <tr><td><code>persistence.retention</code></td><td class="def">forever</td><td>How long reports are kept, e.g. <code>365d</code> (TTL index)</td></tr>
+          <tr><td><code>persistence.storage</code></td><td class="def">file</td><td><code>file</code>: a JSON file per report; <code>database</code>: in the compared MongoDB database or OpenSearch cluster</td></tr>
+          <tr><td><code>persistence.directory</code></td><td class="def">ditto-reports</td><td>Directory of the report files; keep it on a volume so reports survive restarts</td></tr>
+          <tr><td><code>persistence.collection</code> / <code>.database</code></td><td class="def">comparison_reports / default</td><td>Where reports are stored with <code>storage=database</code></td></tr>
+          <tr><td><code>persistence.retention</code></td><td class="def">forever</td><td>How long reports are kept, e.g. <code>365d</code> (files and OpenSearch: deleted on save; MongoDB: TTL index)</td></tr>
           <tr><td><code>labels.&lt;key&gt;</code></td><td class="def">–</td><td>Labels stored with every report, e.g. <code>labels.environment=test</code></td></tr>
           <tr><td><code>max-examples</code></td><td class="def">20</td><td>Example keys per category and per changed path</td></tr>
           <tr><td><code>max-value-examples</code></td><td class="def">3</td><td>Before/after values per changed path; <code>0</code> disables them</td></tr>
@@ -784,7 +786,7 @@ void onComparison(ComparisonCompletedEvent event) {
       <tr><td><code>--matched-only</code></td><td>Compare only documents whose key exists on both sides</td></tr>
       <tr><td><code>--null-equals-missing</code>, <code>--mixed-key-types</code>, <code>--verdict-basis</code></td><td>As in the configuration table</td></tr>
       <tr><td><code>--label=key=value</code></td><td>Label stored with the report, e.g. a batch job id; repeatable</td></tr>
-      <tr><td><code>--persist</code></td><td>Store the report in MongoDB</td></tr>
+      <tr><td><code>--persist</code></td><td>Store the report as a file in <code>--report-dir</code> (default <code>./ditto-reports</code>)</td></tr>
       <tr><td><code>--out=file</code></td><td>Also write the report to a file</td></tr>
       <tr><td><code>--html=file</code></td><td>Also write the report as a self-contained HTML page</td></tr>
       <tr><td><code>report --id=…</code>, <code>--label=…</code>, <code>--collection=…</code></td><td>Print a stored report (and with <code>--html</code> write it as a page); the newest one if several match. Exits with its verdict</td></tr>
