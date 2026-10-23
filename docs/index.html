@@ -293,6 +293,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: s
       <tr><td>Mode</td><td>AUTO: full scan up to 5 million documents per side, a 20,000-key sample above</td><td><code>mode</code>, <code>full-scan-limit</code></td></tr>
       <tr><td>Maps</td><td>Objects with dynamic keys are detected and reported as <code>attributes.*</code></td><td><code>wildcard-paths</code></td></tr>
       <tr><td>Thresholds</td><td>Sensible defaults; learned from history once reports are stored</td><td><code>thresholds.*</code></td></tr>
+      <tr><td>Stored reports</td><td>Off. With <code>persistence.enabled</code>: a JSON file per run in <code>./ditto-reports</code>, nothing written into your databases</td><td><code>persistence.*</code></td></tr>
       <tr><td>Everything else</td><td>Reported as <strong>hints</strong> with ready-to-paste configuration</td><td>–</td></tr>
     </table></div>
     <p>ditto never ignores a field just because of its name, like <code>updatedAt</code>, because that could hide a
@@ -474,7 +475,7 @@ switch (report.verdict()) {
           <li>Run it from any scheduler (JobRunr, Spring Batch, <code>@Scheduled</code>, Quartz). It's blocking, and
             stops when its thread is interrupted. The <code>ProgressListener</code> can drive a dashboard progress bar.</li>
           <li>Label the comparison with the job's id, <code>.label("batchJobId", jobId)</code>, and the stored report
-            can be found from the job later: <code>reportRepository.findByLabels(Map.of("batchJobId", jobId), 10)</code>
+            can be found from the job later: <code>reportStore.findByLabels(Map.of("batchJobId", jobId), 10)</code>
             or <code>GET /actuator/comparisons?label=batchJobId:4711</code>.</li>
           <li>Don't let the next sync overwrite the backup before verification and rollback are done.</li>
         </ul>
@@ -588,6 +589,29 @@ esac</pre></div>
   "valueExamples": [
     { "key": { "type": "INT32", "value": "4711" },
       "baseline": [ "\"Oak desk\"" ], "candidate": [ "\"OAK DESK\"" ] } ] }</pre></div>
+      </div>
+    </details>
+
+    <details class="scenario">
+      <summary><strong>Keep every report and find it again</strong><span>report files, labels, the report command</span></summary>
+      <div class="body">
+        <p>With persistence on, every report is stored as a JSON file, the same JSON the CLI prints. Nothing is
+          written into the compared databases.</p>
+        <div class="code"><span class="label">application.yml</span><pre>ditto:
+  persistence:
+    enabled: true
+    directory: /var/lib/ditto/reports   <span class="c"># default ./ditto-reports; in a container, mount a volume</span>
+    retention: 365d                     <span class="c"># optional: older files are deleted</span></pre></div>
+        <ul>
+          <li>Files are named <code>&lt;finishedAt&gt;_&lt;id&gt;.json</code> and never change once written, so
+            instances sharing a volume and the CLI can use the directory at the same time.</li>
+          <li>Find the report of a job by its label: <code>reportStore.findByLabels(Map.of("batchJobId", jobId), 10)</code>,
+            <code>GET /actuator/comparisons?label=batchJobId:4711</code>, or
+            <code>java -jar ditto-cli.jar report --label=batchJobId=4711 --html=report.html</code>.</li>
+          <li>Prefer the database? <code>storage: database</code> keeps reports in the compared MongoDB database or
+            OpenSearch cluster, as up to 0.5.0. To move from there to files, copy the history once:
+            <code>java -jar ditto-cli.jar copy-reports --report-dir=/var/lib/ditto/reports</code>.</li>
+        </ul>
       </div>
     </details>
 
@@ -714,6 +738,13 @@ void onComparison(ComparisonCompletedEvent event) {
           <tr><td><code>no-cursor-timeout</code></td><td class="def">false</td><td>Keep idle server cursors alive on very large collections</td></tr>
           <tr><td><code>progress-interval</code></td><td class="def">10s</td><td>Progress logging and listener interval</td></tr>
         </table></div>
+        <h3>OpenSearch</h3>
+        <div class="table"><table>
+          <tr><th>Property</th><th>Default</th><th>Meaning</th></tr>
+          <tr><td><code>opensearch.uris</code></td><td class="def">–</td><td>Nodes for the client ditto creates if the application has none, e.g. <code>http://localhost:9200</code></td></tr>
+          <tr><td><code>opensearch.username</code> / <code>.password</code></td><td class="def">–</td><td>Basic authentication for that client</td></tr>
+          <tr><td><code>opensearch.scroll-keep-alive</code></td><td class="def">5m</td><td>How long OpenSearch keeps a scroll open between two pages</td></tr>
+        </table></div>
       </div>
     </details>
     <p>The connection itself uses Spring Boot's <code>spring.mongodb.*</code> properties; for OpenSearch, your
@@ -778,6 +809,7 @@ void onComparison(ComparisonCompletedEvent event) {
     <div class="table"><table>
       <tr><th>Option</th><th>Meaning</th></tr>
       <tr><td><code>--uri</code>, <code>--db</code></td><td>Connection string (default <code>mongodb://localhost:27017</code>) and default database (default <code>test</code>)</td></tr>
+      <tr><td><code>--opensearch=url</code>, <code>--opensearch-user</code></td><td>Compare OpenSearch indices instead; the password comes from <code>DITTO_OPENSEARCH_PASSWORD</code>. <code>--index</code> then works like <code>--collection</code></td></tr>
       <tr><td><code>--collection</code></td><td>Compares <code>&lt;collection&gt;_backup</code> with <code>&lt;collection&gt;</code></td></tr>
       <tr><td><code>--baseline</code>, <code>--candidate</code></td><td>Or name both collections explicitly</td></tr>
       <tr><td><code>--baseline-db</code>, <code>--candidate-db</code></td><td>Database per side, if not <code>--db</code></td></tr>
@@ -787,7 +819,8 @@ void onComparison(ComparisonCompletedEvent event) {
       <tr><td><code>--matched-only</code></td><td>Compare only documents whose key exists on both sides</td></tr>
       <tr><td><code>--null-equals-missing</code>, <code>--mixed-key-types</code>, <code>--verdict-basis</code></td><td>As in the configuration table</td></tr>
       <tr><td><code>--label=key=value</code></td><td>Label stored with the report, e.g. a batch job id; repeatable</td></tr>
-      <tr><td><code>--persist</code></td><td>Store the report as a file in <code>--report-dir</code> (default <code>./ditto-reports</code>)</td></tr>
+      <tr><td><code>--persist</code></td><td>Store the report as a file in <code>--report-dir</code></td></tr>
+      <tr><td><code>--report-dir=dir</code></td><td>Directory of the stored reports for <code>--persist</code>, <code>report</code> and <code>copy-reports</code> (default <code>./ditto-reports</code>)</td></tr>
       <tr><td><code>--out=file</code></td><td>Also write the report to a file</td></tr>
       <tr><td><code>--html=file</code></td><td>Also write the report as a self-contained HTML page</td></tr>
       <tr><td><code>report --id=…</code>, <code>--label=…</code>, <code>--collection=…</code></td><td>Print a stored report (and with <code>--html</code> write it as a page); the newest one if several match. Exits with its verdict</td></tr>
@@ -812,13 +845,16 @@ void onComparison(ComparisonCompletedEvent event) {
   <section>
     <h2>Good to know</h2>
     <ul>
-      <li><strong>Memory stays flat.</strong> FULL mode is a single streaming merge-join over both collections sorted by
-        key. There's no <code>$lookup</code>, and nothing is loaded into memory as a whole.</li>
-      <li><strong>Key order is verified.</strong> The Java key order reproduces MongoDB's sort order (simple collation),
-        and a test checks it against a real server. Every key read must be strictly greater than the previous
-        one, so duplicate keys abort the comparison instead of skewing the numbers.</li>
-      <li><strong>Index custom key fields.</strong> <code>_id</code> is always indexed. Other key fields need an
-        index, or the server sorts the whole collection; ditto warns about this.</li>
+      <li><strong>Memory stays flat.</strong> In FULL mode, MongoDB collections are read in one streaming merge-join,
+        sorted by key. OpenSearch can't return documents sorted by <code>_id</code>, so ditto scrolls one index and
+        looks its keys up in the other. Nothing is loaded into memory as a whole.</li>
+      <li><strong>Duplicate keys abort the comparison</strong> instead of skewing the numbers. In MongoDB every key
+        read must be strictly greater than the previous one: the Java key order reproduces MongoDB's sort order, and a
+        test checks it against a real server. In OpenSearch the key lookups find them.</li>
+      <li><strong>Index custom key fields in MongoDB.</strong> <code>_id</code> is always indexed. Other key fields
+        need an index, or the server sorts the whole collection; ditto warns about this.</li>
+      <li><strong>Refresh OpenSearch indices after writing</strong>: only refreshed documents are visible. If shards
+        fail, the comparison fails rather than judge a partial result.</li>
       <li><strong>Compare after the writes are done.</strong> Reads aren't a snapshot.</li>
     </ul>
     <p>More detail in the <a href="https://github.com/danielbartl/ditto#readme">README</a>, including limitations
