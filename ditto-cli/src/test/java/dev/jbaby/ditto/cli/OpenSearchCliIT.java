@@ -23,7 +23,8 @@ import dev.jbaby.ditto.comparator.report.ReportJson;
 
 class OpenSearchCliIT {
 
-    private static final GenericContainer<?> OPENSEARCH = new GenericContainer<>("opensearchproject/opensearch:3.9.0")
+    private static final GenericContainer<?> OPENSEARCH = new GenericContainer<>(
+            System.getProperty("ditto.opensearch.image", "opensearchproject/opensearch:3.9.0"))
             .withEnv("discovery.type", "single-node")
             .withEnv("DISABLE_SECURITY_PLUGIN", "true")
             .withEnv("DISABLE_INSTALL_DEMO_CONFIG", "true")

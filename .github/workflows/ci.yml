@@ -32,7 +32,7 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
-      # unit tests (surefire) and integration tests against MongoDB via Testcontainers (failsafe)
+      # unit tests (surefire) and integration tests against MongoDB and OpenSearch 3 via Testcontainers (failsafe)
       - name: Verify
         run: ./mvnw -B -ntp verify
 
@@ -41,6 +41,36 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: test-reports-java${{ matrix.java }}
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 7
+
+  opensearch-2:
+    name: OpenSearch 2.19 integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENSEARCH_IMAGE: opensearchproject/opensearch:2.19.7
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # the build job covers OpenSearch 3; this runs the OpenSearch library and CLI tests (and, through -am, the
+      # modules they need) against the oldest supported OpenSearch line
+      - name: Verify
+        run: ./mvnw -B -ntp -pl ditto-opensearch,ditto-cli -am verify -Dditto.opensearch.image="$OPENSEARCH_IMAGE"
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-opensearch-2
           path: |
             **/target/surefire-reports/
             **/target/failsafe-reports/

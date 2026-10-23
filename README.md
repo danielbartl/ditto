@@ -1066,7 +1066,8 @@ raises it. Reports stored by older versions stay readable; missing fields get de
 
 ## Building and testing
 
-CI runs `./mvnw verify` on every push and pull request.
+CI runs `./mvnw verify` on every push and pull request, and runs the OpenSearch tests a second time against
+OpenSearch 2.19.
 
 ```bash
 ./mvnw verify            # unit tests (surefire, *Test) + integration tests (failsafe, *IT, needs Docker)
@@ -1075,7 +1076,7 @@ CI runs `./mvnw verify` on every push and pull request.
 ```
 
 The integration tests start `mongo:8.0` and `opensearchproject/opensearch:3.9.0` through Testcontainers (another
-OpenSearch image with `-Dditto.opensearch.image=...`). Highlights:
+OpenSearch image with `-Dditto.opensearch.image=...`, e.g. `opensearchproject/opensearch:2.19.7`). Highlights:
 
 - `ComparisonScenariosIT`: end-to-end behaviour. Covers identical collections, reordered arrays, int vs double, a
   vanished field, a field changed everywhere, added and removed documents, nested arrays, null vs missing, empty
