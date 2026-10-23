@@ -75,12 +75,34 @@ public final class OpenSearchHttp {
         try (Response response = client.execute(request)) {
             byte[] bytes = response.getBody().map(Body::bodyAsBytes).orElse(new byte[0]);
             return new Reply(response.getStatus(), bytes);
-        } catch (InterruptedIOException e) {
-            Thread.currentThread().interrupt();
-            throw new OpenSearchAccessException(method + " " + endpoint + " was interrupted", 0, e);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            if (interrupted(e)) {
+                // the transports clear the flag when they turn the InterruptedException into another exception
+                Thread.currentThread().interrupt();
+                throw new OpenSearchAccessException(method + " " + endpoint + " was interrupted", 0, e);
+            }
+            if (e instanceof RuntimeException runtime) {
+                throw runtime;
+            }
             throw new OpenSearchAccessException(method + " " + endpoint + " failed: " + e.getMessage(), 0, e);
         }
+    }
+
+    /**
+     * Whether a request failed because its thread was interrupted. Timeouts are {@link InterruptedIOException}s too
+     * ({@link java.net.SocketTimeoutException}, HttpClient's {@code ConnectTimeoutException}), but no interruption: the
+     * caller's thread must not be marked interrupted for them.
+     */
+    static boolean interrupted(Exception e) {
+        if (Thread.currentThread().isInterrupted() || e.getClass() == InterruptedIOException.class) {
+            return true;
+        }
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof InterruptedException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
