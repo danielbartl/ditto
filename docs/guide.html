@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ditto · User guide</title>
+<meta name="description" content="Step by step from a first ditto comparison to a verified batch job in production: reading the verdict, following the hints, storing reports, learned thresholds, alerts, OpenSearch, CI and troubleshooting.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='16' r='6' fill='%2322a35a'/%3E%3Ccircle cx='23' cy='16' r='6' fill='%2322a35a' fill-opacity='.45'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="site.css">
+<style>
+.guide { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+.toc { position: sticky; top: 56px; align-self: start; max-height: calc(100vh - 56px); overflow-y: auto; padding: 36px 0 24px; font-size: 14px; }
+.toc p { margin: 0 0 8px; font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: chapter; }
+.toc li { counter-increment: chapter; }
+.toc a { display: block; padding: 5px 10px; border-left: 2px solid var(--border); color: var(--muted); }
+.toc a::before { content: counter(chapter) ". "; color: var(--accent); font-variant-numeric: tabular-nums; }
+.toc a:hover { color: var(--text); text-decoration: none; }
+.toc a.active { color: var(--text); border-left-color: var(--accent); }
+article { min-width: 0; padding-bottom: 24px; }
+article .intro { padding: 48px 0 0; }
+article .intro h1 { font-size: clamp(30px, 5vw, 44px); margin: 0 0 12px; letter-spacing: -0.03em; }
+article section { padding: 48px 0 8px; }
+article h2 .n { color: var(--accent); font: 600 0.72em var(--mono); margin-right: 10px; vertical-align: 2px; }
+nav.links a[aria-current="page"] { color: var(--text); }
+.msg { font-family: var(--mono); font-size: .84em; }
+td .msg { display: block; }
+@media (max-width: 860px) {
+  .guide { grid-template-columns: 1fr; gap: 0; }
+  .toc { position: static; max-height: none; padding: 20px 0 0; }
+  /* chapters as a compact row of pills instead of a screen-high list */
+  .toc ol { display: flex; flex-wrap: wrap; gap: 6px; }
+  .toc a { border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; background: var(--surface); }
+  .toc a.active { border-color: var(--accent); }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap" style="max-width: 1180px">
+    <a class="brand" href="index.html"><span class="dots"><i></i><i></i></span>ditto</a>
+    <nav class="links" aria-label="Site">
+      <a href="index.html">Overview</a>
+      <a href="guide.html" aria-current="page">User guide</a>
+      <a href="viewer.html">Report viewer</a>
+      <a href="https://github.com/danielbartl/ditto#readme">Reference (README)</a>
+      <a href="https://github.com/danielbartl/ditto/blob/master/CHANGELOG.md">Changelog</a>
+    </nav>
+    <a class="gh" href="https://github.com/danielbartl/ditto" aria-label="GitHub repository">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</header>
+
+<div class="guide">
+
+<nav class="toc" aria-label="Chapters">
+  <p>User guide</p>
+  <ol>
+    <li><a href="#first">Your first comparison</a></li>
+    <li><a href="#reading">Reading the result</a></li>
+    <li><a href="#hints">Teaching ditto your data</a></li>
+    <li><a href="#storing">Storing reports</a></li>
+    <li><a href="#learning">Thresholds that learn</a></li>
+    <li><a href="#alerts">Alerts and monitoring</a></li>
+    <li><a href="#batch">In a batch job</a></li>
+    <li><a href="#opensearch">OpenSearch</a></li>
+    <li><a href="#ci">In CI and scripts</a></li>
+    <li><a href="#upgrading">Upgrading from 0.5.0</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+  </ol>
+</nav>
+
+<article>
+
+  <div class="intro">
+    <h1>User guide</h1>
+    <p class="lead">From a first comparison to a verified batch job in production. Each chapter builds on the one
+      before, but you can jump to what you need. The <a href="https://github.com/danielbartl/ditto#readme">README</a>
+      is the complete reference.</p>
+  </div>
+
+  <section id="first">
+    <h2><span class="n">01</span>Your first comparison</h2>
+    <p class="lead">ditto compares a <strong>baseline</strong>, usually a backup taken before a batch run, with a
+      <strong>candidate</strong>, the data after the run, and gives a verdict.</p>
+
+    <h3>Try it with the CLI</h3>
+    <p>The repository brings a MongoDB and a generator that writes a baseline plus a copy with the changes you choose.
+      In a clone of the repository:</p>
+    <div class="code"><span class="label">bash</span><pre>docker compose up -d mongo
+./mvnw package -DskipTests                 <span class="c"># or download ditto-cli.jar from the latest release</span>
+
+<span class="c"># 50,000 documents; 3% prices changed, 0.5% deleted, 0.5% added</span>
+SEED_ARGS="--docs=50000 --changes=modify:price:0.03,delete-docs:0.005,add-docs:0.005" \
+  docker compose run --rm seed
+
+java -jar ditto-cli/target/ditto-cli.jar --db=ditto --collection=demo &gt; report.json
+echo $?                                    <span class="c"># 0 GREEN, 1 YELLOW, 2 RED, 3 error</span></pre></div>
+    <p><code>--collection=demo</code> compares <code>demo_backup</code> with <code>demo</code>. The report goes to
+      stdout as JSON; a summary and hints go to stderr. The first run is <span class="chip red">RED</span>:</p>
+    <div class="code"><span class="label">stderr</span><pre>Verdict RED: keySimilarity 0.9901, unchangedRate 0.0000, 2 changed paths, 1598 ms
+Hints:
+  - meta.syncedAt changed in 100% of matched documents and holds dates: it looks like a technical timestamp
+    written by every run. If so, ignore it.
+    --ignore=meta.syncedAt</pre></div>
+    <p>Every document changed, but only because the sync stamps each one with the time it ran. Take the hint and run
+      again:</p>
+    <div class="code"><pre>java -jar ditto-cli/target/ditto-cli.jar --db=ditto --collection=demo --ignore=meta.syncedAt &gt; report.json
+<span class="c"># Verdict GREEN: keySimilarity 0.9901, unchangedRate 0.9711, 1 changed paths, 1529 ms</span></pre></div>
+    <p>That is the whole workflow in small: compare, read the hints, tell ditto about your data, compare again.</p>
+
+    <h3>In a Spring Boot application</h3>
+    <p>ditto needs Java 21 or newer and Spring Boot 4.1. For MongoDB (4.4 or newer), add the library; it uses the
+      application's MongoDB connection (<code>spring.mongodb.*</code>):</p>
+    <div class="code"><span class="label">pom.xml</span><pre>&lt;dependency&gt;
+  &lt;groupId&gt;dev.jbaby.ditto&lt;/groupId&gt;
+  &lt;artifactId&gt;ditto-mongo&lt;/artifactId&gt;
+  &lt;version&gt;0.6.0&lt;/version&gt;
+&lt;/dependency&gt;</pre></div>
+    <p>Then inject <code>CollectionComparator</code>:</p>
+    <div class="code"><span class="label">Java</span><pre>@Service
+class ReplicationCheck {
+
+    private final CollectionComparator comparator;
+
+    ReplicationCheck(CollectionComparator comparator) {
+        this.comparator = comparator;
+    }
+
+    Level check() {
+        ComparisonReport report = comparator.compareWithBackup("products");  <span class="c">// products_backup → products</span>
+        report.hints().forEach(hint -&gt; log.info("{}", hint.message()));     <span class="c">// what to configure next</span>
+        return report.verdict();                                            <span class="c">// GREEN, YELLOW or RED</span>
+    }
+}</pre></div>
+    <ul>
+      <li>The verdict is a <strong>value</strong>, not an exception. A <span class="chip red">RED</span> comparison
+        returns normally.</li>
+      <li>An exception means the comparison couldn't be done meaningfully: <code>ComparisonException</code> for a
+        missing collection, unusable keys or an interruption, and Spring's <code>DataAccessException</code> for
+        database errors.</li>
+      <li><code>compare</code> runs on the calling thread and stops when that thread is interrupted. Comparisons
+        running at the same time are independent.</li>
+    </ul>
+    <p>For two collections that aren't a backup pair, name both, in any database of the cluster:</p>
+    <div class="code"><span class="label">Java</span><pre>comparator.compare(ComparisonRequest.builder(
+        CollectionRef.of("archive", "products"), CollectionRef.of("products")).build());</pre></div>
+    <p>OpenSearch works the same way with <code>ditto-opensearch</code> and an <code>IndexComparator</code>; see
+      <a href="#opensearch">chapter 8</a>.</p>
+  </section>
+
+  <section id="reading">
+    <h2><span class="n">02</span>Reading the result</h2>
+    <p class="lead">The verdict is the worst level of a handful of rules. Start at the verdict and work down: each level
+      explains the one above.</p>
+
+    <h3>The rules</h3>
+    <div class="table"><table>
+      <tr><th>Rule</th><th>Looks at</th></tr>
+      <tr><td><code>keySimilarity</code></td><td>matched / (matched + added + removed): did documents go missing or appear?</td></tr>
+      <tr><td><code>unchangedRate</code></td><td>The share of matched documents with the same content</td></tr>
+      <tr><td><code>maxPathChangeRate</code></td><td>The highest share of documents in which one single field changed</td></tr>
+      <tr><td><code>structure.vanishedPaths</code></td><td>Fields that disappeared from every document (<span class="chip red">RED</span>)</td></tr>
+      <tr><td><code>structure.typeShifts</code></td><td>Fields whose BSON type changed, e.g. int → double (<span class="chip red">RED</span>)</td></tr>
+      <tr><td><code>structure.newPaths</code>, <code>structure.presenceDeltas</code></td><td>New fields, and fields that became much rarer or more common (<span class="chip yellow">YELLOW</span>)</td></tr>
+    </table></div>
+    <p>Content is compared in a canonical form: field order doesn't matter, arrays are compared as multisets, and
+      numbers by value, so <code>42</code> equals <code>42.0</code>. A type change is the structure check's job.</p>
+
+    <h3>Where to look</h3>
+    <ol>
+      <li><strong><code>verdict</code> and <code>rules</code></strong>: every rule that isn't
+        <span class="chip green">GREEN</span> explains itself in <code>reason</code> and lists the offending paths in
+        <code>details</code>.</li>
+      <li><strong><code>keys</code></strong>: compare <code>added</code> with <code>removed</code>.</li>
+      <li><strong><code>content</code> and <code>topChangedPaths</code></strong>: which fields changed, how often, with
+        before/after values.</li>
+      <li><strong><code>structure</code></strong>: schema drift, independent of values.</li>
+      <li><strong><code>examples</code></strong>: keys to look up yourself, as relaxed Extended JSON, e.g.
+        <code>db.products.find({_id: {"$oid": "6553f1212161972337cc2db4"}})</code>.</li>
+      <li><strong><code>hints</code></strong>: what to configure next (<a href="#hints">chapter 3</a>).</li>
+      <li><strong><code>run.decisions</code>, <code>run.thresholdSource</code> and <code>warnings</code></strong>: what
+        ditto decided by itself, where the thresholds came from, and what limits the result.</li>
+    </ol>
+    <div class="table"><table>
+      <tr><th>If you see…</th><th>It usually means…</th></tr>
+      <tr><td>Many removed, few added</td><td>A partial or aborted load</td></tr>
+      <tr><td>Many removed <em>and</em> many added</td><td>The key values changed format (<code>"123"</code> vs <code>123</code>), or a new ID scheme</td></tr>
+      <tr><td>One field changed in ~100% of documents</td><td>A mapping or format change in that field, or a technical field to ignore; the value examples show which</td></tr>
+      <tr><td>Many fields at low rates</td><td>Normal data churn</td></tr>
+      <tr><td>A type shift with unchanged content</td><td>Same values, different type: consumers that read typed values may break</td></tr>
+    </table></div>
+
+    <h3>As a page</h3>
+    <p>The JSON is complete but long. To read a report comfortably:</p>
+    <ul>
+      <li>CLI: add <code>--html=report.html</code> for a self-contained page with hints, rules, changed paths and the
+        structure diff. It makes no external requests, so it works offline and as an attachment.</li>
+      <li>Java: the <code>ReportHtml</code> bean writes the same page: <code>reportHtml.write(report)</code>.</li>
+      <li>Any <code>report.json</code>: drop it on the <a href="viewer.html">report viewer</a>. It renders in your
+        browser and uploads nothing.</li>
+    </ul>
+  </section>
+
+  <section id="hints">
+    <h2><span class="n">03</span>Teaching ditto your data</h2>
+    <p class="lead">ditto starts without configuration, and its hints tell you what your data needs. You add each
+      piece once.</p>
+
+    <h3>The hints</h3>
+    <p>Each hint has a message, and where there is something to configure, a ready-made <code>property</code> and
+      <code>cliOption</code>. ditto never ignores a field just because of its name, like <code>updatedAt</code>: that
+      could hide a sync that stopped working. It suggests, you decide.</p>
+    <div class="table"><table>
+      <tr><th>Hint</th><th>Situation</th><th>What to do</th></tr>
+      <tr><td><code>IGNORE_TECHNICAL_FIELD</code></td><td>A timestamp changed in every document</td><td>Add it to <code>ignored-paths</code></td></tr>
+      <tr><td><code>EXPECTED_CHANGE</code></td><td>A field changes in many documents every run, like a price</td><td>Add it to <code>expected-change-paths</code></td></tr>
+      <tr><td><code>WILDCARD</code></td><td>An object with dynamic keys, i.e. a map</td><td>Add it to <code>wildcard-paths</code>, e.g. <code>attributes.*</code></td></tr>
+      <tr><td><code>MATCHED_ONLY</code></td><td>One side holds only a part of the other's keys, e.g. a test environment</td><td>Compare matched documents only, see <a href="#troubleshooting">troubleshooting</a></td></tr>
+      <tr><td><code>LARGER_SAMPLE</code></td><td>A SAMPLE result too close to a threshold to be sure</td><td>Sample more keys, or compare in FULL mode</td></tr>
+      <tr><td><code>INVESTIGATE</code></td><td>Something worth a look that no setting fixes</td><td>Read the message</td></tr>
+    </table></div>
+
+    <h3>Set it once</h3>
+    <p>Set what applies to every comparison as <code>ditto.*</code> properties:</p>
+    <div class="code"><span class="label">application.yml</span><pre>ditto:
+  ignored-paths: [meta.syncedAt]          <span class="c"># removed before comparing</span>
+  expected-change-paths: [price, stock]   <span class="c"># reported, but not counted against the verdict</span>
+  wildcard-paths: [attributes.*]          <span class="c"># a map: reported as attributes.*, compared on the real keys</span>
+  order-sensitive-paths: [history]        <span class="c"># arrays whose element order matters</span>
+  redacted-paths: [customer]              <span class="c"># values shown as *** in reports</span></pre></div>
+    <p>Or set it on one request; request options win over properties:</p>
+    <div class="code"><span class="label">Java</span><pre>comparator.compare(comparator.backupRequest("products")
+        .ignoredPaths("meta.syncedAt")
+        .expectedChangePaths("price", "stock")
+        .build());</pre></div>
+    <p>Paths use one syntax everywhere. A path covers everything below it: <code>stock</code> also covers
+      <code>stock.qty</code>.</p>
+    <div class="table"><table>
+      <tr><th>Pattern</th><th>Matches</th></tr>
+      <tr><td><code>meta.syncedAt</code></td><td>A nested field</td></tr>
+      <tr><td><code>items[].price</code></td><td>Field <code>price</code> of every element of array <code>items</code>; <code>matrix[][]</code> for nested arrays</td></tr>
+      <tr><td><code>attributes.*</code></td><td><code>*</code> matches exactly one field name</td></tr>
+    </table></div>
+    <p>Maps with dynamic keys are usually detected without configuration, in a small sample before comparing. An
+      explicit <code>wildcard-paths</code> entry is for the ones detection misses.</p>
+
+    <h3>Other key fields</h3>
+    <p>Documents are matched by <code>_id</code>. Set <code>key-field</code> (or <code>.keyField(...)</code>) to match
+      by another top-level field. It must be present in every document and unique; ditto rejects duplicates rather
+      than count them wrong. In MongoDB, index it, or the server sorts the whole collection. In OpenSearch it must be
+      a <code>keyword</code> or integer field, or a <code>text</code> field with a <code>keyword</code> subfield.</p>
+
+    <h3>Big collections</h3>
+    <p>AUTO mode compares fully up to 5 million documents per side (<code>full-scan-limit</code>), and samples 20,000
+      keys per side above that (<code>sample.size</code>). In SAMPLE mode every rate is a 95% confidence interval, and
+      by default each rule judges its worse end: <span class="chip green">GREEN</span> means "GREEN with 95%
+      confidence". Force a mode with <code>.fullScan()</code> or <code>.sample(n)</code>, or <code>--mode</code> on the
+      CLI.</p>
+  </section>
+
+  <section id="storing">
+    <h2><span class="n">04</span>Storing reports</h2>
+    <p class="lead">Stored reports let you find the report of a job later, and let ditto learn what's normal for each
+      pair of collections.</p>
+
+    <h3>Report files</h3>
+    <div class="code"><span class="label">application.yml</span><pre>ditto:
+  persistence:
+    enabled: true
+    directory: /var/lib/ditto/reports   <span class="c"># default: ditto-reports in the working directory</span>
+    retention: 365d                     <span class="c"># optional: older report files are deleted after each save</span></pre></div>
+    <ul>
+      <li>Each report is one JSON file, the same JSON the CLI prints, named <code>&lt;finishedAt&gt;_&lt;id&gt;.json</code>.
+        Nothing is written into the compared databases.</li>
+      <li><strong>Keep the directory on persistent storage.</strong> In a container, mount a volume. Otherwise the
+        reports, and the history that learned thresholds need, are gone after a restart.</li>
+      <li><strong>Several instances</strong> can share the directory on a shared volume, and the CLI can read it while
+        the application runs: a report is written under a temporary name, renamed, and never changed afterwards.
+        Instances with a directory of their own learn only from their own reports.</li>
+      <li>If storing a report fails, the failure is logged and the report is still returned.</li>
+    </ul>
+
+    <h3>Labels: the report of a job</h3>
+    <p>Attach the job's id to the comparison. It's stored with the report:</p>
+    <div class="code"><span class="label">Java</span><pre>comparator.compare(comparator.backupRequest("products")
+        .label("batchJobId", jobId)
+        .build());</pre></div>
+    <p>Labels that belong on every report, like the environment, go in the configuration:
+      <code>ditto.labels.environment=test</code>. Keys may use letters, digits, <code>_</code> and <code>-</code>;
+      values are any text up to 512 characters. Labels don't affect the comparison or the metrics.</p>
+    <p>Then find the report from wherever you are:</p>
+    <div class="table"><table>
+      <tr><th>From</th><th>How</th></tr>
+      <tr><td>Java</td><td><code>reportStore.findByLabels(Map.of("batchJobId", jobId), 10)</code>, newest first. Inject <code>ReportStore</code>; also <code>findById</code> and <code>findRecent</code></td></tr>
+      <tr><td>CLI</td><td><code>java -jar ditto-cli.jar report --label=batchJobId=4711 --html=report.html</code>, with <code>--report-dir</code> if the reports aren't in <code>./ditto-reports</code></td></tr>
+      <tr><td>HTTP</td><td><code>GET /actuator/comparisons?label=batchJobId:4711</code> (<a href="#alerts">chapter 6</a>)</td></tr>
+      <tr><td>Shell</td><td><code>jq -r 'select(.labels.batchJobId == "4711") | input_filename' ditto-reports/*.json</code></td></tr>
+    </table></div>
+
+    <h3>Storing in the database instead</h3>
+    <p>With <code>ditto.persistence.storage=database</code>, reports go to the collection
+      <code>ditto.persistence.collection</code> (default <code>comparison_reports</code>) of the compared MongoDB
+      database, or to an index of that name in the compared OpenSearch cluster. That was the only storage up to 0.5.0.
+      To move from there to files and keep the history, copy the stored reports once:</p>
+    <div class="code"><span class="label">bash</span><pre>java -jar ditto-cli.jar copy-reports --uri="$MONGO_URI" --db=shop --report-dir=/var/lib/ditto/reports</pre></div>
+    <p><code>copy-reports</code> only reads the database. Running it again replaces the files with the same
+      reports.</p>
+  </section>
+
+  <section id="learning">
+    <h2><span class="n">05</span>Thresholds that learn</h2>
+    <p class="lead">Fixed thresholds fit some collections badly: one where 8% of the documents change every day is
+      always <span class="chip yellow">YELLOW</span>. With stored reports, ditto learns what is normal for each pair.</p>
+    <p>Storing reports switches it on. For each comparison, ditto takes the last 20 comparisons of the same
+      baseline and candidate that weren't <span class="chip red">RED</span>, and sets the bounds of
+      <code>keySimilarity</code>, <code>unchangedRate</code> and <code>maxPathChangeRate</code> around their mean:</p>
+    <ul>
+      <li><span class="chip green">GREEN</span> within 2 standard deviations, <span class="chip yellow">YELLOW</span>
+        within 3, in the direction that is worse for the metric.</li>
+      <li>The standard deviation counts as at least 0.005, so a perfectly stable history still allows small
+        deviations.</li>
+      <li>Until 5 such runs exist, the configured thresholds apply. Thresholds set on a request always win.</li>
+      <li><span class="chip red">RED</span> runs are left out, so a broken run doesn't lower the bar for the next
+        one. A slow drift across many runs is learned, though; keep an eye on the values.</li>
+    </ul>
+    <p>The report's <code>run.thresholdSource</code> says which thresholds were used and how they were derived, e.g.
+      <span class="msg">unchangedRate: mean 0.9120, standard deviation 0.0071 over 14 runs -&gt; GREEN &gt;= 0.8978, YELLOW &gt;= 0.8907</span>.</p>
+    <div class="code"><span class="label">application.yml</span><pre>ditto:
+  adaptive-thresholds:
+    history-size: 20      <span class="c"># runs considered</span>
+    min-history: 5        <span class="c"># runs needed before history is used</span>
+    green-sigma: 2.0
+    yellow-sigma: 3.0</pre></div>
+    <p>To store reports without learning from them, set <code>ditto.adaptive-thresholds.enabled=false</code>.</p>
+  </section>
+
+  <section id="alerts">
+    <h2><span class="n">06</span>Alerts and monitoring</h2>
+    <p class="lead">Every comparison publishes a Spring event, whoever started it. Metrics and an Actuator endpoint
+      come along if the application already has Micrometer or Actuator.</p>
+
+    <h3>Events</h3>
+    <div class="code"><span class="label">Java</span><pre>@EventListener
+void onComparison(ComparisonCompletedEvent event) {
+    if (event.report().verdict() == Level.RED) {
+        alerts.critical(event.report().id(), reportHtml.write(event.report()));  <span class="c">// the page as attachment</span>
+    }
+}
+
+@EventListener
+void onFailure(ComparisonFailedEvent event) {          <span class="c">// settings, exception and labels</span>
+    alerts.error(event.labels().get("batchJobId"), event.exception());
+}</pre></div>
+
+    <h3>Micrometer</h3>
+    <p>With a <code>MeterRegistry</code>, ditto records these meters, tagged with <code>baseline</code> and
+      <code>candidate</code>:</p>
+    <div class="table"><table>
+      <tr><th>Meter</th><th>Type</th><th>Meaning</th></tr>
+      <tr><td><code>ditto.comparison</code></td><td>timer</td><td>Duration, also tagged with <code>mode</code> and <code>verdict</code></td></tr>
+      <tr><td><code>ditto.comparison.errors</code></td><td>counter</td><td>Comparisons that failed, tagged with <code>exception</code></td></tr>
+      <tr><td><code>ditto.comparison.verdict</code></td><td>gauge</td><td>Latest verdict: 0 GREEN, 1 YELLOW, 2 RED</td></tr>
+      <tr><td><code>ditto.comparison.key.similarity</code>, <code>.unchanged.rate</code>, <code>.max.path.change.rate</code></td><td>gauge</td><td>Latest values of the rules</td></tr>
+    </table></div>
+    <p>A dashboard per collection pair and an alert on <code>ditto.comparison.verdict == 2</code> cover most needs.
+      Labels are deliberately not tags: a job id would create a new time series per run.</p>
+
+    <h3>Actuator</h3>
+    <p>With Actuator and stored reports, the read-only <code>comparisons</code> endpoint lists them once you expose
+      it (<code>management.endpoints.web.exposure.include=comparisons</code>):</p>
+    <ul>
+      <li><code>GET /actuator/comparisons</code>: the 50 most recent reports, summarised; filter with
+        <code>?label=batchJobId:4711</code>.</li>
+      <li><code>GET /actuator/comparisons/{id}</code>: one report. The viewer opens it directly with
+        <code>viewer.html#url=https://your-app/actuator/comparisons/{id}</code> if your application allows the
+        viewer's origin (<code>management.endpoints.web.cors.allowed-origins=https://danielbartl.github.io</code>).</li>
+    </ul>
+  </section>
+
+  <section id="batch">
+    <h2><span class="n">07</span>In a batch job</h2>
+    <p class="lead">The situation ditto was built for: a job replaces a collection, and before anyone uses the new
+      data you want to know whether to keep it or roll back.</p>
+    <ol class="steps">
+      <li><strong>Backup</strong>: copy <code>products</code> to <code>products_backup</code>, e.g. with an
+        <code>$out</code> aggregation. ditto never creates the backup; your job does.</li>
+      <li><strong>Sync</strong>: upsert into <code>products</code> and delete stale documents.</li>
+      <li><strong>Verify</strong>: compare, and act on the verdict. Run it as a separate step with its own retries, so
+        it can be repeated by hand.</li>
+    </ol>
+    <div class="code"><span class="label">Java</span><pre>ComparisonReport report = comparator.compare(
+        comparator.backupRequest("products").label("batchJobId", jobId).build(),
+        progress -&gt; progressBar.set(progress.fractionDone()));      <span class="c">// null if the total is unknown</span>
+
+switch (report.verdict()) {
+    case GREEN  -&gt; log.info("products verified");
+    case YELLOW -&gt; alerts.warn("products", report.id());           <span class="c">// usable; have someone look</span>
+    case RED    -&gt; {
+        rollback.restoreFromBackup("products");                   <span class="c">// your code</span>
+        alerts.critical("products", report.id());
+    }
+}</pre></div>
+    <ul>
+      <li><strong>Retry on exceptions only.</strong> A <span class="chip red">RED</span> verdict completes the step
+        normally after the rollback. <code>DataAccessException</code> and connection problems are worth a retry;
+        <code>ComparisonException</code> (missing backup, duplicate or mixed keys) is a configuration problem that a
+        retry won't fix: alert, and don't roll back automatically.</li>
+      <li><strong>Rollback is yours</strong>, since only you know what "usable" means for your consumers. In MongoDB,
+        <code>renameCollection</code> of the backup over the collection with <code>dropTarget: true</code> is atomic
+        within a database but consumes the backup; copying it back with <code>$out</code> or <code>$merge</code> keeps
+        it. In OpenSearch, point the alias back at the backup index.</li>
+      <li><strong>Protect the backup</strong>: the next scheduled sync mustn't overwrite it before verification and
+        rollback are done. Chain the jobs, or use a lock.</li>
+      <li><strong>Compare after the writes are done.</strong> Reads aren't a snapshot.</li>
+      <li><strong>Cancellation</strong>: interrupting the thread, e.g. by deleting the job in a scheduler, stops the
+        comparison within a few hundred documents with a <code>ComparisonException</code>.</li>
+      <li><strong>Tight time budget</strong>: a SAMPLE comparison right after the sync gives a quick verdict; a FULL
+        comparison can follow later.</li>
+    </ul>
+    <p>The README has a complete <a href="https://github.com/danielbartl/ditto#running-it-as-a-jobrunr-job-after-a-batch-run">JobRunr
+      example</a>, with the progress bar and retries.</p>
+  </section>
+
+  <section id="opensearch">
+    <h2><span class="n">08</span>OpenSearch</h2>
+    <p class="lead">Two OpenSearch indices compare like two collections: the same verdict, metrics, hints, report and
+      viewer. A document is its <code>_source</code>; <code>_id</code> is its key.</p>
+    <div class="code"><span class="label">pom.xml</span><pre>&lt;dependency&gt;
+  &lt;groupId&gt;dev.jbaby.ditto&lt;/groupId&gt;
+  &lt;artifactId&gt;ditto-opensearch&lt;/artifactId&gt;
+  &lt;version&gt;0.6.0&lt;/version&gt;
+&lt;/dependency&gt;</pre></div>
+    <p>ditto uses the application's <code>OpenSearchClient</code> (opensearch-java) with whatever transport it has,
+      AWS SigV4 included. Without one, set <code>ditto.opensearch.uris</code> (and <code>username</code> and
+      <code>password</code>), and ditto creates a client. Inject <code>IndexComparator</code> and call it like the
+      MongoDB comparator: <code>comparator.compareWithBackup("products")</code>. OpenSearch 2.19 and 3.x are
+      supported.</p>
+    <ul>
+      <li><strong>Refresh after writing.</strong> Only refreshed documents are visible:
+        <code>POST /products/_refresh</code>. ditto warns if an index has refreshing switched off, and never writes to
+        the indices it compares.</li>
+      <li><strong>Names</strong> are index names or aliases of exactly one index; patterns are rejected. Reports name
+        the cluster in place of a database, e.g. <code>my-cluster.products</code>.</li>
+      <li><strong>Keys</strong>: <code>_id</code> by default. Another key field must be a <code>keyword</code> or
+        integer field, or a <code>text</code> field with a <code>keyword</code> subfield.</li>
+      <li><strong>Numbers and dates</strong>: numbers are read exactly, so <code>1</code> and <code>1.0</code> are
+        equal content. <code>_source</code> has no date type; ditto still recognises ISO-8601 timestamps that changed
+        everywhere and suggests ignoring them.</li>
+      <li><strong>Reading</strong>: OpenSearch can't return documents sorted by <code>_id</code>, so ditto scrolls one
+        index and looks its keys up in the other. Locally, two indices of 20,000 documents took about 2 seconds.</li>
+      <li><strong>Incomplete results fail.</strong> If shards fail or a search times out, the comparison stops with an
+        error rather than judge a partial result.</li>
+    </ul>
+    <div class="code"><span class="label">CLI</span><pre>java -jar ditto-cli.jar --opensearch=https://search.example.com --opensearch-user=ditto --index=products
+<span class="c"># password from DITTO_OPENSEARCH_PASSWORD</span></pre></div>
+  </section>
+
+  <section id="ci">
+    <h2><span class="n">09</span>In CI and scripts</h2>
+    <p class="lead">The CLI turns the verdict into the exit code and prints nothing but the report JSON on stdout.</p>
+    <div class="table"><table>
+      <tr><th>Exit code</th><th>Meaning</th></tr>
+      <tr><td><code>0</code></td><td><span class="chip green">GREEN</span></td></tr>
+      <tr><td><code>1</code></td><td><span class="chip yellow">YELLOW</span></td></tr>
+      <tr><td><code>2</code></td><td><span class="chip red">RED</span></td></tr>
+      <tr><td><code>3</code></td><td>Error: bad options, missing collection, unusable keys, connection failure</td></tr>
+    </table></div>
+    <div class="code"><span class="label">bash</span><pre>java -jar ditto-cli.jar --uri="$MONGO_URI" --db=shop --collection=products \
+  --ignore=meta.syncedAt --out=report.json --html=report.html &gt; /dev/null
+case $? in
+  0) echo "GREEN" ;;
+  1) echo "YELLOW, continuing"; jq '.rules[] | select(.level != "GREEN") | .reason' report.json ;;
+  2) echo "RED, aborting"; exit 1 ;;
+  *) echo "comparison failed"; exit 1 ;;
+esac</pre></div>
+    <ul>
+      <li>Keep <code>report.html</code> as a build artifact: it opens without network access.</li>
+      <li>Every library property works as an option: <code>--ditto.thresholds.key-similarity.green=0.995</code>.</li>
+      <li><code>--persist</code> stores the report in <code>--report-dir</code>; <code>report</code> prints a stored
+        one, with its verdict as exit code.</li>
+    </ul>
+  </section>
+
+  <section id="upgrading">
+    <h2><span class="n">10</span>Upgrading from 0.5.0</h2>
+    <p class="lead">0.6.0 renames the MongoDB library and stores reports as files by default.</p>
+    <ol>
+      <li>Change the dependency from <code>ditto-core</code> to <code>ditto-mongo</code>.</li>
+      <li>Update the imports: the MongoDB classes moved to <code>dev.jbaby.ditto.mongo</code>,
+        <code>ReportRepository</code> is now <code>MongoReportRepository</code> and
+        <code>ComparatorAutoConfiguration</code> is <code>MongoComparatorAutoConfiguration</code>.</li>
+      <li>If you store reports: either keep them in MongoDB with <code>ditto.persistence.storage=database</code>, or
+        put <code>ditto.persistence.directory</code> on a volume and copy the history once with
+        <code>copy-reports</code> (<a href="#storing">chapter 4</a>).</li>
+      <li>Log levels for <code>dev.jbaby.ditto.comparator</code> no longer cover the MongoDB classes; use
+        <code>dev.jbaby.ditto</code>.</li>
+    </ol>
+    <p>The <a href="https://github.com/danielbartl/ditto/blob/master/CHANGELOG.md#upgrading-from-050">upgrade
+      checklist</a> in the changelog has every detail.</p>
+  </section>
+
+  <section id="troubleshooting">
+    <h2><span class="n">11</span>Troubleshooting</h2>
+    <p class="lead">The messages below are what ditto says; the rest of each row is what to do about it.</p>
+
+    <h3>The comparison fails</h3>
+    <div class="table"><table>
+      <tr><th>Message</th><th>Cause and fix</th></tr>
+      <tr><td><span class="msg">The baseline collection shop.products_backup does not exist</span></td><td>The backup step didn't run, or uses another name. Check the job, or set <code>backup-suffix</code>, or name both sides.</td></tr>
+      <tr><td><span class="msg">Duplicate key "4711" in …: the key field must be unique</span></td><td>The key field isn't unique. Choose a unique field, or fix the data; ditto won't count duplicates.</td></tr>
+      <tr><td><span class="msg">Key field 'sku' has mixed types [NUMBER, STRING] …</span></td><td>Keys of different types, e.g. strings and numbers. Usually a data problem; <code>mixed-key-types=COMPARE</code> compares them anyway, with a warning.</td></tr>
+      <tr><td><span class="msg">Key field 'sku' is missing in some documents …</span></td><td>Every document needs the key field. Choose another key, or fix the documents.</td></tr>
+      <tr><td><span class="msg">Comparison of … interrupted</span></td><td>The thread was interrupted, e.g. the job was cancelled. Run it again.</td></tr>
+      <tr><td><span class="msg">Key field 'name' is mapped as text …</span> (OpenSearch)</td><td>Text can't be looked up exactly. Use a <code>keyword</code> field or subfield.</td></tr>
+      <tr><td><span class="msg">Search is incomplete: 1 of 5 shards failed …</span> (OpenSearch)</td><td>The cluster couldn't answer completely. Check its health, and compare again.</td></tr>
+      <tr><td><span class="msg">OpenSearch has no databases, but … names 'x'</span></td><td>Give the index name only; the cluster takes the place of the database.</td></tr>
+    </table></div>
+
+    <h3>The result looks wrong</h3>
+    <div class="table"><table>
+      <tr><th>You see</th><th>Cause and fix</th></tr>
+      <tr><td><span class="chip red">RED</span> on the first run, one field changed in 100%</td><td>A technical timestamp. Follow the hint: ignore it.</td></tr>
+      <tr><td><span class="chip red">RED</span> on a test environment that holds part of the data</td><td>Most keys are missing on purpose. Compare with <code>matchedOnly()</code> / <code>--matched-only</code>.</td></tr>
+      <tr><td><span class="chip yellow">YELLOW</span> in SAMPLE mode, <span class="chip green">GREEN</span> in FULL</td><td>Close to a threshold, SAMPLE judges the worse end of the confidence interval. Sample more, or use <code>sample.verdict-basis=POINT</code>.</td></tr>
+      <tr><td>Documents missing or appearing in OpenSearch</td><td>The index wasn't refreshed after writing. Refresh it before comparing.</td></tr>
+      <tr><td>A warning that more than 10000 distinct paths were found</td><td>A map with dynamic keys that detection missed. Add it to <code>wildcard-paths</code>.</td></tr>
+      <tr><td>The thresholds don't learn</td><td>Fewer than 5 earlier runs that weren't RED, or thresholds set on the request, or reports in a directory that doesn't survive restarts. <code>run.thresholdSource</code> says which.</td></tr>
+    </table></div>
+
+    <h3>Operations</h3>
+    <div class="table"><table>
+      <tr><th>You see</th><th>Cause and fix</th></tr>
+      <tr><td>A FULL comparison on a custom key is slow (MongoDB)</td><td>The key field has no index, and the report warns about it. Create the index.</td></tr>
+      <tr><td>A cursor timed out on a very large collection</td><td>One side sat idle for more than 10 minutes. Set <code>no-cursor-timeout=true</code>.</td></tr>
+      <tr><td>Reports are gone after a restart</td><td>The report directory isn't on persistent storage. Mount a volume at <code>ditto.persistence.directory</code>.</td></tr>
+      <tr><td><span class="msg">ditto.persistence.collection and .database have no effect</span> at startup</td><td>An upgraded configuration: reports now go to files. Set <code>ditto.persistence.storage=database</code> to keep MongoDB, or remove the settings.</td></tr>
+      <tr><td>No <code>comparisons</code> Actuator endpoint</td><td>Persistence is off, the endpoint isn't exposed, or both MongoDB and OpenSearch store reports in their databases; then define the endpoint yourself.</td></tr>
+      <tr><td><span class="msg">--index needs --opensearch=&lt;url&gt;</span> (CLI)</td><td>Add <code>--opensearch</code>, or use <code>--collection</code> for MongoDB.</td></tr>
+    </table></div>
+    <p>Something else? Open an <a href="https://github.com/danielbartl/ditto/issues">issue</a> with the report's
+      <code>run</code> section and the message.</p>
+  </section>
+
+</article>
+</div>
+
+<footer>
+  <div class="wrap" style="max-width: 1180px">
+    <span>ditto · <a href="index.html">Overview</a> · <a href="https://github.com/danielbartl/ditto/blob/master/CHANGELOG.md">Changelog</a> · <a href="https://github.com/danielbartl/ditto/blob/master/LICENSE">MIT License</a> · © 2026 Daniel Bartl</span>
+    <span><a href="https://github.com/danielbartl/ditto">github.com/danielbartl/ditto</a></span>
+  </div>
+</footer>
+
+<script>
+// highlight the chapter being read
+(function () {
+  var links = {};
+  document.querySelectorAll('.toc a').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+  if (!window.IntersectionObserver) return;
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      Object.keys(links).forEach(function (id) { links[id].classList.toggle('active', id === entry.target.id); });
+    });
+  }, { rootMargin: '-80px 0px -70% 0px' });
+  document.querySelectorAll('article section[id]').forEach(function (section) { observer.observe(section); });
+})();
+</script>
+<script src="site.js"></script>
+</body>
+</html>

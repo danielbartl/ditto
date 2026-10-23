@@ -29,7 +29,7 @@ precision, so both stores get the same metrics, verdict and report.
 Requirements: Java 21 or newer, Spring Boot 4.1, and MongoDB 4.4+ (tested with 8.0) or OpenSearch 2.19 or 3.x
 (tested with 2.19 and 3.9). Integration tests need Docker.
 
-**Home page:** https://danielbartl.github.io/ditto/
+**Home page:** https://danielbartl.github.io/ditto/ · **User guide:** https://danielbartl.github.io/ditto/guide.html
 
 ---
 
@@ -928,8 +928,8 @@ How to read it:
 5. **`examples`**: keys as relaxed Extended JSON, ready for mongosh:
    `db.products.find({_id: {"$oid": "6553f1212161972337cc2db4"}})`. Look at the same key in both collections.
 6. **`hints`**: what to configure next. Each hint has a message, plus a ready-to-use `property` and `cliOption` where
-   there is something to configure. Kinds: `IGNORE_TECHNICAL_FIELD`, `EXPECTED_CHANGE`, `WILDCARD`, `LARGER_SAMPLE`,
-   `INVESTIGATE`.
+   there is something to configure. Kinds: `IGNORE_TECHNICAL_FIELD`, `EXPECTED_CHANGE`, `WILDCARD`, `MATCHED_ONLY`,
+   `LARGER_SAMPLE`, `INVESTIGATE`.
 7. **`run.decisions`** and **`run.thresholdSource`**: which conventions ditto applied (mode, detected maps), and
    where the thresholds came from (configuration, request or history), including how history-based ones were
    derived.
